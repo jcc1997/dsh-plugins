@@ -1,0 +1,37 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # 构建产物 + tarball（kanban/git 各出一个 tgz 挂 GitHub Release）
+      - name: Pack kanban
+        working-directory: plugins/kanban
+        run: npm run check && npm pack
+      - name: Pack git
+        working-directory: plugins/git
+        run: npm run check && npm pack
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist-tarballs
+          mv plugins/kanban/*.tgz plugins/git/*.tgz dist-tarballs/
+          gh release create "${{ github.ref_name }}" dist-tarballs/*.tgz --generate-notes --title "${{ github.ref_name }}"

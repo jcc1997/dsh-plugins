@@ -1,5 +1,5 @@
 {
-  "name": "dsh-git-plugin",
+  "name": "dsh-git",
   "version": "0.1.0",
   "private": true,
   "description": "DSH git 插件：task 关联 GitHub/本地仓库/branch/MR，跨插件同步与 [ID] 自动关联",
@@ -9,7 +9,8 @@
     "watch": "node build.mjs --watch",
     "typecheck": "tsc --noEmit 2>/dev/null || true",
     "check": "node build.mjs && node scripts/verify-dist.mjs",
-    "publish:git": "npm run check && npm publish"
+    "publish:git": "npm run check && npm publish",
+    "pack:check": "npm pack --dry-run"
   },
   "devDependencies": {
     "@dsh-plugins/ui": "workspace:*",

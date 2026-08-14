@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # 每个插件：类型 + 构建 + 受限环境验证 + 发布产物检查
+      - run: npm run check && npm run pack:check
+        working-directory: plugins/kanban
+      - run: npm run check && npm run pack:check
+        working-directory: plugins/git

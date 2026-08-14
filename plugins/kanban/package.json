@@ -1,5 +1,5 @@
 {
-  "name": "dsh-kanban-plugin",
+  "name": "dsh-kanban",
   "version": "0.2.0",
   "description": "DSH 看板插件（bundle 化部署目标）：归档/侧边栏/分组/富文本内容（v3）",
   "type": "module",
@@ -9,7 +9,8 @@
     "watch": "node build.mjs --watch",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit && node build.mjs && node scripts/verify-dist.mjs",
-    "publish:kanban": "npm run check && npm publish"
+    "publish:kanban": "npm run check && npm publish",
+    "pack:check": "npm pack --dry-run"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
@@ -35,6 +36,7 @@
     "dsh",
     "dsh-plugin",
     "kanban",
-    "deepseek-harness"
+    "deepseek-harness",
+    "cordis"
   ]
 }

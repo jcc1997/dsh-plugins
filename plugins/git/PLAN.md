@@ -264,3 +264,43 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 ### 8.5 建议顺序
 
 M3 验收通过 → 先按 §8.2 做**一个插件的试部署**（建议 git，依赖少）→ 验证部署形态的 emit/事件链路 → 再迁移 kanban（UI 复杂，最后做）→ 动态版本降级为"预览/调试通道"，文档标注。
+
+### 8.6 社区已验证样板：Ericwong5021/dsh-kanban（2026-08 实读，部署化施工图）
+
+社区插件 [dsh-kanban](https://github.com/Ericwong5021/dsh-kanban) 已按正式 bundle 形态发布（GitHub Release tarball 分发），逐项对照：
+
+**① 包元数据（package.json）—— 我们缺失的全部在此：**
+```json
+{
+  "name": "dsh-kanban",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": { ".": {...}, "./client": {...}, "./package.json": "./package.json" },
+  "files": ["lib", "cordis.patch.yml"],
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": { "inject": ["@deepseek-ai/dsh-client-runtime", "@deepseek-ai/dsh-client-ui-sidebar"], "platform": "web" }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-client-runtime": "^0.1.0-rc.5",
+    "@deepseek-ai/dsh-client-ui-primitives/sidebar/slots": "^0.1.0-rc.5"
+  }
+}
+```
+
+**② cordis.patch.yml**：`- insert: [{ id: kanban, name: dsh-kanban }]`（行 id + 包名；loader 按包名解析模块，不写相对路径）。
+
+**③ 双入口标准模块**（非 iife/非动态 runner 全局）：
+- host：`src/index.ts` → `export function apply(ctx) {}`（标准 cordis 插件）
+- client：`src/client/index.ts` → `export const inject = ['slots','sessions','workspaces']` + `export function apply(ctx: ClientContext)`，类型来自 `@deepseek-ai/dsh-client-runtime/client`；用 `ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({...}, Comp))`，register 可带 `inject: () => ownerFace` 回调（owner 接口注入，替代动态形态的 renderSlot props）
+
+**④ 构建（tsdown，替代 esbuild iife）**：tsc 编译 → tsdown 双产物：host `lib/index.js`（esm/node）+ client `lib/client.js`（cjs/browser，banner/footer 包装成 `window.__ModuleLoader__.load({ id, factory: (require) => {...} })`——与 dsh-cordis-client-runner 的 ModuleLoader 同一机制）；CSS modules 经 lightningcss 编译 + 运行时注入 `<style data-plugin-css>`。
+
+**⑤ 发布/安装**：`npm pack` → GitHub Release（tag `v*.*.*` 触发，release.yml 附 tgz）；用户 `dsh plugin add https://github.com/<owner>/<repo>/releases/latest/download/<pkg>-<ver>.tgz` 或 git 直装（需 `prepare` 脚本 + profile `allowBuilds`）。CI：build + `npm pack --dry-run`。
+
+**⑥ 对我们（kanban/git）的迁移增量**：
+- host 半：`harness.handle/defineTool/registerTool` 全部要换（正式形态无 harness 全局）——工具注册调研 `@deepseek-ai/dsh-tools` 或 `ctx.tools`；RPC 换 communication 包的 rpc 通道（§8.3 表）
+- client 半：`host.call` 私有 RPC 换服务通道（host 半 provide + client 半 ctx 服务访问，需验证 client runtime 的服务读取）；或参考项目做法把数据落浏览器端（localStorage）——**我们的 board.json 在 host 侧，倾向保留 host 存储 + 服务通道**
+- 槽位/样式：slots API 同构（动态/正式一致），CSS 需从全局 class 迁移为 CSS modules 或保留全局注入（本仓库用全局 kbnb- 前缀 class + tokens，可原样注入，不必 CSS modules）
+- 工具定义（19 个）与数据层（board.ts）零改动，直接复用
