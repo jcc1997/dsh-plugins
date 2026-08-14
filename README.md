@@ -1,6 +1,6 @@
 # dsh-plugins — DSH 插件大仓
 
-> 开发前先加载 skill：（受限环境约束 + 踩坑 + TS 编译管线）
+> 开发前先加载 skill：`.agents/skills/dsh-dynamic-plugin-dev`（受限环境约束 + 踩坑记录 + TS 编译管线用法）
 
 DeepSeek Harness（DSH）的插件集合仓库。每个插件是一个遵循官方规范的 **bundle 包**（npm 包 + 配置层），可独立安装、发布、共享。
 
@@ -115,3 +115,10 @@ pnpm --filter dsh-plugins-hello pack
 - （@dsh-plugins/ui）—— 多插件共享：官方图标（ic_ds_*，提取自 vendor submodule）+ 工具函数 + 通用组件
 -  —— 各插件 TS 源码 + esbuild 编译管线（build.mjs → dist/client.js + host.js，供 cordis_define 加载）
 -  —— 官方仓库 submodule（sparse checkout，图标来源）；clone 后执行 
+
+## Monorepo 结构（多插件共享）
+
+- `packages/ui`（`@dsh-plugins/ui`）—— **多插件共享包**：官方图标（ic_ds_* 集，提取自 vendor submodule）+ 工具函数（safeId/fmtTime/markdown 渲染）+ 通用组件（Modal）。新插件直接 import，构建时 esbuild 引用 workspace 源码并 tree-shake
+- `plugins/<name>` —— 各插件：TS/TSX 源码（`src/`）+ esbuild 编译管线（`build.mjs` → `dist/client.js` + `dist/host.js`，受限环境可加载的函数体产物）
+- `vendor/deepseek-harness` —— 官方仓库 submodule（sparse checkout `packages/client/ui-primitives`，图标源码来源）；clone 后执行 `git submodule update --init`
+- `.agents/skills/dsh-dynamic-plugin-dev` —— 动态插件开发 skill（受限环境铁律、踩坑记录、管线用法）
