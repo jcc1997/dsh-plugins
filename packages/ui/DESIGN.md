@@ -9,8 +9,8 @@ DSH 宿主在运行时注入完整的官方设计 tokens（`--dsw-static-*` 色�
 
 **规则**：
 1. **优先引用宿主变量**：插件样式直接用 `--dsw-alias-*` / `--dsw-static-*`，明暗主题自动适配，无需自管主题
-2. **`--kbnb-*` 只是语义别名层**（`packages/ui/src/tokens.ts`）：把宿主变量按用途重命名（如 `--kbnb-bg` = `var(--dsw-alias-bg-base)`），保证语义清晰且宿主改名时只需改一处
-3. **宿主没有的语义才自建**：自建值必须取色于官方色板（`--dsw-static-*`），禁止任意色值
+2. **不设自研别名层**：样式直接写 `var(--dsw-*)`，不定义中间变量（历史上有 `--kbnb-*` 别名层，已删除——宿主变量名语义已足够清晰，多一层只会增加间接）
+3. **宿主没有的语义才自建**：自建值必须取色于官方色板（`--dsw-static-*`），禁止任意色值；自建项（如 accent 的 soft/ring 半透明）以官方色板换算
 4. **组件形态对齐官方**：圆角按官方实测（小控件 6 / 按钮输入 8 / 卡片 12 / 浮层 14）；阴影用 `--dsw-shadow-lv2/lv3`；正文基准字号 13px（`--dsw-font-xs-13`）
 5. **可对照官方组件源码**：`vendor/deepseek-harness/packages/client/ui-primitives/src/*.module.css`（Button/Input/Modal 等）是官方实现，样式拿不准时照抄其取值
 
@@ -22,23 +22,23 @@ DSH 宿主在运行时注入完整的官方设计 tokens（`--dsw-static-*` 色�
 4. **一致性优先** — 所有组件共用同一套 token；同义操作（主按钮/次按钮/危险按钮）全局唯一形态。
 5. **克制动效** — 仅过渡（150ms ease）与浮层出现（240ms）；不添加旋转/弹跳等装饰动画。
 
-## 二、Tokens（packages/ui/src/tokens.ts，全部映射宿主）
+## 二、Tokens（直接引用宿主 `--dsw-*`）
 
-| 类别 | 变量 | 宿主映射 | 用途 |
+| 类别 | 变量 | 用途 |
 |---|---|---|---|
-| 品牌 | `--kbnb-accent` | `--dsw-alias-state-business-primary` | 主操作、选中、焦点（浅色 = deepseek-500） |
-| 品牌 | `--kbnb-accent-hover` | `--dsw-static-deepseek-600` | 主按钮 hover |
-| 品牌 | `--kbnb-accent-soft/ring` | 官方色板换算 rgba | 标签底色 / focus ring、拖拽轨迹 |
-| 中性 | `--kbnb-bg` | `--dsw-alias-bg-base` | 页面 / 浮层 |
-| 中性 | `--kbnb-bg-subtle` | `--dsw-static-neutral-bluish-50` | 浅灰底（评论气泡等） |
-| 中性 | `--kbnb-bg-hover/active` | `--dsw-alias-interactive-bg-hover/active` | 悬停 / 按下 |
-| 文字 | `--kbnb-fg / secondary / tertiary` | `--dsw-alias-label-*` | 主文 / 次文 / 辅助 |
-| 边框 | `--kbnb-border / border-strong` | `--dsw-alias-border-l2` / `neutral-bluish-300` | 分隔 / 强分隔 |
-| 语义 | `--kbnb-danger / success` | `--dsw-alias-state-error/success-primary` | 危险 / 成功 |
-| 圆角 | `--kbnb-radius-sm/md/lg/xl` | 官方实测 6 / 8 / 12 / 14 | 控件 / 按钮输入 / 卡片 / 浮层 |
-| 阴影 | `--kbnb-shadow-sm/md/lg` | 自定 xs / `--dsw-shadow-lv2` / `lv3` | 卡片 / 浮层 / 抽屉 |
-| 字阶 | `--kbnb-font-xs…title` | 官方体系，正文基准 13px | 11→26px |
-| 间距 | `--kbnb-space-1…7` | 4n 体系 | 4→32px |
+| 品牌 | `--dsw-alias-state-business-primary` | 主操作、选中、焦点（浅色 = deepseek-500，深色自动切换） |
+| 品牌 | `--dsw-static-deepseek-600` | 主按钮 hover |
+| 品牌 | 官方色板换算 rgba(65,118,230,.08/.18) | 标签底色 / focus ring、拖拽轨迹 |
+| 中性 | `--dsw-alias-bg-base` | 页面 / 浮层 |
+| 中性 | `--dsw-static-neutral-bluish-50` | 浅灰底（评论气泡等） |
+| 中性 | `--dsw-alias-interactive-bg-hover/active` | 悬停 / 按下 |
+| 文字 | `--dsw-alias-label-primary / secondary / tertiary` | 主文 / 次文 / 辅助 |
+| 边框 | `--dsw-alias-border-l2` / `--dsw-static-neutral-bluish-300` | 分隔 / 强分隔 |
+| 语义 | `--dsw-alias-state-error/success-primary` | 危险 / 成功 |
+| 圆角 | 官方实测 6 / 8 / 12 / 14px | 控件 / 按钮输入 / 卡片 / 浮层 |
+| 阴影 | 自定 xs/sm / `--dsw-shadow-lv2` / `lv3` | 卡片 / 浮层 / 抽屉 |
+| 字阶 | 官方体系（正文基准 13px） | 11→26px |
+| 间距 | 4n 体系 | 4→32px |
 
 完整色板与明暗值：`packages/ui/dsh/design-platform.css`（浅色 `:root` + 深色 `body[data-ds-dark-theme]` 两段）。
 

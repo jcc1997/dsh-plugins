@@ -170,5 +170,5 @@ node scripts/verify-dist.mjs   # 验证产物可加载（含工具注册数断�
 - 看板入口：`sidebar.footer.action`（按钮 + 全屏页单组件），不用 overlay 槽位（hooks/联动问题）
 - 设置页：`settings.section`；数据读写走 host RPC（动态插件无 schemastery schema）
 - 数据：`~/.dsh/kanban/board.json` + config.json(dataDir)；卡片含 `tags[]`/`comments[]`/`activity[]`(带 actor)/`links[]`/`meta{}`
-- 共享包：`packages/ui` —— design tokens（`--kbnb-*`，见 DESIGN.md）+ 官方图标提取 + 工具函数 + Modal
-- 设计规范：`packages/ui/DESIGN.md`（原则 + tokens + 组件契约 + 间距契约），组件样式一律引用变量，禁止硬编码
+- 共享包：`packages/ui` —— 官方图标提取 + 工具函数 + Modal + 官方规范 css（`dsh/design-platform.css`）
+- 设计规范：`packages/ui/DESIGN.md`。**样式直接引用宿主 `--dsw-*` tokens**（明暗主题自动适配，禁止自建别名层、禁止硬编码）
