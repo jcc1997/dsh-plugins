@@ -1,0 +1,19 @@
+{
+  "name": "dsh-plugins-kanban",
+  "version": "0.2.0",
+  "description": "DSH kanban 插件（TS 源码 + esbuild 编译管线，产物供 cordis_define 加载）",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
+    "@types/react": "^18.3.0",
+    "esbuild": "^0.24.0",
+    "react": "^18.3.1",
+    "typescript": "^5.6.0",
+    "@dsh-plugins/ui": "workspace:*"
+  }
+}
