@@ -6,6 +6,18 @@ DSH 动态插件（cordis_define）开发经验总结：受限环境约束、踩
 
 在 DSH 会话中用 `cordis_define`/`cordis_run` 开发/迭代插件（热更新），或在大仓 `plugins/*` 写新插件。
 
+## 零、硬性规则（违反 = 烧 token）
+
+**Code Mode 未启用时，直接拒绝 cordis_define 热更新开发。**
+
+判定方法：模型当前能否直接调用 `run_code`？
+- 能（工具列表只有 run_code）→ Code Mode 已启用，走 SDK 流程（见下）
+- 不能（工具是 bash/read/edit 等独立形态）→ **拒绝热更新迭代**，要求用户先以 `DSH_TOOLS_MODE=code` 重启 dsh 再继续；或改用组合插件文件引用（cordis.yml 引用 dist 产物，零上下文但要重启进程）
+
+### 为什么（雷霆大坑记录）
+
+2026-08 实测：cordis_define 的 code 参数必须内联在模型工具调用中，产物 31KB **每次 define 全量进入模型上下文**。切段/拼接/read 截断绕行（`tools.read` 2000 字符/行截断、手工拼接易错、17 次读取）进一步放大消耗。一次迭代 ≈ 50KB+ 上下文。**Code Mode SDK 是本坑的唯一解**：产物从磁盘读入程序，模型只写几行代码 + 路径，几十 KB 零进入上下文。跑通验证：kbnb-1/pkg-1。
+
 ## 一、受限环境铁律（动态插件代码）
 
 Host/Client 代码都是**纯 JS 函数体**，在受限执行环境运行：
