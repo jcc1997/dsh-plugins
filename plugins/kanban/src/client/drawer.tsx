@@ -13,6 +13,7 @@ export function CardDrawer(props: {
   onDelete: () => void
   onClose: () => void
   onAddComment: (text: string) => void
+  onUpdateTags: (add: string[], remove: string[]) => void
   onMoveStatus: (targetColId: string) => void
 }) {
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
@@ -81,6 +82,18 @@ export function CardDrawer(props: {
             <button className="kbnb-btn kbnb-danger" type="button" onClick={props.onDelete}>
               删除
             </button>
+          </div>
+
+          {/* 标签 */}
+          <div className="kbnb-tag-row">
+            <span className="kbnb-field-label">标签</span>
+            {(props.card.tags || []).map((tg) => (
+              <span key={tg} className="kbnb-tag kbnb-tag-removable" title={'移除标签 ' + tg} onClick={() => props.onUpdateTags([], [tg])}>
+                {tg}
+                <span className="kbnb-tag-x">×</span>
+              </span>
+            ))}
+            <TagInput onAdd={(t) => props.onUpdateTags([t], [])} />
           </div>
 
           {/* 描述 */}
@@ -162,5 +175,27 @@ export function CardDrawer(props: {
         </div>
       </aside>
     </div>
+  )
+}
+
+/** 标签添加输入：回车/失焦确认 */
+function TagInput(props: { onAdd: (tag: string) => void }) {
+  const [v, setV] = useState('')
+  function commit() {
+    const t = v.trim()
+    if (t) props.onAdd(t)
+    setV('')
+  }
+  return (
+    <input
+      className="kbnb-input kbnb-tag-input"
+      value={v}
+      onChange={(evt) => setV(evt.target.value)}
+      placeholder="+ 添加标签"
+      onKeyDown={(evt) => {
+        if (evt.key === 'Enter') commit()
+      }}
+      onBlur={commit}
+    />
   )
 }

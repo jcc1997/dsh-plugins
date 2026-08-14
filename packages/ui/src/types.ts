@@ -5,6 +5,7 @@ export interface KanbanCard {
   description?: string
   links?: unknown[]
   meta?: Record<string, unknown>
+  tags?: string[]
   comments?: KanbanComment[]
   activity?: KanbanActivity[]
   createdAt?: string

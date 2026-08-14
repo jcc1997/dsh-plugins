@@ -3,15 +3,17 @@ import React, { useState } from 'react'
 import { Modal } from '@dsh-plugins/ui'
 
 export function CreateCardModal(props: {
-  onCreate: (title: string, description: string) => void
+  onCreate: (title: string, description: string, tags: string[]) => void
   onClose: () => void
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [tagsText, setTagsText] = useState('')
   function submit() {
     const t = title.trim()
     if (!t) return
-    props.onCreate(t, description)
+    const tags = tagsText.split(/[,，\s]+/).map((x) => x.trim()).filter((x) => x)
+    props.onCreate(t, description, tags)
     props.onClose()
   }
   return (
@@ -25,6 +27,12 @@ export function CreateCardModal(props: {
         onKeyDown={(evt) => {
           if (evt.key === 'Enter' && !evt.shiftKey) submit()
         }}
+      />
+      <input
+        className="kbnb-input"
+        value={tagsText}
+        onChange={(evt) => setTagsText(evt.target.value)}
+        placeholder="标签（可选，逗号分隔）"
       />
       <textarea
         className="kbnb-textarea"

@@ -53,7 +53,7 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
   function openNewCard(columnId: string) {
     setCreating(columnId)
   }
-  function createCard(columnId: string, title: string, description: string) {
+  function createCard(columnId: string, title: string, description: string, tags: string[] = []) {
     mutate((b) => {
       const col = b.columns.find((c) => c.id === columnId)
       if (!col) return
@@ -61,6 +61,7 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
         id: safeId('k'),
         title,
         description,
+        tags,
         links: [],
         meta: {},
         comments: [],
@@ -118,6 +119,25 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
       if (col) col.cards = col.cards.filter((k) => k.id !== cardId)
     })
     setDrawer(null)
+  }
+  function updateTags(cardId: string, add: string[], remove: string[]) {
+    mutate((b) => {
+      let target: any = null
+      for (const col of b.columns) {
+        const k = col.cards.find((x) => x.id === cardId)
+        if (k) { target = k; break }
+      }
+      if (!target) return
+      if (!Array.isArray(target.tags)) target.tags = []
+      for (const tg of add) {
+        if (tg && !target.tags.includes(tg)) { target.tags.push(tg); appendActivity(target, '添加标签：' + tg) }
+      }
+      for (const tg of remove) {
+        const i = target.tags.indexOf(tg)
+        if (i >= 0) { target.tags.splice(i, 1); appendActivity(target, '移除标签：' + tg) }
+      }
+      if (add.length > 0 || remove.length > 0) target.updatedAt = safeNow()
+    })
   }
   function addComment(text: string) {
     if (!drawer) return
@@ -290,6 +310,13 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
                     onClick={() => openCard(col.id, card.id)}
                   >
                     <div className="kbnb-card-title">{card.title}</div>
+                    {card.tags && card.tags.length > 0 ? (
+                      <div className="kbnb-card-tags">
+                        {card.tags.map((tg) => (
+                          <span key={tg} className="kbnb-tag">{tg}</span>
+                        ))}
+                      </div>
+                    ) : null}
                     {card.description ? (
                       <div className="kbnb-card-desc">
                         {card.description.replace(/[#*`\[\]()\-]/g, '').split(/\n{2,}/)[0]}
@@ -315,12 +342,13 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
           onDelete={deleteCard}
           onClose={() => setDrawer(null)}
           onAddComment={addComment}
+          onUpdateTags={(add, remove) => updateTags(drawer.cardId, add, remove)}
           onMoveStatus={moveCardToStatus}
         />
       ) : null}
       {creating ? (
         <CreateCardModal
-          onCreate={(title, description) => createCard(creating, title, description)}
+          onCreate={(title, description, tags) => createCard(creating, title, description, tags)}
           onClose={() => setCreating(null)}
         />
       ) : null}

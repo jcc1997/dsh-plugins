@@ -38,10 +38,15 @@ async function loadClient() {
 async function loadHost() {
   const src = await readFile(join(root, 'dist', 'host.js'), 'utf8')
   const handlers = {}
+  const registered = []
   const sandbox = {
     console,
-    harness: { handle: (m, fn) => { handlers[m] = fn } },
-    ctx: { get: (name) => (name === 'fs' ? fsMock : undefined) },
+    harness: {
+      handle: (m, fn) => { handlers[m] = fn },
+      defineTool: (def) => def,
+      registerTool: (_ctx, def) => { registered.push(def && def.name); return () => {} },
+    },
+    ctx: { get: (name) => (name === 'fs' ? fsMock : undefined), effect: (cb) => cb() || (() => {}) },
   }
   const fsMock = {
     resolve: async (p) => ({ targetKey: p }),
@@ -52,14 +57,18 @@ async function loadHost() {
   const result = await vm.runInContext('(async () => {' + src + '\n})()', ctx)
   const plugin = await result
   if (!plugin || plugin.name !== 'kanban') throw new Error('host plugin shape wrong')
-  plugin.apply({ get: (name) => (name === 'fs' ? fsMock : undefined) })
+  const mockCtx = { get: (name) => (name === 'fs' ? fsMock : undefined), effect: (cb) => cb() || (() => {}) }
+  plugin.apply(mockCtx)
   const keys = Object.keys(handlers)
   if (!keys.includes('kanban/load') || !keys.includes('kanban/save') || !keys.includes('kanban/set-data-dir')) {
     throw new Error('host handlers missing: ' + keys.join(','))
   }
   const loaded = await handlers['kanban/load']()
   if (!loaded.board || loaded.board.columns.length !== 3) throw new Error('load default board wrong')
-  console.log('host.js: OK (handlers=' + keys.join(',') + ', default board 3 columns)')
+  const expectTools = ['kanban_view','kanban_get_card','kanban_search','kanban_recent','kanban_create','kanban_move','kanban_update','kanban_tags','kanban_comment','kanban_delete']
+  const missing = expectTools.filter((t) => !registered.includes(t))
+  if (missing.length > 0) throw new Error('tools missing: ' + missing.join(','))
+  console.log('host.js: OK (handlers=' + keys.join(',') + ', tools=' + registered.length + ', default board 3 columns)')
 }
 
 await loadClient()

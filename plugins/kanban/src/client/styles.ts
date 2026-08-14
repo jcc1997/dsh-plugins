@@ -51,6 +51,14 @@ export const kbnbCss = designTokensCss + `
 .kbnb-card-drag{opacity:.5;transform:none}
 .kbnb-card-title{font-size:var(--kbnb-font-md);font-weight:600;line-height:1.5;word-break:break-word}
 .kbnb-card-desc{font-size:var(--kbnb-font-base);color:var(--kbnb-fg-secondary);margin-top:6px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.kbnb-card-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.kbnb-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--kbnb-accent);background:var(--kbnb-accent-soft);border-radius:var(--kbnb-radius-full);padding:2px 8px;line-height:1.6;white-space:nowrap}
+.kbnb-tag-removable{cursor:pointer;transition:all var(--kbnb-ease)}
+.kbnb-tag-removable:hover{background:var(--kbnb-danger-soft);color:var(--kbnb-danger)}
+.kbnb-tag-x{font-size:12px;line-height:1;opacity:.7}
+.kbnb-tag-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:var(--kbnb-space-4);padding-bottom:var(--kbnb-space-3);border-bottom:1px solid var(--kbnb-border)}
+.kbnb-tag-row .kbnb-field-label{flex:none}
+.kbnb-tag-input{width:120px;padding:4px 10px;font-size:var(--kbnb-font-sm);border-radius:var(--kbnb-radius-full);flex:none}
 .kbnb-add-card{background:none;border:none;cursor:pointer;color:var(--kbnb-fg-tertiary);font-size:var(--kbnb-font-base);padding:10px 0;border-radius:var(--kbnb-radius-md);text-align:left;flex:none;transition:all var(--kbnb-ease);font-family:inherit}
 .kbnb-add-card:hover{color:var(--kbnb-accent);background:var(--kbnb-accent-soft)}
 .kbnb-drop-line{height:3px;background:var(--kbnb-accent);border-radius:2px;margin:-2px 0;box-shadow:0 0 6px var(--kbnb-accent-ring)}

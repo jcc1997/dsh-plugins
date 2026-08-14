@@ -1,18 +1,14 @@
-// Host 入口：组装 host 插件（构建产物供 cordis_define 的 code.host 加载）
+// Host 入口：Package-private RPC（client） + 动态模型工具（agent 查询/操作看板）
 interface FsLike {
   resolve(path: string, opts?: { cwd?: string; signal?: unknown }): Promise<{ targetKey: string; displayPath: string }>
   readText(target: { targetKey: string }, signal?: unknown): Promise<string>
-  writeText(
-    target: { targetKey: string },
-    content: string,
-    expected?: unknown,
-    signal?: unknown,
-    sandboxPolicy?: { mode: string },
-  ): Promise<unknown>
+  writeText(target: { targetKey: string }, content: string, expected?: unknown, signal?: unknown, sandboxPolicy?: { mode: string }): Promise<unknown>
 }
 
 interface HarnessLike {
   handle(method: string, handler: (args: unknown) => unknown): void
+  defineTool(definition: unknown): unknown
+  registerTool(ctx: unknown, tool: unknown): () => void
 }
 
 /** 受限环境注入的全局 */
@@ -21,7 +17,7 @@ declare const harness: HarnessLike
 function makePlugin() {
   return {
     name: 'kanban',
-    apply(ctx: { get(name: string): unknown }) {
+    apply(ctx: { get(name: string): unknown; effect(cb: () => unknown): unknown }) {
       const fs = ctx.get('fs') as FsLike | undefined
       if (!fs) return
 
@@ -29,17 +25,13 @@ function makePlugin() {
       const CONFIG_FILE = 'config.json'
       const BOARD_FILE = 'board.json'
       const WRITE_POLICY = { mode: 'danger-full-access' }
+      const ACTOR_AGENT = 'agent'
 
       function defaultBoard() {
         const cols = ['待办', '进行中', '完成']
         return {
           version: 1,
-          columns: cols.map((title) => ({
-            id: 'c' + Math.random().toString(36).slice(2, 10),
-            title,
-            cards: [],
-            meta: {},
-          })),
+          columns: cols.map((title) => ({ id: 'c' + Math.random().toString(36).slice(2, 10), title, cards: [], meta: {} })),
           meta: {},
         }
       }
@@ -71,12 +63,54 @@ function makePlugin() {
         await fs.writeText(target, JSON.stringify(board, null, 2), undefined, undefined, WRITE_POLICY)
       }
 
+      function now(): string {
+        try { return new Date().toISOString() } catch { return '' }
+      }
+      function safeId(prefix: string): string {
+        try { return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) } catch { return prefix + Math.floor(Math.random() * 1e9).toString(36) }
+      }
+      function appendActivity(card: any, text: string): void {
+        if (!card.activity) card.activity = []
+        card.activity.push({ id: safeId('a'), text, at: now(), actor: ACTOR_AGENT })
+      }
+
+      /** 读-改-写原子操作：fn 返回 null 表示失败（如卡片不存在） */
+      async function mutateBoard(fn: (board: any) => any): Promise<any> {
+        try {
+          const dataDir = await resolveDataDir()
+          const board = (await readBoard(dataDir)) || defaultBoard()
+          const result = fn(board)
+          if (result === null) return { ok: false, error: 'not found' }
+          await writeBoard(dataDir, board)
+          return { ok: true, ...(result || {}) }
+        } catch (e) {
+          return { ok: false, error: String(e && (e as Error).message ? (e as Error).message : e) }
+        }
+      }
+
+      /** 全局按 id 找卡片：返回 { col, card } 或 null */
+      function findCardGlobal(board: any, cardId: string): { col: any; card: any } | null {
+        for (const col of board.columns || []) {
+          const card = (col.cards || []).find((k: any) => k.id === cardId)
+          if (card) return { col, card }
+        }
+        return null
+      }
+      /** 按列名或列 id 解析列 */
+      function resolveColumn(board: any, status?: string): any {
+        if (!status) return (board.columns || [])[0]
+        return (board.columns || []).find((c: any) => c.id === status || c.title === status) || null
+      }
+      function cardSummary(card: any, col: any): any {
+        return { id: card.id, title: card.title, status: col.title, column_id: col.id, tags: card.tags || [], updatedAt: card.updatedAt, createdAt: card.createdAt }
+      }
+
+      /* ── Package-private RPC（client UI 用） ── */
       harness.handle('kanban/load', async () => {
         const dataDir = await resolveDataDir()
         const board = await readBoard(dataDir)
         return { board: board || defaultBoard(), dataDir }
       })
-
       harness.handle('kanban/save', async (args: unknown) => {
         const board = (args as { board?: unknown } | null)?.board
         if (!board || typeof board !== 'object') return { ok: false, error: 'missing board' }
@@ -88,7 +122,6 @@ function makePlugin() {
           return { ok: false, error: String(e && (e as Error).message ? (e as Error).message : e) }
         }
       })
-
       harness.handle('kanban/set-data-dir', async (args: unknown) => {
         const dir = (args as { dir?: string } | null)?.dir
         if (typeof dir !== 'string' || dir.trim().length === 0) return { ok: false, error: 'invalid dir' }
@@ -106,6 +139,225 @@ function makePlugin() {
           return { ok: false, error: String(e && (e as Error).message ? (e as Error).message : e) }
         }
       })
+
+      /* ── 动态模型工具（agent 用）：注册进当前 fiber，stop/update 自动移除 ── */
+      const P = (properties: any, required: string[] = []) => ({ type: 'object', properties, required })
+      const STR = (description: string) => ({ type: 'string', description })
+      const STRS = (description: string) => ({ type: 'array', items: { type: 'string' }, description })
+      const NUM = (description: string) => ({ type: 'number', description })
+      const outputOf = (description: string) => ({ schema: { type: 'object', additionalProperties: true }, render: (args: unknown, value: unknown) => [{ type: 'text', text: description + '\n' + JSON.stringify(value, null, 2) }] })
+
+      const defs: any[] = [
+        {
+          name: 'kanban_view',
+          description: '查看整个看板：所有列（状态）及其中的卡片概要。适合 agent 了解全局。',
+          parameters: P({}),
+          execute: async () => {
+            const dataDir = await resolveDataDir()
+            const board = (await readBoard(dataDir)) || defaultBoard()
+            const columns = (board.columns || []).map((col: any) => ({
+              id: col.id, title: col.title, count: (col.cards || []).length,
+              cards: (col.cards || []).map((k: any) => cardSummary(k, col)),
+            }))
+            return { ok: true, board: { columns } }
+          },
+          output: outputOf('看板全览'),
+        },
+        {
+          name: 'kanban_get_card',
+          description: '按卡片 id 获取单个卡片的完整详情：标题、描述、状态、标签、评论、变更记录。',
+          parameters: P({ card_id: STR('卡片 id（来自 kanban_view / kanban_search 的结果）') }, ['card_id']),
+          execute: async (args: any) => {
+            return mutateBoard((board: any) => {
+              const hit = findCardGlobal(board, String(args.card_id))
+              if (!hit) return null
+              const { card, col } = hit
+              return { card: { ...cardSummary(card, col), description: card.description || '', comments: card.comments || [], activity: card.activity || [] }, column: { id: col.id, title: col.title } }
+            })
+          },
+          output: outputOf('卡片详情'),
+        },
+        {
+          name: 'kanban_search',
+          description: '按条件查询卡片：keyword 匹配标题/描述；status 为列名或列 id（如"待办"）；tags 要求卡片包含全部标签。条件可组合，不传则返回全部。',
+          parameters: P({
+            keyword: STR('关键词，匹配标题或描述（模糊，不区分大小写）'),
+            status: STR('列名或列 id，如 "待办"、"进行中"、列 id'),
+            tags: STRS('要求的标签列表，卡片需包含其中全部'),
+          }),
+          execute: async (args: any) => {
+            const dataDir = await resolveDataDir()
+            const board = (await readBoard(dataDir)) || defaultBoard()
+            const kw = args.keyword ? String(args.keyword).toLowerCase() : ''
+            const tagList: string[] = Array.isArray(args.tags) ? args.tags.map((t: any) => String(t)) : []
+            const out: any[] = []
+            for (const col of board.columns || []) {
+              if (args.status && col.id !== args.status && col.title !== args.status) continue
+              for (const card of col.cards || []) {
+                if (kw) {
+                  const hay = ((card.title || '') + ' ' + (card.description || '')).toLowerCase()
+                  if (hay.indexOf(kw) < 0) continue
+                }
+                if (tagList.length > 0) {
+                  const cardTags: string[] = card.tags || []
+                  if (!tagList.every((t) => cardTags.includes(t))) continue
+                }
+                out.push(cardSummary(card, col))
+              }
+            }
+            return { ok: true, total: out.length, cards: out }
+          },
+          output: outputOf('查询结果'),
+        },
+        {
+          name: 'kanban_recent',
+          description: '查询最近被改动的卡片（按 updatedAt 倒序），默认 10 张，可用于了解看板最新动态。',
+          parameters: P({ limit: NUM('返回条数，默认 10，最大 50') }),
+          execute: async (args: any) => {
+            const dataDir = await resolveDataDir()
+            const board = (await readBoard(dataDir)) || defaultBoard()
+            const all: any[] = []
+            for (const col of board.columns || []) {
+              for (const card of col.cards || []) all.push({ card, col })
+            }
+            const limit = Math.min(Math.max(parseInt(args.limit, 10) || 10, 1), 50)
+            all.sort((a, b) => String(b.card.updatedAt || '').localeCompare(String(a.card.updatedAt || '')))
+            return { ok: true, cards: all.slice(0, limit).map((x) => cardSummary(x.card, x.col)) }
+          },
+          output: outputOf('最近改动'),
+        },
+        {
+          name: 'kanban_create',
+          description: '新建卡片。title 必填；status 为列名或列 id（缺省放入第一列）；可带 description 与 tags。',
+          parameters: P({
+            title: STR('卡片标题（必填）'),
+            status: STR('目标列名或列 id，缺省第一列'),
+            description: STR('描述，支持 Markdown'),
+            tags: STRS('初始标签列表'),
+          }, ['title']),
+          execute: async (args: any) => {
+            return mutateBoard((board: any) => {
+              const col = resolveColumn(board, args.status)
+              if (!col) return { ok: false, error: 'column not found: ' + String(args.status) }
+              const t = String(args.title).trim()
+              if (!t) return { ok: false, error: 'title is required' }
+              const card: any = {
+                id: safeId('k'), title: t, description: args.description || '', links: [], meta: {},
+                comments: [], activity: [], tags: Array.isArray(args.tags) ? args.tags.map((x: any) => String(x)) : [],
+                createdAt: now(), updatedAt: now(),
+              }
+              appendActivity(card, '创建卡片')
+              col.cards.push(card)
+              return { card_id: card.id, column: col.title }
+            })
+          },
+          output: outputOf('创建结果'),
+        },
+        {
+          name: 'kanban_move',
+          description: '移动卡片到目标状态（列）。status 传列名或列 id，如"进行中"。',
+          parameters: P({ card_id: STR('要移动的卡片 id'), status: STR('目标列名或列 id') }, ['card_id', 'status']),
+          execute: async (args: any) => {
+            return mutateBoard((board: any) => {
+              const hit = findCardGlobal(board, String(args.card_id))
+              if (!hit) return null
+              const to = resolveColumn(board, args.status)
+              if (!to) return { ok: false, error: 'column not found: ' + String(args.status) }
+              if (to.id === hit.col.id) return { ok: false, error: 'card already in column ' + to.title }
+              hit.col.cards = hit.col.cards.filter((k: any) => k.id !== hit.card.id)
+              hit.card.updatedAt = now()
+              appendActivity(hit.card, '状态变更：' + hit.col.title + ' → ' + to.title)
+              to.cards.push(hit.card)
+              return { card_id: hit.card.id, from: hit.col.title, to: to.title }
+            })
+          },
+          output: outputOf('移动结果'),
+        },
+        {
+          name: 'kanban_update',
+          description: '更新卡片的标题或描述（只更新传入的字段；内容实际变化才会记录变更日志）。',
+          parameters: P({
+            card_id: STR('卡片 id'),
+            title: STR('新标题（可选）'),
+            description: STR('新描述（可选）'),
+          }, ['card_id']),
+          execute: async (args: any) => {
+            return mutateBoard((board: any) => {
+              const hit = findCardGlobal(board, String(args.card_id))
+              if (!hit) return null
+              const { card } = hit
+              let changed = false
+              if (args.title !== undefined && String(args.title).trim() !== '' && card.title !== String(args.title).trim()) { card.title = String(args.title).trim(); changed = true }
+              if (args.description !== undefined && (card.description || '') !== String(args.description)) { card.description = String(args.description); changed = true }
+              if (changed) { card.updatedAt = now(); appendActivity(card, '更新卡片') }
+              return { card_id: card.id, changed }
+            })
+          },
+          output: outputOf('更新结果'),
+        },
+        {
+          name: 'kanban_tags',
+          description: '为卡片增减标签。add 与 remove 为标签名数组，可同时传；返回卡片当前标签列表。',
+          parameters: P({
+            card_id: STR('卡片 id'),
+            add: STRS('要添加的标签（可选）'),
+            remove: STRS('要移除的标签（可选）'),
+          }, ['card_id']),
+          execute: async (args: any) => {
+            return mutateBoard((board: any) => {
+              const hit = findCardGlobal(board, String(args.card_id))
+              if (!hit) return null
+              const card = hit.card
+              if (!Array.isArray(card.tags)) card.tags = []
+              const adds: string[] = Array.isArray(args.add) ? args.add.map((x: any) => String(x).trim()).filter((x: string) => x) : []
+              const rems: string[] = Array.isArray(args.remove) ? args.remove.map((x: any) => String(x).trim()).filter((x: string) => x) : []
+              for (const t of adds) { if (!card.tags.includes(t)) { card.tags.push(t); appendActivity(card, '添加标签：' + t) } }
+              for (const t of rems) { const i = card.tags.indexOf(t); if (i >= 0) { card.tags.splice(i, 1); appendActivity(card, '移除标签：' + t) } }
+              if (adds.length > 0 || rems.length > 0) card.updatedAt = now()
+              return { card_id: card.id, tags: card.tags }
+            })
+          },
+          output: outputOf('标签结果'),
+        },
+        {
+          name: 'kanban_comment',
+          description: '给卡片添加一条评论。',
+          parameters: P({ card_id: STR('卡片 id'), text: STR('评论内容') }, ['card_id', 'text']),
+          execute: async (args: any) => {
+            return mutateBoard((board: any) => {
+              const hit = findCardGlobal(board, String(args.card_id))
+              if (!hit) return null
+              const text = String(args.text).trim()
+              if (!text) return { ok: false, error: 'text is required' }
+              const card = hit.card
+              if (!Array.isArray(card.comments)) card.comments = []
+              const cid = safeId('m')
+              card.comments.push({ id: cid, text, createdAt: now() })
+              card.updatedAt = now()
+              appendActivity(card, '添加评论')
+              return { card_id: card.id, comment_id: cid }
+            })
+          },
+          output: outputOf('评论结果'),
+        },
+        {
+          name: 'kanban_delete',
+          description: '删除一张卡片（不可恢复）。',
+          parameters: P({ card_id: STR('卡片 id') }, ['card_id']),
+          execute: async (args: any) => {
+            return mutateBoard((board: any) => {
+              const hit = findCardGlobal(board, String(args.card_id))
+              if (!hit) return null
+              hit.col.cards = hit.col.cards.filter((k: any) => k.id !== hit.card.id)
+              return { card_id: String(args.card_id), deleted: true }
+            })
+          },
+          output: outputOf('删除结果'),
+        },
+      ]
+      for (const d of defs) {
+        ctx.effect(() => harness.registerTool(ctx, harness.defineTool(d)))
+      }
     },
   }
 }
