@@ -1,7 +1,7 @@
 {
-  "name": "dsh-plugins-kanban",
+  "name": "dsh-kanban-plugin",
   "version": "0.2.0",
-  "description": "DSH kanban 插件（TS 源码 + esbuild 编译管线，产物供 cordis_define 加载）",
+  "description": "DSH 看板插件（bundle 化部署目标）：归档/侧边栏/分组/富文本内容（v3）",
   "type": "module",
   "private": true,
   "scripts": {

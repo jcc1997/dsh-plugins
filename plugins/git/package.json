@@ -1,8 +1,8 @@
 {
-  "name": "dsh-plugins-git",
+  "name": "dsh-git-plugin",
   "version": "0.1.0",
   "private": true,
-  "description": "DSH git 插件：task 关联 GitHub/本地仓库/branch/MR，跨插件同步与 [ID] 自动关联（M2 骨架）",
+  "description": "DSH git 插件：task 关联 GitHub/本地仓库/branch/MR，跨插件同步与 [ID] 自动关联",
   "type": "module",
   "scripts": {
     "build": "node build.mjs",

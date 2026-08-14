@@ -94,7 +94,7 @@ cd plugins/kanban && node build.mjs && node scripts/verify-dist.mjs
 
 ```bash
 # 安装到 web profile（官方 CLI，详见 DSH 插件教程）
-dsh plugin --profile web add dsh-plugins-kanban
+dsh plugin --profile web add dsh-kanban-plugin
 # 或本地目录：dsh plugin --profile web add /path/to/dsh-plugins/plugins/kanban
 # 安装后重启 dsh 生效；重启不丢，无需 cordis_define
 ```
@@ -109,7 +109,7 @@ dsh plugin --profile web add dsh-plugins-kanban
 - **发布**：`npm publish`（默认 latest）；或 `pnpm pack` 出 tarball 分发；git 安装需作者提供 `prepare` 构建脚本 + 用户在 profile 的 `pnpm-workspace.yaml` 配 `allowBuilds`。
 - **安装**：`dsh plugin --profile <name> add <npm 包名>`（等价 pnpm add + 按 `dsh.bundle` 声明自动挂 layer）。
 
-本仓库已配置：`files` 白名单、`publishConfig.access=public`、`keywords` 含 dsh-plugin、`npm run publish:kanban|publish:git` = check + publish。
+本仓库已配置：包名按官方示例规范 `dsh-<name>-plugin`（`dsh-kanban-plugin` / `dsh-git-plugin`，对齐教程的 `dsh-hello-plugin`；官方自带 bundle 用 `@deepseek-ai/dsh-*` scope）、`files` 白名单、`publishConfig.access=public`、`keywords` 含 dsh-plugin、`npm run publish:kanban|publish:git` = check + publish。
 
 > **重要**：官方 bundle 机制靠 package.json 的 `dsh.bundle: { patch } ` 声明才能被 `dsh plugin add` 激活为插件层；当前两插件**尚未 bundle 化**（动态插件形态，无 `dsh.bundle` 声明），发布后会被装成普通依赖（CLI 会打 warning）。完成 [git PLAN §8](plugins/git/PLAN.md) 的部署迁移（标准模块导出 + `dsh.bundle` + cordis.patch.yml）后即为正式部署形态。
 
