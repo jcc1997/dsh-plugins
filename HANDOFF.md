@@ -34,7 +34,8 @@
 - `web.fetch({url})` **不能带请求头**（只读抓取缝隙）→ GitHub API 鉴权走 bash curl，token 放 spec.env 不进命令行。
 - `bash.run(spec)`：{ command, workdir, timeoutMs, stdoutMaxBytes, sandboxPolicy?, env? } → { exitCode, stdout: { text } }。
 - cordis 服务是**全局 store**（root isolate 键）：任意动态插件 ctx.get 可见、重复 provide 抛错、停用自动失效。
-- 动态插件限制：ctx.emit 不可用（不能发事件）、ctx.tools 只读（不能跨插件调工具 execute）、harness.handle/host.call 每插件私有、inject 需对象形式、会话态重启即失。
+- **事件白名单（源码级实测 2026-08，host/client 两半同款）**：`effect / on / once / provide` + timer（timeout/interval/setTimeout/setInterval/throttle/debounce）。`ctx.on/once` 可监听宿主事件（50 个：credentials/updated、tools/change、session/*、slots/changed…）；**`ctx.emit` 不在白名单——动态插件不能发事件**，跨插件通知只能走服务/私有 RPC/回调（PLAN §2.3 结论，2026-08 复确认，勿再尝试突破）。
+- 动态插件限制：ctx.tools 只读（不能跨插件调工具 execute）、harness.handle/host.call 每插件私有、inject 需对象形式、会话态重启即失。
 - 完整机制见 skill §七；设计论证见 plugins/git/PLAN.md §2/§5。
 
 ## M3 实现要点（已完成，2026-08-14 实测）
