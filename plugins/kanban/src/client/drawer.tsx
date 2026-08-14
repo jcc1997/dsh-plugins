@@ -1,5 +1,5 @@
-// 卡片抽屉：仅编辑已存在卡片
-// 布局：大标题 → 工具/状态栏(删除) → 描述 → (左右)评论｜变更记录；改动自动保存
+// 卡片抽屉：左右分栏布局（左：标题+描述+评论；右：状态+标签+关联卡片+变更记录）
+// 蒙层点击自动关闭；改动自动保存
 import React, { useEffect, useRef, useState } from 'react'
 import { IconCloseOutline16 } from '@dsh-plugins/ui'
 import { mdToElements } from '@dsh-plugins/ui'
@@ -23,7 +23,7 @@ export function CardDrawer(props: {
   const [title, setTitle] = useState(props.card.title)
   const [description, setDescription] = useState(props.card.description || '')
   const [comment, setComment] = useState('')
-  const [refKind, setRefKind] = useState('github-repo')
+  const [refKind, setRefKind] = useState('github-branch')
   const [refExt, setRefExt] = useState('')
   const [refDisplay, setRefDisplay] = useState('')
   const [refUrl, setRefUrl] = useState('')
@@ -50,108 +50,56 @@ export function CardDrawer(props: {
   const currentCol = props.columns.find((c) => c.cards.some((k) => k.id === props.card.id))
 
   return (
-    <div className="kbnb-drawer-mask">
+    <div
+      className="kbnb-drawer-mask"
+      onClick={(evt) => {
+        // 点击蒙层（非抽屉内部）自动关闭
+        if (evt.target === evt.currentTarget) props.onClose()
+      }}
+    >
       <aside className="kbnb-drawer">
-        <div className="kbnb-drawer-body">
-          {/* 标题：Notion 风格，无边框大号输入 */}
-          <div className="kbnb-title-row">
-            <input
-              className="kbnb-input-title"
-              value={title}
-              onChange={(evt) => setTitle(evt.target.value)}
-              placeholder="卡片标题"
-            />
-            <button className="kbnb-icon-btn" type="button" title="关闭" onClick={props.onClose}>
-              <IconCloseOutline16 />
-            </button>
-          </div>
-
-          {/* 工具/状态栏：状态切换 + 删除 */}
-          <div className="kbnb-toolbar">
-            <label className="kbnb-status">
-              <span className="kbnb-status-label">状态</span>
-              <select
-                className="kbnb-status-select"
-                value={currentCol ? currentCol.id : ''}
-                onChange={(evt) => {
-                  const target = evt.target.value
-                  if (target && currentCol && target !== currentCol.id) props.onMoveStatus(target)
-                }}
-              >
-                {props.columns.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="kbnb-spacer" />
-            <button className="kbnb-btn kbnb-danger" type="button" onClick={props.onDelete}>
-              删除
-            </button>
-          </div>
-
-          {/* 标签 */}
-          <div className="kbnb-tag-row">
-            <span className="kbnb-field-label">标签</span>
-            {(props.card.tags || []).map((tg) => (
-              <span key={tg} className="kbnb-tag kbnb-tag-removable" title={'移除标签 ' + tg} onClick={() => props.onUpdateTags([], [tg])}>
-                {tg}
-                <span className="kbnb-tag-x">×</span>
-              </span>
-            ))}
-            <TagInput onAdd={(t) => props.onUpdateTags([t], [])} />
-          </div>
-
-          {/* Git 关联卡片（G6/G7）：repo + MR 列表 + 状态徽标 + 同步时间 + 同步按钮（槽位） */}
-          <GitCard
-            card={props.card}
-            onRemoveRef={props.onRemoveRef}
-            actionHost={props.actionHost ? () => props.actionHost!() : null}
-          />
-
-          {/* 外部关联卡片（数据模型 v2）：非 git 的 refs + 添加表单 */}
-          <RefsCard
-            refs={props.card.refs || []}
-            refKind={refKind}
-            refExt={refExt}
-            refDisplay={refDisplay}
-            refUrl={refUrl}
-            onRefKind={setRefKind}
-            onRefExt={setRefExt}
-            onRefDisplay={setRefDisplay}
-            onRefUrl={setRefUrl}
-            onAddRef={props.onAddRef}
-            onRemoveRef={props.onRemoveRef}
-          />
-
-          {/* 描述 */}
-          <div className="kbnb-field">
-            <div className="kbnb-field-row">
-              <span className="kbnb-field-label">描述</span>
-              <div className="kbnb-switch" role="tablist">
-                <button type="button" className={mode === 'edit' ? 'kbnb-switch-on' : ''} onClick={() => setMode('edit')}>
-                  编辑
-                </button>
-                <button type="button" className={mode === 'preview' ? 'kbnb-switch-on' : ''} onClick={() => setMode('preview')}>
-                  预览
-                </button>
-              </div>
-            </div>
-            {mode === 'edit' ? (
-              <textarea
-                className="kbnb-textarea"
-                value={description}
-                onChange={(evt) => setDescription(evt.target.value)}
-                placeholder={'支持 **粗体**、*斜体*、\`代码\`、- 列表、[链接](url)、# 标题、空行分段'}
+        <div className="kbnb-drawer-body kbnb-drawer-grid">
+          {/* ══ 左列：标题 + 描述 + 评论 ══ */}
+          <div className="kbnb-drawer-main">
+            {/* 标题：Notion 风格，无边框大号输入 */}
+            <div className="kbnb-title-row">
+              <input
+                className="kbnb-input-title"
+                value={title}
+                onChange={(evt) => setTitle(evt.target.value)}
+                placeholder="卡片标题"
               />
-            ) : (
-              <div className="kbnb-preview kbnb-preview-scroll">{mdToElements(description)}</div>
-            )}
-          </div>
+              <button className="kbnb-icon-btn" type="button" title="关闭" onClick={props.onClose}>
+                <IconCloseOutline16 />
+              </button>
+            </div>
 
-          {/* 左右双栏：评论 | 变更记录 */}
-          <div className="kbnb-drawer-split">
+            {/* 描述 */}
+            <div className="kbnb-field">
+              <div className="kbnb-field-row">
+                <span className="kbnb-field-label">描述</span>
+                <div className="kbnb-switch" role="tablist">
+                  <button type="button" className={mode === 'edit' ? 'kbnb-switch-on' : ''} onClick={() => setMode('edit')}>
+                    编辑
+                  </button>
+                  <button type="button" className={mode === 'preview' ? 'kbnb-switch-on' : ''} onClick={() => setMode('preview')}>
+                    预览
+                  </button>
+                </div>
+              </div>
+              {mode === 'edit' ? (
+                <textarea
+                  className="kbnb-textarea"
+                  value={description}
+                  onChange={(evt) => setDescription(evt.target.value)}
+                  placeholder={'支持 **粗体**、*斜体*、`代码`、- 列表、[链接](url)、# 标题、空行分段'}
+                />
+              ) : (
+                <div className="kbnb-preview kbnb-preview-scroll">{mdToElements(description)}</div>
+              )}
+            </div>
+
+            {/* 评论 */}
             <section className="kbnb-section">
               <div className="kbnb-section-title">评论 {comments.length}</div>
               {comments.length === 0 ? <div className="kbnb-section-empty">暂无评论</div> : null}
@@ -189,6 +137,70 @@ export function CardDrawer(props: {
                 </button>
               </div>
             </section>
+          </div>
+
+          {/* ══ 右列：状态 + 标签 + 关联卡片 + 变更记录 ══ */}
+          <div className="kbnb-drawer-side">
+            {/* 工具/状态栏：状态切换 + 删除 */}
+            <div className="kbnb-toolbar">
+              <label className="kbnb-status">
+                <span className="kbnb-status-label">状态</span>
+                <select
+                  className="kbnb-status-select"
+                  value={currentCol ? currentCol.id : ''}
+                  onChange={(evt) => {
+                    const target = evt.target.value
+                    if (target && currentCol && target !== currentCol.id) props.onMoveStatus(target)
+                  }}
+                >
+                  {props.columns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <span className="kbnb-spacer" />
+              <button className="kbnb-btn kbnb-danger" type="button" onClick={props.onDelete}>
+                删除
+              </button>
+            </div>
+
+            {/* 标签 */}
+            <div className="kbnb-tag-row">
+              <span className="kbnb-field-label">标签</span>
+              {(props.card.tags || []).map((tg) => (
+                <span key={tg} className="kbnb-tag kbnb-tag-removable" title={'移除标签 ' + tg} onClick={() => props.onUpdateTags([], [tg])}>
+                  {tg}
+                  <span className="kbnb-tag-x">×</span>
+                </span>
+              ))}
+              <TagInput onAdd={(t) => props.onUpdateTags([t], [])} />
+            </div>
+
+            {/* Git 关联卡片（G6/G7）：repo + MR 列表 + 状态徽标 + 同步时间 + 同步按钮（槽位） */}
+            <GitCard
+              card={props.card}
+              onRemoveRef={props.onRemoveRef}
+              actionHost={props.actionHost ? () => props.actionHost!() : null}
+            />
+
+            {/* 外部关联卡片（数据模型 v2）：非 git 的 refs + 添加表单 */}
+            <RefsCard
+              refs={props.card.refs || []}
+              refKind={refKind}
+              refExt={refExt}
+              refDisplay={refDisplay}
+              refUrl={refUrl}
+              onRefKind={setRefKind}
+              onRefExt={setRefExt}
+              onRefDisplay={setRefDisplay}
+              onRefUrl={setRefUrl}
+              onAddRef={props.onAddRef}
+              onRemoveRef={props.onRemoveRef}
+            />
+
+            {/* 变更记录 */}
             <section className="kbnb-section">
               <div className="kbnb-section-title">变更记录 {activity.length}</div>
               {activity.length === 0 ? <div className="kbnb-section-empty">暂无记录</div> : null}

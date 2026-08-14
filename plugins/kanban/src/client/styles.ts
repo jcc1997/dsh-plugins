@@ -72,8 +72,15 @@ export const kbnbCss = `
 
 /* ══ 抽屉 ══ */
 .kbnb-drawer-mask{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:70;pointer-events:auto;display:flex;justify-content:flex-end}
-.kbnb-drawer{background:var(--dsw-alias-bg-base);border-left:1px solid var(--dsw-alias-border-l2);width:720px;max-width:94vw;height:100%;display:flex;flex-direction:column;box-shadow:var(--dsw-shadow-lv3)}
-.kbnb-drawer-body{flex:1;overflow-y:auto;padding:20px 24px}
+.kbnb-drawer{background:var(--dsw-alias-bg-base);border-left:1px solid var(--dsw-alias-border-l2);width:960px;max-width:96vw;height:100%;display:flex;flex-direction:column;box-shadow:var(--dsw-shadow-lv3)}
+.kbnb-drawer-body{flex:1;overflow-y:auto;padding:20px 28px}
+/* 左右分栏：左列主内容（标题/描述/评论）+ 右列固定侧栏（状态/标签/关联/变更记录） */
+.kbnb-drawer-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}
+.kbnb-drawer-main{min-width:0}
+.kbnb-drawer-side{min-width:0;display:flex;flex-direction:column;gap:0}
+.kbnb-drawer-side .kbnb-toolbar{margin-top:0}
+.kbnb-drawer-side .kbnb-tag-row{margin-bottom:14px}
+.kbnb-drawer-side .kbnb-section{margin-top:16px}
 
 /* 大标题（Notion 式） */
 .kbnb-title-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:16px}

@@ -4,7 +4,7 @@ DSH 看板插件（动态插件开发版，热更新迭代中）。
 
 ## 能力
 
-- **UI**：侧边栏「看板」入口（全屏页）→ 竖线分割列看板、拖拽排序/跨列、新建弹窗、编辑抽屉（720px，Notion 风格大标题，自动保存）、标签 chips、评论｜变更记录双栏、列配置弹窗、当前卡高亮
+- **UI**：侧边栏「看板」入口（全屏页）→ 竖线分割列看板、拖拽排序/跨列、新建弹窗、编辑抽屉（960px 左右分栏：左列标题/描述/评论，右列状态/标签/关联卡片/变更记录；蒙层点击自动关闭；Notion 风格大标题，自动保存）、标签 chips、列配置弹窗、当前卡高亮
 - **Agent 工具**（host 注册，16 个）：卡片 `view` / `get_card` / `search` / `recent` / `create` / `move` / `update` / `tags` / `comment` / `delete` + 列 `add_column` / `rename_column` / `delete_column`（非空需 force）/ `move_column` + 关联 `link` / `unlink`；操作自动写入变更记录（`actor: "agent"`）
 - **外部关联（数据模型 v2）**：卡片可关联 `github-repo` / `github-branch` / `github-mr` / `local-repo` / `jira-issue` 等引用（refs），UI 抽屉可增删，agent 经 `kanban_link` / `kanban_unlink` 编辑
 - **卡片操作槽位（M3）**：sidebar 条目声明子槽位 `kanban.card.actions`（list/root），Git 关联卡片头部渲染为操作区宿主；git 插件注册「同步」按钮 → owner props（cardId + onSynced 刷新回调）→ 同步完成后看板自动重载；git 未激活时槽位无条目，看板无感
