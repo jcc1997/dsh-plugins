@@ -26,8 +26,7 @@ async function loadClient() {
   }
   const ctx = vm.createContext(sandbox)
   const result = await vm.runInContext('(async () => {' + src + '\n})()', ctx)
-  const factory = await result
-  const plugin = factory()
+  const plugin = await result
   if (!plugin || plugin.name !== 'kanban') throw new Error('client plugin shape wrong: ' + JSON.stringify(plugin && plugin.name))
   if (typeof plugin.apply !== 'function') throw new Error('client apply missing')
   // 模拟 apply（slots 未提供 → 直接返回）
@@ -51,8 +50,7 @@ async function loadHost() {
   }
   const ctx = vm.createContext(sandbox)
   const result = await vm.runInContext('(async () => {' + src + '\n})()', ctx)
-  const factory = await result
-  const plugin = factory()
+  const plugin = await result
   if (!plugin || plugin.name !== 'kanban') throw new Error('host plugin shape wrong')
   plugin.apply({ get: (name) => (name === 'fs' ? fsMock : undefined) })
   const keys = Object.keys(handlers)

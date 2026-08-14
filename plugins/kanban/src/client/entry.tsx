@@ -12,7 +12,7 @@ interface SlotsLike {
 /** 受限环境注入的 host.call（构建后引用全局 host） */
 declare const host: { call(method: string, args?: unknown): Promise<any> }
 
-export default function makePlugin() {
+function makePlugin() {
   return {
     name: 'kanban',
     apply(ctx: CtxLike) {
@@ -60,3 +60,5 @@ export default function makePlugin() {
     },
   }
 }
+
+export default makePlugin()

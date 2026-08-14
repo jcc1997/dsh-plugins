@@ -18,7 +18,7 @@ interface HarnessLike {
 /** 受限环境注入的全局 */
 declare const harness: HarnessLike
 
-export default function makePlugin() {
+function makePlugin() {
   return {
     name: 'kanban',
     apply(ctx: { get(name: string): unknown }) {
@@ -109,3 +109,5 @@ export default function makePlugin() {
     },
   }
 }
+
+export default makePlugin()
