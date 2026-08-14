@@ -172,3 +172,30 @@ node scripts/verify-dist.mjs   # 验证产物可加载（含工具注册数断�
 - 数据：`~/.dsh/kanban/board.json` + config.json(dataDir)；卡片含 `tags[]`/`comments[]`/`activity[]`(带 actor)/`links[]`/`meta{}`
 - 共享包：`packages/ui` —— 官方图标提取 + 工具函数 + Modal + 官方规范 css（`dsh/design-platform.css`）
 - 设计规范：`packages/ui/DESIGN.md`。**样式直接引用宿主 `--dsw-*` tokens**（明暗主题自动适配，禁止自建别名层、禁止硬编码）
+
+## 七、宿主源码与跨插件联动速查（2025-08 源码实测，省 token）
+
+**不要再重复发现以下事实**；需要宿主机制细节时先看本节，运行时签名用 cordis_inspect_query。
+
+### 7.1 源码在哪
+
+- **`vendor/deepseek-harness` 是 sparse submodule**：只含 `packages/client/ui-primitives`（图标/组件/markdown 源码参考），**没有宿主核心**，别在里面找 host/runner/tools。
+- **宿主真实实现在 DSH 运行时缓存**（pnpm dlx checkout，路径形如 `~/Library/Caches/pnpm/dlx/<hash>/node_modules/.pnpm/@deepseek-ai+dsh-web-app@0.1.0-rc.6_*/node_modules/@deepseek-ai/...`）。会话运行时上下文会给出该 checkout 的绝对路径。常用包：
+  - `@deepseek-ai/dsh-cordis-host-runner`：动态插件宿主半 —— VM 沙箱、ctx 门面白名单、`harness.handle/defineTool/registerTool` 守卫、动态插件注册表（lib/types/registry.js）
+  - `@deepseek-ai/dsh-cordis-client-runner`：动态插件客户端半 —— 门面、`host.call`、slots/theme 守卫、模块装载
+  - `@deepseek-ai/dsh-tool-cordis`：cordis_define/run/stop/undefine/inspect 工具 + 宿主服务目录 SERVICE_API（60 键：fs/web/credentials/shell/timer/tools/llm/storage…）
+  - `@deepseek-ai/dsh-code-runtime-worker-thread`：run_code 执行器（本会话程序就跑在里面）
+
+### 7.2 跨插件联动结论（要点）
+
+- **服务（唯一正路）**：同会话动态插件共享同一 cordis 组合（run 挂 group ctx 子 fiber）。`ctx.provide(name, svc)` 对其他包可见；`ctx.get(name)` 可读任意已注册服务（kanban 已在用 `ctx.get('fs')`）；`inject: ['name']` 声明式消费，provider 缺失时自动 park 等待。宿主服务也可注入（fs/web/credentials/shell…）。
+- **事件**：`ctx.on/once` 可监听（含宿主事件 slots/changed、credentials/updated、tool/*）；**`ctx.emit` 不在门面白名单，动态插件不能主动发事件** → 通知用服务方法返回值/订阅。
+- **工具**：`ctx.tools` 是只读门面（schemas/get 只返回元数据），**刻意禁止**插件代码直接调用其他插件的工具 execute（防绕过 ToolRuntime 守卫链）→ 插件间协作走服务，不走工具。
+- **RPC**：`harness.handle` / `host.call` 每插件私有（client↔host 配对），跨插件 RPC 也要走服务。
+- **UI 槽位**：`ctx.slots.inject(key, () => ctx.slots.register({ name, id, order, label }, Comp))`，任意插件可向任意 slot key 注册条目（order 排序、unload 级联清理）→ 跨插件 UI（如 git 向 kanban 槽位注册 sync 按钮）可行。
+- **工具名/服务名全局唯一**：`kanban_` / `git_` 前缀惯例。
+
+### 7.3 省钱路径
+
+- 需要宿主服务/事件/槽位/工具的**准确签名**时，运行时优先 `cordis_inspect_list` + `cordis_inspect_query`（Service.listService / Event.listEvents / Slots.listSubTree / Tools），不要 grep 编译产物。
+- 本节的完整论证与 git 插件联动方案见 `plugins/git/PLAN.md` §2（调研结论）与 §5（服务/槽位契约）。

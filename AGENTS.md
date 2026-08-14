@@ -8,7 +8,7 @@
 |---|---|---|
 | README.md | 外部用户/新贡献者 | 项目介绍：是什么、能力、怎么装。**不写开发过程** |
 | AGENTS.md（本文件） | 在仓库内工作的 agent | 工作规则、流程、红线 |
-| .agents/skills/dsh-dynamic-plugin-dev/SKILL.md | 开发动态插件的 agent | 受限环境约束、代码模板、踩坑清单、编译管线、省 token 流程。**开发前必须加载** |
+| .agents/skills/dsh-dynamic-plugin-dev/SKILL.md | 开发动态插件的 agent | 受限环境约束、代码模板、踩坑清单、编译管线、省 token 流程、宿主源码/跨插件联动速查（§七）。**开发前必须加载** |
 | packages/ui/DESIGN.md | 写 UI 的 agent | 设计规范：与 DSH 宿主统一、tokens、组件契约、间距契约 |
 | packages/ui/dsh/design-platform.css | 写 UI 的 agent | DSH 官方设计 tokens 权威色板（抽取自 dsh-client-ui-theme） |
 | plugins/<name>/README.md | 该插件的使用者/维护者 | 该插件当前状态：能力、目录、数据模型、已知问题。**不是开发过程流水账** |

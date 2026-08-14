@@ -59,7 +59,7 @@ dsh-plugins/
 ├── packages/ui/       # 共享包 @dsh-plugins/ui：设计 tokens + 图标 + 工具函数 + 组件
 │   ├── DESIGN.md      # UI 设计规范（与 DSH 宿主统一）
 │   └── dsh/design-platform.css   # DSH 官方设计 tokens（抽取自 dsh-client-ui-theme）
-└── vendor/deepseek-harness/     # 官方仓库 submodule（图标源码等参考来源）
+└── vendor/deepseek-harness/     # 官方仓库 submodule（sparse checkout：仅 client/ui-primitives 图标与组件源码，无宿主核心）
 ```
 
 ## 安装
@@ -70,7 +70,7 @@ dsh-plugins/
 
 ## 开发
 
-仓库是 pnpm workspace。动态插件开发（热更新迭代）的完整方法论见 [`.agents/skills/dsh-dynamic-plugin-dev`](.agents/skills/dsh-dynamic-plugin-dev/SKILL.md)，包含受限环境约束、代码模板与踩坑清单。
+仓库是 pnpm workspace。动态插件开发（热更新迭代）的完整方法论见 [`.agents/skills/dsh-dynamic-plugin-dev`](.agents/skills/dsh-dynamic-plugin-dev/SKILL.md)，包含受限环境约束、代码模板与踩坑清单；**宿主真实源码的位置与跨插件联动机制速查见 skill 第七节**（vendor submodule 是 sparse，宿主核心在 DSH 运行时缓存里）。
 
 ## 参考
 
