@@ -152,6 +152,11 @@ const toolDef = {
 21. **`service "kanban" has been registered at <kanban>`（host-half-failed）**：与其他会话的动态插件撞**服务名**（cordis 服务是全局 store，root isolate 键）。同一根因的另一种表现是坑 19 的工具名冲突（apply 先 provide 后注册工具 → 先报服务错）。排查路径：① `cordis_inspect_query` → host `Tool.listTools` 看旧工具名是否还在（在 = 残留插件仍活着，Service 目录查不到动态服务，别指望 listService）；② **别猜插件 id**——`cordis_stop` 报 `no dynamic plugin "kbnb-4" in this process` 是**会话隔离**的，其他会话的 id 查不到（kbnb-1~4 全查不到 ≠ 残留不存在）；③ 处理：UI 停掉旧 Run / 等旧会话清理 / 用户 undefine 后注册表自动清空 → 重新 `kind: new` 定义 + run 即可，**不是源码问题**。
 22. **`awaiting-approval` ≠ host 半已成功**：host-half-failed 在用户批准后才上报（run-35 实测：先 awaiting-approval → 批准 → 收到 host-half-failed）。看到 awaiting-approval 不要下"已启动"结论，等最终结果；失败后按坑 21 排查。
 
+### Profile / 挂载事故（2026-08 实测，能直接干崩 dsh 启动）
+25. **bundle 插件禁止手动 insert**：`dsh plugin add` 已把 bundle 挂进 profile 并自动应用其 `cordis.patch.yml`（insert 行 `id: git, name: dsh-git`）；再在 profile 的 `cordis.patch.yml` 手动 insert 同插件（如 `id: dsh-git, name: dsh-git`）→ **插件被加载两份 → apply 时 `service "git" has been registered at <Include>`，dsh 直接起不来**。挂 bundle 一律用 `dsh plugin --profile web add <路径>`，不手改 profile package.json/patch。
+26. **改 profile 前先 `dsh --profile web --dump-config` 验证**（只打印配置树不启动，不打扰运行中的 dsh）：能立即暴露 patch 结构错误与重复层；改完再 dump 一次对比。**"我改个配置让你重启"是错误姿势——必须先本地验证再让用户重启**。
+27. **profile cordis.patch.yml 的顶层格式**：顶层是 patch 指令数组（`- insert:` / `- remove:` 元素）；初始内容 `[]` 与追加的 `- insert:` 混排 = 两个元素（第一个是空数组字面量），结构错误。追加内容要替换整个 `[]` 行，不要保留。
+
 ### 编码事故（2026-08 实测，白白烧 token）
 23. **`read({limit: N})` 后基于截断内容 `write` 回写 = 文件被截断**：三个文件被截成 9 行后被迫全量重写。规则：**整文件 write 的输入必须是完整内容**；定点修改一律用 `edit` 工具；拿不准文件长度先 `wc -l`。
 24. **外层模板字符串嵌套反引号 → 语法错误**：把含反引号的文本（markdown 代码块、JS 模板串）塞进 `const src = \`...\`` 会炸。用行数组 `const L: string[] = []; L.push(...); write({content: L.join("\n")})` 规避。
