@@ -65,6 +65,7 @@ plugins/kanban/
 - 验证：`node scripts/verify-dist.mjs`（vm context 提供 React/host/fs mock，模拟受限环境加载）
 - 产物格式：`var __KB__ = (() => {...})(); return __KB__.default;` —— 无 import、无 require
 - 上线：把 `dist/client.js`/`dist/host.js` 内容作为 `cordis_define` 的 `code.client`/`code.host`（JSON 转义）
+- **省 token 流程**：`build.mjs` 自动生成 `dist/submit.json` + 切段（/tmp/kanban-segs/）。提交时**一次 `cat seg-*.txt`**（31KB 实测单次输出不截断）→ 一次粘贴。不要逐段读取。小改动可攒批（多次改动一次 define）减少粘贴次数
 
 **共享包**：`packages/ui`（`@dsh-plugins/ui`）——官方图标（ic_ds_*）+ 工具函数 + 通用组件。新插件直接 import，构建时 esbuild 引用 workspace 源码 tree-shake。图标来源：`vendor/deepseek-harness`（submodule，`git submodule update --init` 拉取）。
 
