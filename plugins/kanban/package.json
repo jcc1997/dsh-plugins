@@ -18,16 +18,13 @@
     "esbuild": "^0.24.0",
     "react": "^18.3.1",
     "typescript": "^5.6.0",
-    "@dsh-plugins/ui": "workspace:*"
+    "@dsh-plugins/ui": "workspace:*",
+    "@deepseek-ai/dsh-tools": "0.1.0-rc.6"
   },
   "files": [
-    "dist",
-    "src",
-    "build.mjs",
-    "shims",
-    "scripts",
-    "README.md",
-    "tsconfig.json"
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
   ],
   "publishConfig": {
     "access": "public"
@@ -38,5 +35,34 @@
     "kanban",
     "deepseek-harness",
     "cordis"
-  ]
+  ],
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6"
+  },
+  "dependencies": {
+    "@dsh-plugins/ui": "workspace:*"
+  }
 }

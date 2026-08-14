@@ -1,0 +1,6 @@
+# dsh-kanban bundle patch：profile 挂载后插入 kanban 插件行
+# 行 name 引用包名（dsh-kanban），loader 按包 main（lib/index.js）解析 host 半；
+# client 半由 dsh.client 声明经 client-modules 生成（/plugins/kanban/client.js）
+- insert:
+    - id: kanban
+      name: dsh-kanban

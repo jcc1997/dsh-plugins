@@ -1,9 +1,12 @@
-// git 插件宿主半（M2 骨架）：git 服务 + agent 工具
+// git 插件宿主半（正式 bundle 形态）：git 服务 + agent 工具
 // 能力：git_configure（远端 repo / 本地路径 / token）、git_claim_task_id（[ID] 约定）、
-//       git_link（带验证关联）、git_list_mrs / git_sync（GitHub API + [ID] 自动关联）、git_status
+//       git_link（带验证关联）、git_list_mrs / git_sync / git_merge_pr（GitHub API + [ID] 自动关联）
 // 数据：~/.dsh/git/config.json；凭证走宿主 credentials（ref 名 GITHUB_TOKEN）；
 //       GitHub API 优先 bash(curl)+token，退化 ctx.web 匿名抓取；卡片读写走跨插件 kanban 服务
-// 通信：createComm（@dsh-plugins/communication）—— 开发（动态受限）与部署（bundle）两形态统一
+// 接入点（正式形态）：ctx.tools.register(defineTool(...)) 注册 agent 工具；
+//       ctx.webServer.register 暴露 /api/git/sync（client 同步按钮通道）；
+//       ctx.provide('git') 跨插件服务；createComm(env:'deployed-host') 走 ctx.emit 事件
+// 本文件由动态形态迁移而来：业务逻辑（GitHub API / [ID] / 同步信封）零改动
 import { createComm } from '@dsh-plugins/communication'
 
 interface FsLike {
@@ -28,13 +31,6 @@ interface KanbanLike {
   updateCard(cardId: string, patch: any): Promise<{ ok: boolean; error?: string }>
   listCards(): Promise<Array<{ id: string; title: string; taskId: string | null }>>
 }
-interface HarnessLike {
-  handle(method: string, handler: (args: unknown) => unknown): void
-  defineTool(definition: unknown): unknown
-  registerTool(ctx: unknown, tool: unknown): () => void
-}
-declare const harness: HarnessLike
-
 const TOKEN_REF = 'GITHUB_TOKEN'
 const DEFAULT_DIR = '/Users/jinchao.chen/.dsh/git'
 const CONFIG_FILE = 'config.json'
@@ -43,16 +39,25 @@ const WRITE_POLICY = { mode: 'danger-full-access' }
 const TASK_ID_RE = /^([A-Za-z0-9_.-]+)-([0-9]+)$/
 const MR_ID_RE = /\[([A-Za-z0-9_.-]+-[0-9]+)\]/g
 
-function makePlugin() {
-  return {
-    name: 'git',
-    apply(ctx: { get(name: string): unknown; provide(name: string, value: unknown): unknown; effect(cb: () => unknown): unknown }) {
-      // 通信协议：开发/部署两形态统一（createComm 按 env 选实现；这里仅用 bus 发事件）
-      const comm = createComm({ env: 'dynamic-host', ctx: ctx as any, harness: harness as any })
-      const fs = ctx.get('fs') as FsLike | undefined
+// 工具定义官方包（正式形态：宿主已装 @deepseek-ai/dsh-tools，bundle 时 external，node ESM 解析）
+import { defineTool } from '@deepseek-ai/dsh-tools'
+
+// 宿主服务形状（正式形态：完整 cordis Context + 宿主服务注入）
+interface GitCtx {
+  get(name: string): unknown
+  provide(name: string, value: unknown): unknown
+  effect(cb: () => unknown): unknown
+}
+
+export function apply(ctx: GitCtx) {
+      // 通信协议：部署形态（createComm env:'deployed-host' → bus 走 ctx.emit/on）
+      const comm = createComm({ env: 'deployed-host', ctx: ctx as any })
+      const fs = ctx.get('fs') as FsLike
       const credentials = ctx.get('credentials') as CredLike | undefined
       const bash = (ctx.get('bash') as BashLike | undefined) || (ctx.get('shell') as BashLike | undefined)
       const web = ctx.get('web') as WebLike | undefined
+      const webServer = ctx.get('webServer') as { register(r: { kind: 'exact' | 'prefix'; path: string; handler: (req: any, res: any) => void | Promise<void> }): () => void } | undefined
+      const tools = ctx.get('tools') as { register(def: unknown): () => void } | undefined
       // kanban 服务按调用时懒解析（可能后激活）
       const kanbanSvc = () => ctx.get('kanban') as KanbanLike | undefined
 
@@ -362,12 +367,27 @@ function makePlugin() {
         return { ok: true, card_id: cardId, taskId: taskIdOf(card), sync }
       }
 
-      /* ── M3：client sync 按钮私有 RPC（host.call('git/sync')） ── */
-      harness.handle('git/sync', async (args: unknown) => {
-        const a = (args || {}) as { cardId?: string }
-        if (!a.cardId) return { ok: false, error: 'cardId required' }
-        return syncCard(String(a.cardId))
-      })
+      /* ── client sync 按钮通道（正式形态）：webServer 路由 POST /api/git/sync ── */
+      if (webServer && typeof webServer.register === 'function') {
+        ctx.effect(() => webServer.register({
+          kind: 'exact',
+          path: '/api/git/sync',
+          handler: async (req: any, res: any) => {
+            try {
+              let body = ''
+              for await (const chunk of req) body += chunk
+              const args = body ? JSON.parse(body) : {}
+              const cardId = args && args.cardId ? String(args.cardId) : ''
+              const result = cardId ? await syncCard(cardId) : { ok: false, error: 'cardId required' }
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify(result))
+            } catch (e) {
+              res.writeHead(500, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ ok: false, error: String(e && (e as Error).message ? (e as Error).message : e) }))
+            }
+          },
+        }))
+      }
 
       /* ── 跨插件服务（M3 sync 按钮 / 适配层用） ── */
       ctx.provide('git', {
@@ -531,11 +551,22 @@ function makePlugin() {
           output: outputOf('合并结果'),
         },
       ]
-      for (const d of defs) {
-        ctx.effect(() => harness.registerTool(ctx, harness.defineTool(d)))
+      if (tools && typeof tools.register === 'function') {
+        // DSL 适配：动态形态的 parameters 是 { type, properties, required } 包装，
+        // dsh-tools 的 ParameterSchemaSpec 是直接属性映射（required 为属性级注解）
+        const toToolParameters = (parameters: any): any => {
+          const props = (parameters && parameters.properties) || {}
+          const required: string[] = (parameters && parameters.required) || []
+          const out: any = {}
+          for (const key of Object.keys(props)) {
+            out[key] = { ...props[key], ...(required.includes(key) ? { required: true } : {}) }
+          }
+          return out
+        }
+        for (const d of defs) {
+          ctx.effect(() => tools.register(defineTool({ ...d, parameters: toToolParameters(d.parameters) })))
+        }
+      } else {
+        throw new Error('tools service unavailable（正式形态需 @deepseek-ai/dsh-tools）')
       }
-    },
-  }
-}
-
-export default makePlugin()
+    }
