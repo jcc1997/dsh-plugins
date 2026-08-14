@@ -183,19 +183,47 @@ node scripts/verify-dist.mjs   # 验证产物可加载（含工具注册数断�
 - **宿主真实实现在 DSH 运行时缓存**（pnpm dlx checkout，路径形如 `~/Library/Caches/pnpm/dlx/<hash>/node_modules/.pnpm/@deepseek-ai+dsh-web-app@0.1.0-rc.6_*/node_modules/@deepseek-ai/...`）。会话运行时上下文会给出该 checkout 的绝对路径。常用包：
   - `@deepseek-ai/dsh-cordis-host-runner`：动态插件宿主半 —— VM 沙箱、ctx 门面白名单、`harness.handle/defineTool/registerTool` 守卫、动态插件注册表（lib/types/registry.js）
   - `@deepseek-ai/dsh-cordis-client-runner`：动态插件客户端半 —— 门面、`host.call`、slots/theme 守卫、模块装载
-  - `@deepseek-ai/dsh-tool-cordis`：cordis_define/run/stop/undefine/inspect 工具 + 宿主服务目录 SERVICE_API（60 键：fs/web/credentials/shell/timer/tools/llm/storage…）
+  - `@deepseek-ai/dsh-tool-cordis`：cordis_define/run/stop/undefine/inspect 工具 + 宿主服务目录 SERVICE_API（60 键）
   - `@deepseek-ai/dsh-code-runtime-worker-thread`：run_code 执行器（本会话程序就跑在里面）
 
-### 7.2 跨插件联动结论（要点）
+### 7.2 动态插件运行模型
 
-- **服务（唯一正路）**：同会话动态插件共享同一 cordis 组合（run 挂 group ctx 子 fiber）。`ctx.provide(name, svc)` 对其他包可见；`ctx.get(name)` 可读任意已注册服务（kanban 已在用 `ctx.get('fs')`）；`inject: ['name']` 声明式消费，provider 缺失时自动 park 等待。宿主服务也可注入（fs/web/credentials/shell…）。
-- **事件**：`ctx.on/once` 可监听（含宿主事件 slots/changed、credentials/updated、tool/*）；**`ctx.emit` 不在门面白名单，动态插件不能主动发事件** → 通知用服务方法返回值/订阅。
-- **工具**：`ctx.tools` 是只读门面（schemas/get 只返回元数据），**刻意禁止**插件代码直接调用其他插件的工具 execute（防绕过 ToolRuntime 守卫链）→ 插件间协作走服务，不走工具。
-- **RPC**：`harness.handle` / `host.call` 每插件私有（client↔host 配对），跨插件 RPC 也要走服务。
-- **UI 槽位**：`ctx.slots.inject(key, () => ctx.slots.register({ name, id, order, label }, Comp))`，任意插件可向任意 slot key 注册条目（order 排序、unload 级联清理）→ 跨插件 UI（如 git 向 kanban 槽位注册 sync 按钮）可行。
+- **两半架构**：宿主半（Node 进程内 VM sandbox）负责工具注册/RPC/服务/数据；客户端半（浏览器）负责 UI（React + slots）。`cordis_define` 一次提交两个 code（host/client）。
+- **同会话动态插件共享同一 cordis 组合**：run 以子 fiber 挂到宿主组合的 group ctx 下 → 服务与事件在同一 cordis app 内互通（跨插件联动的前提）。
+- **`apply(ctx)` 收到的是 ctx 门面（façade）而非真实 ctx**：白名单动词 + 声明服务；框架内部（root/fiber/registry/extend/plugin…）刻意隐藏；任何服务返回值若是 cordis Context 会被拒。
+- **宿主门面白名单**：`effect / on / once / provide / timeout / interval / setTimeout / setInterval / throttle / debounce` + `ctx.tools`（register + 只读 schemas/get）+ `ctx.get(name)`（任意读）+ inject 声明的服务属性访问。timer 系动词需先 `inject: ['timer']`。
+- **客户端门面同款** + `slots`/`theme` 常规 UI 服务；`host.call` 只能调**本插件** harness.handle 注册的 handler。
+- **inject 必须用对象形式**：`{ name, inject: ['fs', ...], apply(ctx) }`；纯函数形式没有声明点 → 拿不到任何服务。provider 缺失时 cordis park 该 fiber（挂起等待服务出现，`cordis_inspect_self` 可查 waitingFor）。
+- **动态插件是会话态**：重启进程丢失（需重新 `cordis_define`）；刷新页面后 Client 半不自动恢复（官方设计）。
+
+### 7.3 跨插件联动：可用三通道
+
+| 通道 | 用法 | 说明 |
+|---|---|---|
+| **服务（唯一正路）** | `ctx.provide(name, svc)` 暴露（对其他包可见）；`ctx.get(name)` 读任意已注册服务（含宿主服务，kanban 在用 `ctx.get('fs')`）；`inject: ['name']` 声明式消费 | 跨插件读写、RPC、通知都走这里；同会话动态插件之间、动态↔宿主服务都通 |
+| **事件（仅监听）** | `ctx.on / ctx.once` 监听宿主事件：`slots/changed`、`credentials/updated`、tool 注册变更、`session/*`、`subagent/*`… | 动态插件**不能发事件**（见 7.4） |
+| **UI 槽位** | `ctx.slots.inject(key, () => ctx.slots.register({ name, id, order, label }, Comp))` | 任意插件可向任意 slot key 注册条目（order 排序、unload 级联清理）→ 跨插件 UI（如 git 向 kanban 槽位注册 sync 按钮）可行 |
+
+### 7.4 跨插件联动：刻意受限
+
+- **工具调用**：`ctx.tools` 是只读门面（schemas/get 只返回元数据），**禁止**插件代码直接调用其他插件的工具 execute（防绕过 ToolRuntime 守卫链：身份保护、策略、monotonic 守卫、结果规范化）→ 插件间协作走服务，不走工具。
+- **`ctx.emit` 不在白名单**：动态插件不能主动发事件 → 发布-订阅用自定义服务方法（provider 暴露 `subscribe/notify`）或服务返回值 + UI await 刷新。
+- **`harness.handle` / `host.call` 每插件私有**（client↔host 配对），跨插件 RPC 也要走服务。
 - **工具名/服务名全局唯一**：`kanban_` / `git_` 前缀惯例。
 
-### 7.3 省钱路径
+### 7.5 宿主服务目录（常用）
 
-- 需要宿主服务/事件/槽位/工具的**准确签名**时，运行时优先 `cordis_inspect_list` + `cordis_inspect_query`（Service.listService / Event.listEvents / Slots.listSubTree / Tools），不要 grep 编译产物。
+- 完整目录（60 键）在 `dsh-tool-cordis` 的 SERVICE_API；运行时用 `cordis_inspect_query` → `Service.listService` 查准确方法签名。
+- 与业务插件直接相关：`fs`（文件读写）、`web`（HTTP，沙箱内 fetch 被拒时的替代）、`credentials`（凭证/token）、`shell`（进程，沙箱内 require/child_process 被拒时的替代）、`timer`（定时器）、`tools`（工具注册表）、`settings`、`storage`、`llm`、`sessions`、`subagents`、`jobs`、`approval`、`sandbox` 等。
+- 沙箱内全局替代：`fetch` → `ctx.web`；`require` → inject fs/web/shell；Node timers → inject timer。
+
+### 7.6 cordis 工具（模型可调，7 个）
+
+- 查询：`cordis_inspect_list` / `cordis_inspect_query` / `cordis_inspect_self`（Service.listService、Event.listEvents、Slots.listSubTree、Tools、Builtin）
+- 生命周期：`cordis_define` / `cordis_run` / `cordis_stop` / `cordis_undefine`
+- `cordis_define` 产物每次全量进上下文 ≈50KB+ → Code Mode 门槛（§零）。
+
+### 7.7 省钱路径
+
+- 需要宿主服务/事件/槽位/工具的**准确签名**时，运行时优先 `cordis_inspect_list` + `cordis_inspect_query`，不要 grep 编译产物。
 - 本节的完整论证与 git 插件联动方案见 `plugins/git/PLAN.md` §2（调研结论）与 §5（服务/槽位契约）。
