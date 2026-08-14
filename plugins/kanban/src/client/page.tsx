@@ -152,6 +152,45 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
       appendActivity(card, '添加评论')
     })
   }
+  function addRef(cardId: string, ref: { kind: string; externalId: string; url?: string; display?: string }) {
+    mutate((b) => {
+      let target: any = null
+      for (const col of b.columns) {
+        const k = col.cards.find((x) => x.id === cardId)
+        if (k) { target = k; break }
+      }
+      if (!target) return
+      if (!Array.isArray(target.refs)) target.refs = []
+      if (target.refs.some((r: any) => r.kind === ref.kind && r.externalId === ref.externalId)) return
+      target.refs.push({
+        id: safeId('r'),
+        kind: ref.kind,
+        platform: ref.kind.split('-')[0],
+        externalId: ref.externalId,
+        url: ref.url || '',
+        display: ref.display || '',
+        meta: {},
+        createdAt: safeNow(),
+      })
+      target.updatedAt = safeNow()
+      appendActivity(target, '添加关联：' + ref.kind + ' ' + ref.externalId)
+    })
+  }
+  function removeRef(cardId: string, refId: string) {
+    mutate((b) => {
+      let target: any = null
+      for (const col of b.columns) {
+        const k = col.cards.find((x) => x.id === cardId)
+        if (k) { target = k; break }
+      }
+      if (!target || !Array.isArray(target.refs)) return
+      const idx = target.refs.findIndex((r: any) => r.id === refId)
+      if (idx < 0) return
+      const [removed] = target.refs.splice(idx, 1)
+      target.updatedAt = safeNow()
+      appendActivity(target, '移除关联：' + (removed.kind || '') + ' ' + (removed.externalId || ''))
+    })
+  }
 
   // ── 列操作 ──
   function addColumn(title: string) {
@@ -344,6 +383,8 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
           onAddComment={addComment}
           onUpdateTags={(add, remove) => updateTags(drawer.cardId, add, remove)}
           onMoveStatus={moveCardToStatus}
+          onAddRef={(ref) => addRef(drawer.cardId, ref)}
+          onRemoveRef={(refId) => removeRef(drawer.cardId, refId)}
         />
       ) : null}
       {creating ? (

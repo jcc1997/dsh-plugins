@@ -5,7 +5,9 @@ DSH 看板插件（动态插件开发版，热更新迭代中）。
 ## 能力
 
 - **UI**：侧边栏「看板」入口（全屏页）→ 竖线分割列看板、拖拽排序/跨列、新建弹窗、编辑抽屉（720px，Notion 风格大标题，自动保存）、标签 chips、评论｜变更记录双栏、列配置弹窗、当前卡高亮
-- **Agent 工具**（host 注册，14 个）：卡片 `view` / `get_card` / `search` / `recent` / `create` / `move` / `update` / `tags` / `comment` / `delete` + 列 `add_column` / `rename_column` / `delete_column`（非空需 force）/ `move_column`；操作自动写入变更记录（`actor: "agent"`）
+- **Agent 工具**（host 注册，16 个）：卡片 `view` / `get_card` / `search` / `recent` / `create` / `move` / `update` / `tags` / `comment` / `delete` + 列 `add_column` / `rename_column` / `delete_column`（非空需 force）/ `move_column` + 关联 `link` / `unlink`；操作自动写入变更记录（`actor: "agent"`）
+- **外部关联（数据模型 v2）**：卡片可关联 `github-repo` / `github-branch` / `github-mr` / `local-repo` / `jira-issue` 等引用（refs），UI 抽屉可增删，agent 经 `kanban_link` / `kanban_unlink` 编辑
+- **跨插件服务**：host 提供 `ctx.provide('kanban', { getCard, updateCard, listCards })`，其他插件（如 git）经 `ctx.get('kanban')` 安全读写卡片，不直接碰 board.json
 - **设置**：settings.section 配置数据目录（默认 `~/.dsh/kanban/board.json`，可指向 git 仓库）
 
 ## 目录
@@ -15,7 +17,7 @@ plugins/kanban/
 ├── build.mjs               # esbuild：TS/TSX → dist/client.js + dist/host.js（受限环境函数体）+ dist/submit.json
 ├── shims/                  # react / jsx-runtime shim（alias 到自由变量 React）
 ├── src/client/             # TSX 多文件：entry / page / drawer / create / columns / settings / styles
-├── src/host/entry.ts       # RPC（kanban/load、save、set-data-dir）+ 10 个动态模型工具
+├── src/host/entry.ts       # RPC（kanban/load、save、set-data-dir）+ kanban 跨插件服务 + 16 个动态模型工具
 ├── scripts/verify-dist.mjs # vm 模拟受限环境验证产物（含工具注册断言）
 └── dist/                   # 构建产物（gitignore）
 ```
@@ -37,7 +39,12 @@ node scripts/verify-dist.mjs   # 验证
     "id", "title", "description", "tags": ["..."],
     "comments": [{ "id", "text", "createdAt" }],
     "activity": [{ "id", "text", "at", "actor" }],   // actor: "手动调整" | "agent"
-    "links": [], "meta": {}, "createdAt", "updatedAt"
+    "links": [], "createdAt", "updatedAt",
+    "refs": [{ "id", "kind", "platform", "externalId", "url?", "display?", "meta?", "createdAt" }],  // v2 外部关联
+    "meta": {                                          // v2
+      "taskId": "dsh-plugins-1",                       // [ID] 自动关联锚点（git 插件认领）
+      "sync": { "github": { "version", "lastSyncAt", "error", "snapshot" } }  // 各 provider 同步信封（provider 自管 payload）
+    }
 }], "meta": {} }], "meta": {} }
 ```
 

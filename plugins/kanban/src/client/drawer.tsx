@@ -15,11 +15,17 @@ export function CardDrawer(props: {
   onAddComment: (text: string) => void
   onUpdateTags: (add: string[], remove: string[]) => void
   onMoveStatus: (targetColId: string) => void
+  onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
+  onRemoveRef: (refId: string) => void
 }) {
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
   const [title, setTitle] = useState(props.card.title)
   const [description, setDescription] = useState(props.card.description || '')
   const [comment, setComment] = useState('')
+  const [refKind, setRefKind] = useState('github-repo')
+  const [refExt, setRefExt] = useState('')
+  const [refDisplay, setRefDisplay] = useState('')
+  const [refUrl, setRefUrl] = useState('')
   const first = useRef(true)
 
   // 切换卡片时同步本地状态
@@ -94,6 +100,77 @@ export function CardDrawer(props: {
               </span>
             ))}
             <TagInput onAdd={(t) => props.onUpdateTags([t], [])} />
+          </div>
+
+          {/* 外部关联（数据模型 v2）：refs 列表 + 添加表单 */}
+          <div className="kbnb-tag-row kbnb-refs-row">
+            <span className="kbnb-field-label">关联 {(props.card.refs || []).length}</span>
+            {(props.card.refs || []).length === 0 ? <span className="kbnb-refs-empty">暂无关联</span> : null}
+            {(props.card.refs || []).map((r) => (
+              <span key={r.id} className="kbnb-ref">
+                {r.kind ? <span className="kbnb-ref-kind">{r.kind}</span> : null}
+                {r.url ? (
+                  <a className="kbnb-ref-link" href={r.url} target="_blank" rel="noreferrer">
+                    {r.display || r.externalId}
+                  </a>
+                ) : (
+                  <span className="kbnb-ref-text">{r.display || r.externalId}</span>
+                )}
+                <span className="kbnb-ref-x" title="移除关联" onClick={() => props.onRemoveRef(r.id)}>
+                  ×
+                </span>
+              </span>
+            ))}
+            <div className="kbnb-ref-add">
+              <select
+                className="kbnb-input kbnb-ref-kind-select"
+                value={refKind}
+                onChange={(evt) => setRefKind(evt.target.value)}
+              >
+                {['github-repo', 'github-branch', 'github-mr', 'local-repo', 'jira-issue'].map((k) => (
+                  <option key={k} value={k}>
+                    {k}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="kbnb-input kbnb-ref-ext"
+                value={refExt}
+                onChange={(evt) => setRefExt(evt.target.value)}
+                placeholder="external id（owner/repo、MR 号、路径…）"
+              />
+              <input
+                className="kbnb-input kbnb-ref-display"
+                value={refDisplay}
+                onChange={(evt) => setRefDisplay(evt.target.value)}
+                placeholder="展示文本（可选）"
+              />
+              <input
+                className="kbnb-input kbnb-ref-url"
+                value={refUrl}
+                onChange={(evt) => setRefUrl(evt.target.value)}
+                placeholder="链接（可选）"
+              />
+              <button
+                className="kbnb-btn kbnb-primary"
+                type="button"
+                disabled={!refExt.trim()}
+                onClick={() => {
+                  if (!refExt.trim()) return
+                  props.onAddRef({
+                    kind: refKind,
+                    externalId: refExt.trim(),
+                    display: refDisplay.trim() || undefined,
+                    url: refUrl.trim() || undefined,
+                  })
+                  setRefExt('')
+                  setRefDisplay('')
+                  setRefUrl('')
+                }}
+              >
+                添加
+              </button>
+            </div>
           </div>
 
           {/* 描述 */}

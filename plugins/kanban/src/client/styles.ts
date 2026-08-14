@@ -147,6 +147,24 @@ export const kbnbCss = `
 .kbnb-settings-row{display:flex;gap:10px;align-items:center;margin-top:10px}
 .kbnb-settings-msg{font-size:12px;color:var(--dsw-alias-state-success-primary)}
 
+
+/* ══ 外部关联（refs） ══ */
+.kbnb-refs-row{gap:6px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.kbnb-refs-row .kbnb-field-label{flex:none}
+.kbnb-refs-empty{font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.kbnb-ref{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-primary);background:var(--dsw-static-neutral-bluish-50);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 8px;line-height:1.6;white-space:nowrap;max-width:100%}
+.kbnb-ref-kind{flex:none;color:var(--dsw-alias-state-business-primary);font-size:11px}
+.kbnb-ref-link{color:var(--dsw-alias-state-business-primary);text-decoration:none;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.kbnb-ref-link:hover{text-decoration:underline}
+.kbnb-ref-text{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.kbnb-ref-x{font-size:12px;line-height:1;opacity:.7;cursor:pointer;flex:none}
+.kbnb-ref-x:hover{color:var(--dsw-alias-state-error-primary)}
+.kbnb-ref-add{display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-top:2px}
+.kbnb-ref-kind-select{width:150px;flex:none;padding:4px 8px;font-size:12px}
+.kbnb-ref-ext{flex:1 1 180px;min-width:120px;padding:4px 8px;font-size:12px}
+.kbnb-ref-display{flex:1 1 140px;min-width:100px;padding:4px 8px;font-size:12px}
+.kbnb-ref-url{flex:1 1 200px;min-width:140px;padding:4px 8px;font-size:12px}
+.kbnb-ref-add .kbnb-btn{padding:4px 12px;font-size:12px;flex:none}
 /* ══ 加载 ══ */
 .kbnb-loading{padding:60px;text-align:center;color:var(--dsw-alias-label-tertiary)}
 

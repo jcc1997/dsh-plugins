@@ -57,7 +57,12 @@ async function loadHost() {
   const result = await vm.runInContext('(async () => {' + src + '\n})()', ctx)
   const plugin = await result
   if (!plugin || plugin.name !== 'kanban') throw new Error('host plugin shape wrong')
-  const mockCtx = { get: (name) => (name === 'fs' ? fsMock : undefined), effect: (cb) => cb() || (() => {}) }
+  const provided = {}
+  const mockCtx = {
+    get: (name) => (name === 'fs' ? fsMock : undefined),
+    effect: (cb) => cb() || (() => {}),
+    provide: (name, value) => { provided[name] = value },
+  }
   plugin.apply(mockCtx)
   const keys = Object.keys(handlers)
   if (!keys.includes('kanban/load') || !keys.includes('kanban/save') || !keys.includes('kanban/set-data-dir')) {
@@ -65,10 +70,13 @@ async function loadHost() {
   }
   const loaded = await handlers['kanban/load']()
   if (!loaded.board || loaded.board.columns.length !== 3) throw new Error('load default board wrong')
-  const expectTools = ['kanban_view','kanban_get_card','kanban_search','kanban_recent','kanban_create','kanban_move','kanban_update','kanban_tags','kanban_comment','kanban_delete','kanban_add_column','kanban_rename_column','kanban_delete_column','kanban_move_column']
+  const expectTools = ['kanban_view','kanban_get_card','kanban_search','kanban_recent','kanban_create','kanban_move','kanban_update','kanban_tags','kanban_comment','kanban_delete','kanban_add_column','kanban_rename_column','kanban_delete_column','kanban_move_column','kanban_link','kanban_unlink']
   const missing = expectTools.filter((t) => !registered.includes(t))
   if (missing.length > 0) throw new Error('tools missing: ' + missing.join(','))
-  console.log('host.js: OK (handlers=' + keys.join(',') + ', tools=' + registered.length + ', default board 3 columns)')
+  if (!provided['kanban'] || typeof provided['kanban'].getCard !== 'function' || typeof provided['kanban'].updateCard !== 'function' || typeof provided['kanban'].listCards !== 'function') {
+    throw new Error('kanban service not provided correctly')
+  }
+  console.log('host.js: OK (handlers=' + keys.join(',') + ', tools=' + registered.length + ', service=kanban, default board 3 columns)')
 }
 
 await loadClient()

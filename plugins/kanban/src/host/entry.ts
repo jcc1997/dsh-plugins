@@ -140,6 +140,49 @@ function makePlugin() {
         }
       })
 
+
+      /* ── 跨插件服务（数据模型 v2）：其他插件（如 git）经 ctx.get('kanban') 读写卡片 ── */
+      const kanbanService = {
+        getCard: async (cardId: string) => {
+          const dataDir = await resolveDataDir()
+          const board = (await readBoard(dataDir)) || defaultBoard()
+          const hit = findCardGlobal(board, String(cardId))
+          return hit ? hit.card : null
+        },
+        updateCard: async (cardId: string, patch: any) => {
+          const p = patch || {}
+          return mutateBoard((board: any) => {
+            const hit = findCardGlobal(board, String(cardId))
+            if (!hit) return null
+            const card = hit.card
+            if (Array.isArray(p.refs)) {
+              card.refs = p.refs
+              card.updatedAt = now()
+              appendActivity(card, '更新外部关联')
+            }
+            if (p.meta && typeof p.meta === 'object') {
+              if (!card.meta || typeof card.meta !== 'object') card.meta = {}
+              for (const key of Object.keys(p.meta)) card.meta[key] = (p.meta as any)[key]
+              card.updatedAt = now()
+              if (typeof p.activity === 'string' && p.activity) appendActivity(card, p.activity)
+            }
+            return { ok: true, card_id: card.id }
+          })
+        },
+        listCards: async () => {
+          const dataDir = await resolveDataDir()
+          const board = (await readBoard(dataDir)) || defaultBoard()
+          const out: any[] = []
+          for (const col of board.columns || []) {
+            for (const card of col.cards || []) {
+              const taskId = card.meta && typeof card.meta === 'object' ? (card.meta as any).taskId : null
+              out.push({ id: card.id, title: card.title, taskId: taskId || null, status: col.title, updatedAt: card.updatedAt })
+            }
+          }
+          return out
+        },
+      }
+      ctx.provide('kanban', kanbanService)
       /* ── 动态模型工具（agent 用）：注册进当前 fiber，stop/update 自动移除 ── */
       const P = (properties: any, required: string[] = []) => ({ type: 'object', properties, required })
       const STR = (description: string) => ({ type: 'string', description })
@@ -172,7 +215,7 @@ function makePlugin() {
               const hit = findCardGlobal(board, String(args.card_id))
               if (!hit) return null
               const { card, col } = hit
-              return { card: { ...cardSummary(card, col), description: card.description || '', comments: card.comments || [], activity: card.activity || [] }, column: { id: col.id, title: col.title } }
+              return { card: { ...cardSummary(card, col), description: card.description || '', comments: card.comments || [], activity: card.activity || [], refs: card.refs || [], meta: card.meta || {} }, column: { id: col.id, title: col.title } }
             })
           },
           output: outputOf('卡片详情'),
@@ -242,7 +285,7 @@ function makePlugin() {
               const t = String(args.title).trim()
               if (!t) return { ok: false, error: 'title is required' }
               const card: any = {
-                id: safeId('k'), title: t, description: args.description || '', links: [], meta: {},
+                id: safeId('k'), title: t, description: args.description || '', links: [], refs: [], meta: {},
                 comments: [], activity: [], tags: Array.isArray(args.tags) ? args.tags.map((x: any) => String(x)) : [],
                 createdAt: now(), updatedAt: now(),
               }
@@ -427,6 +470,69 @@ function makePlugin() {
             })
           },
           output: outputOf('移动列结果'),
+        },
+        {
+          name: 'kanban_link',
+          description: '给卡片添加外部关联引用（refs）：github-repo / github-branch / github-mr / local-repo / jira-issue 等。kind 格式 <platform>-<type>；platform 缺省取 kind 前缀；重复（同 kind + external_id）拒绝。',
+          parameters: P({
+            card_id: STR('卡片 id'),
+            kind: STR('引用类型：github-repo / github-branch / github-mr / local-repo / jira-issue 等'),
+            external_id: STR('提供方侧 ID：repo 全名（owner/repo）、MR 号、jira key、本地路径等'),
+            platform: STR('提供方键（github/jira 等），缺省从 kind 前缀推导'),
+            url: STR('可点击链接（可选）'),
+            display: STR('展示文本，如 branch 名 / MR 标题（可选）'),
+            meta: { type: 'object', additionalProperties: true, description: '提供方自有轻量信息（可选）' },
+          }, ['card_id', 'kind', 'external_id']),
+          execute: async (args: any) => {
+            return mutateBoard((board: any) => {
+              const hit = findCardGlobal(board, String(args.card_id))
+              if (!hit) return null
+              const kind = String(args.kind).trim()
+              const ext = String(args.external_id).trim()
+              if (!kind) return { ok: false, error: 'kind is required' }
+              if (!ext) return { ok: false, error: 'external_id is required' }
+              const card = hit.card
+              if (!Array.isArray(card.refs)) card.refs = []
+              if (card.refs.some((r: any) => r.kind === kind && r.externalId === ext)) {
+                return { ok: false, error: 'ref already exists: ' + kind + ' ' + ext }
+              }
+              const ref: any = {
+                id: safeId('r'),
+                kind,
+                platform: args.platform !== undefined && String(args.platform).trim() ? String(args.platform).trim() : kind.split('-')[0],
+                externalId: ext,
+                url: args.url !== undefined && String(args.url).trim() ? String(args.url).trim() : '',
+                display: args.display !== undefined && String(args.display).trim() ? String(args.display).trim() : '',
+                meta: args.meta && typeof args.meta === 'object' ? args.meta : {},
+                createdAt: now(),
+              }
+              card.refs.push(ref)
+              card.updatedAt = now()
+              appendActivity(card, '添加关联：' + ref.kind + ' ' + ext)
+              return { card_id: card.id, ref_id: ref.id, refs: card.refs.length }
+            })
+          },
+          output: outputOf('关联结果'),
+        },
+        {
+          name: 'kanban_unlink',
+          description: '移除卡片的某个外部关联引用（refs）。ref_id 来自 kanban_get_card / kanban_link 结果。',
+          parameters: P({ card_id: STR('卡片 id'), ref_id: STR('要移除的 ref id') }, ['card_id', 'ref_id']),
+          execute: async (args: any) => {
+            return mutateBoard((board: any) => {
+              const hit = findCardGlobal(board, String(args.card_id))
+              if (!hit) return null
+              const card = hit.card
+              if (!Array.isArray(card.refs)) card.refs = []
+              const idx = card.refs.findIndex((r: any) => r.id === String(args.ref_id))
+              if (idx < 0) return { ok: false, error: 'ref not found: ' + String(args.ref_id) }
+              const [removed] = card.refs.splice(idx, 1)
+              card.updatedAt = now()
+              appendActivity(card, '移除关联：' + (removed.kind || 'ref') + ' ' + (removed.externalId || ''))
+              return { card_id: card.id, removed: removed.id, refs: card.refs.length }
+            })
+          },
+          output: outputOf('移除结果'),
         },
       ]
       for (const d of defs) {
