@@ -11,7 +11,7 @@ DSH 看板插件（动态插件开发版，热更新迭代中）。
 - **Git 关联卡片（M3+）**：抽屉内 git 相关整合为一张卡片——仓库（github-repo ref）、MR 列表（同步快照渲染 state 徽标 open/merged/closed + 标题 + 更新时间）、同步状态（最近同步时间 / 失败信息 / 分支）
 - **关联卡片（按类型管理）**：所有关联统一在「关联」卡片按类型展示 + 删除；「+ 新增」折叠表单按类型添加（GitHub 仓库 / 分支 / MR / 本地仓库 / 会话），jira 已移除
 - **会话关联**：ref kind `session`，点击跳转定位到对应会话（关闭看板）；会话「任务」tab 展示关联 task
-- **会话「任务」tab（conversation.view）**：当前会话关联的 task 列表，点击打开可编辑详情（复用 CardDrawer）
+- **会话「任务」tab（conversation.view）**：当前会话关联的 task 列表，点击打开可编辑详情（复用 CardDrawer + useKanbanBoard hook）；详情内同步按钮走 `kanban/git-sync` 桥接 RPC（槽位渲染授权仅限看板侧条目，会话 tab 用跨插件服务通道替代）
 - **跨插件服务**：host 提供 `ctx.provide('kanban', { getCard, updateCard, listCards })`，其他插件（如 git）经 `ctx.get('kanban')` 安全读写卡片，不直接碰 board.json
 - **设置**：settings.section 配置数据目录（默认 `~/.dsh/kanban/board.json`，可指向 git 仓库）
 

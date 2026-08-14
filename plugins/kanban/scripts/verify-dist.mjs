@@ -81,6 +81,12 @@ async function loadHost() {
   if (!keys.includes('kanban/load') || !keys.includes('kanban/save') || !keys.includes('kanban/set-data-dir')) {
     throw new Error('host handlers missing: ' + keys.join(','))
   }
+  // M3+：会话 tab 同步桥接 RPC；git 服务未激活 → 报错而不是崩溃
+  if (typeof handlers['kanban/git-sync'] !== 'function') throw new Error('kanban/git-sync bridge missing')
+  const rBridge = await handlers['kanban/git-sync']({ cardId: 'k1' })
+  if (!rBridge || rBridge.ok !== false || !/git/.test(rBridge.error || '')) {
+    throw new Error('kanban/git-sync bridge should fail without git service: ' + JSON.stringify(rBridge))
+  }
   const loaded = await handlers['kanban/load']()
   if (!loaded.board || loaded.board.columns.length !== 3) throw new Error('load default board wrong')
   const expectTools = ['kanban_view','kanban_get_card','kanban_search','kanban_recent','kanban_create','kanban_move','kanban_update','kanban_tags','kanban_comment','kanban_delete','kanban_add_column','kanban_rename_column','kanban_delete_column','kanban_move_column','kanban_link','kanban_unlink']

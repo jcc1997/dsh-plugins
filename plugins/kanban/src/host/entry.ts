@@ -140,6 +140,20 @@ function makePlugin() {
         }
       })
 
+      /* ── 会话「任务」tab 同步桥接（M3+）：槽位渲染授权仅限 sidebar 条目，
+          会话 tab 内走跨插件服务通道 —— ctx.get('git').sync(cardId) ── */
+      harness.handle('kanban/git-sync', async (args: unknown) => {
+        const a = (args || {}) as { cardId?: string }
+        if (!a.cardId) return { ok: false, error: 'cardId required' }
+        const git = ctx.get('git') as any
+        if (!git || typeof git.sync !== 'function') return { ok: false, error: 'git 插件未激活（无法同步）' }
+        try {
+          return await git.sync(String(a.cardId))
+        } catch (e) {
+          return { ok: false, error: String(e && (e as Error).message ? (e as Error).message : e) }
+        }
+      })
+
 
       /* ── 跨插件服务（数据模型 v2）：其他插件（如 git）经 ctx.get('kanban') 读写卡片 ── */
       const kanbanService = {

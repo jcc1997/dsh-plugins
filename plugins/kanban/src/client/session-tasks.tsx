@@ -1,5 +1,6 @@
 // 会话 Task 面板：注册在 conversation.view 槽位（session scope）
 // 展示当前会话关联的看板 task（refs 含 session 且 externalId === 当前 sessionId），点击打开可编辑详情（复用 CardDrawer）
+// 同步按钮：槽位渲染授权仅限看板侧条目，这里走 kanban/git-sync 桥接 RPC（跨插件服务通道）
 import React, { useState } from 'react'
 import { CardDrawer } from './drawer'
 import { useKanbanBoard, HostLike } from './board-hook'
@@ -12,6 +13,42 @@ export interface SessionTaskPanelProps {
   sessionId?: string
   host: HostLike
   sessions?: SessionsLike
+}
+
+/** 同步按钮：走 kanban host 的 git-sync 桥接 RPC（内部 ctx.get('git').sync） */
+function SyncButton(props: { cardId: string; host: HostLike; onDone: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
+  function run() {
+    setBusy(true)
+    setError('')
+    setDone(false)
+    props.host
+      .call('kanban/git-sync', { cardId: props.cardId })
+      .then((res) => {
+        setBusy(false)
+        if (res && res.ok) {
+          setDone(true)
+          props.onDone()
+        } else {
+          setError((res && res.error) || '同步失败')
+        }
+      })
+      .catch((e) => {
+        setBusy(false)
+        setError('同步失败: ' + String(e))
+      })
+  }
+  return (
+    <div className="kbnb-card-actions">
+      <button className="kbnb-btn kbnb-primary" type="button" disabled={busy} onClick={run} title="拉取该卡片关联仓库的 open MR 并刷新状态">
+        {busy ? '同步中…' : '同步'}
+      </button>
+      {done ? <span className="git-sync-done">已同步</span> : null}
+      {error ? <span className="git-sync-error">{error}</span> : null}
+    </div>
+  )
 }
 
 export function SessionTaskPanel(props: SessionTaskPanelProps) {
@@ -66,7 +103,7 @@ export function SessionTaskPanel(props: SessionTaskPanelProps) {
             }
             setOpenCardId(null)
           }}
-          actionHost={null}
+          actionHost={() => <SyncButton cardId={openCardId} host={props.host} onDone={() => kb.reload()} />}
         />
       ) : null}
     </div>
