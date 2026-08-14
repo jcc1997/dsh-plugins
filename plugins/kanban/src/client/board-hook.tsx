@@ -1,7 +1,7 @@
-// useKanbanBoard：看板数据 + 卡片/列操作（KanbanPage 与会话 Task 面板共用）
+// useKanbanBoard：看板数据 + 卡片/列/归档操作（KanbanPage 与会话 Task 面板共用）
 import { useEffect, useState } from 'react'
 import { appendActivity, safeId, safeNow } from '@dsh-plugins/ui'
-import { KanbanBoard } from '@dsh-plugins/ui'
+import { KanbanBoard, KanbanBlock } from '@dsh-plugins/ui'
 
 export interface HostLike {
   call(method: string, args?: unknown): Promise<any>
@@ -14,6 +14,34 @@ export interface RefInput {
   display?: string
 }
 
+/** content 归一化：数组清洗；字符串转单文本块 */
+export function normalizeContent(raw: unknown): KanbanBlock[] {
+  if (Array.isArray(raw)) {
+    const out: KanbanBlock[] = []
+    for (const b of raw) {
+      if (b && typeof b === 'object' && typeof (b as any).type === 'string') {
+        out.push({
+          id: typeof (b as any).id === 'string' && (b as any).id ? (b as any).id : safeId('blk'),
+          type: (b as any).type,
+          text: typeof (b as any).text === 'string' ? (b as any).text : '',
+          ...(typeof (b as any).url === 'string' ? { url: (b as any).url } : {}),
+          ...(typeof (b as any).checked === 'boolean' ? { checked: (b as any).checked } : {}),
+        })
+      }
+    }
+    return out
+  }
+  if (typeof raw === 'string' && raw.trim()) return [{ id: safeId('blk'), type: 'text', text: raw }]
+  return []
+}
+
+/** 卡片的 git 仓库（github-repo ref externalId），无则空串 */
+export function cardRepoOf(card: any): string {
+  const refs: any[] = Array.isArray(card.refs) ? card.refs : []
+  const r = refs.find((x) => x.kind === 'github-repo')
+  return r && r.externalId ? String(r.externalId) : ''
+}
+
 export function useKanbanBoard(host: HostLike) {
   const [board, setBoard] = useState<KanbanBoard | null>(null)
   const [error, setError] = useState('')
@@ -22,7 +50,11 @@ export function useKanbanBoard(host: HostLike) {
   function reload() {
     host
       .call('kanban/load', {})
-      .then((r) => setBoard(r.board))
+      .then((r) => {
+        const b = r.board || null
+        if (b && !Array.isArray(b.archive)) b.archive = []
+        setBoard(b)
+      })
       .catch((e) => setError('加载失败: ' + String(e)))
   }
 
@@ -44,6 +76,7 @@ export function useKanbanBoard(host: HostLike) {
   function mutate<T>(fn: (b: KanbanBoard) => T): T | null {
     if (!board) return null
     const next = JSON.parse(JSON.stringify(board)) as KanbanBoard
+    if (!Array.isArray(next.archive)) next.archive = []
     const result = fn(next)
     save(next)
     return result
@@ -65,14 +98,17 @@ export function useKanbanBoard(host: HostLike) {
   }
 
   /* ── 卡片操作（按 cardId 定位，供看板页 / 会话面板 / 抽屉共用） ── */
-  function saveCard(cardId: string, title: string, description: string) {
+  function saveCard(cardId: string, title: string, description: string, content?: KanbanBlock[]) {
     mutate((b) => {
       const hit = hitOf(b, cardId)
       const card = hit && (hit as any).card
       if (!card) return
-      if (card.title === title && (card.description || '') === description) return
+      const nextContent = content !== undefined ? content : card.content
+      const sameContent = JSON.stringify(nextContent || []) === JSON.stringify(card.content || [])
+      if (card.title === title && (card.description || '') === description && sameContent) return
       card.title = title
       card.description = description
+      if (content !== undefined) card.content = nextContent
       card.updatedAt = safeNow()
       appendActivity(card, '更新卡片')
     })
@@ -100,6 +136,43 @@ export function useKanbanBoard(host: HostLike) {
         col.cards = col.cards.filter((k) => k.id !== cardId)
         if (col.cards.length !== before) return
       }
+    })
+  }
+  /* ── 归档操作（v3） ── */
+  function archiveCard(cardId: string) {
+    mutate((b) => {
+      const hit = hitOf(b, cardId)
+      if (!hit) return
+      const card = (hit as any).card
+      ;(hit as any).col.cards = (hit as any).col.cards.filter((k: any) => k.id !== cardId)
+      card.archivedFrom = (hit as any).col.id
+      card.archivedAt = safeNow()
+      card.updatedAt = safeNow()
+      appendActivity(card, '归档卡片')
+      b.archive = b.archive || []
+      b.archive.push(card)
+    })
+  }
+  function unarchiveCard(cardId: string, columnId?: string) {
+    mutate((b) => {
+      b.archive = b.archive || []
+      const idx = b.archive.findIndex((k) => k.id === cardId)
+      if (idx < 0) return
+      const [card] = b.archive.splice(idx, 1)
+      const col =
+        (columnId ? b.columns.find((c) => c.id === columnId) : null) ||
+        (card.archivedFrom ? b.columns.find((c) => c.id === (card as any).archivedFrom) : null) ||
+        b.columns[0]
+      if (!col) return
+      card.updatedAt = safeNow()
+      appendActivity(card, '恢复卡片（归档）')
+      col.cards.push(card)
+    })
+  }
+  function deleteArchivedCard(cardId: string) {
+    mutate((b) => {
+      b.archive = b.archive || []
+      b.archive = b.archive.filter((k) => k.id !== cardId)
     })
   }
   function updateTags(cardId: string, add: string[], remove: string[]) {
@@ -214,6 +287,9 @@ export function useKanbanBoard(host: HostLike) {
     saveCard,
     moveCardToStatus,
     deleteCard,
+    archiveCard,
+    unarchiveCard,
+    deleteArchivedCard,
     updateTags,
     addComment,
     addRef,

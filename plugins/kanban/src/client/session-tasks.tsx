@@ -59,8 +59,9 @@ function CardDetailPane(props: { card: any; columns: any[]; cardId: string; kb: 
     <CardDetail
       card={card}
       columns={columns}
-      onSave={(title, description) => kb.saveCard(cardId, title, description)}
+      onSave={(title, description, content) => kb.saveCard(cardId, title, description, content)}
       onDelete={() => kb.deleteCard(cardId)}
+      onArchive={() => kb.archiveCard(cardId)}
       onAddComment={(text) => kb.addComment(cardId, text)}
       onUpdateTags={(add, remove) => kb.updateTags(cardId, add, remove)}
       onMoveStatus={(targetColId) => kb.moveCardToStatus(cardId, targetColId)}

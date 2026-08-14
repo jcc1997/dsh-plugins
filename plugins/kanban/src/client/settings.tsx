@@ -37,7 +37,7 @@ export function KanbanSettings(props: { host: { call(method: string, args?: unkn
 
   return (
     <div className="kbnb-settings">
-      <p className="kbnb-hint">看板数据文件（board.json）存储目录。设为 git 仓库目录即可随 git 同步。</p>
+      <p className="kbnb-hint">看板数据文件（board.json，含归档与富文本内容）存储目录。设为 git 仓库目录即可随 git 同步。归档卡片在侧边栏「归档」中管理。</p>
       <input
         className="kbnb-input"
         value={dir}

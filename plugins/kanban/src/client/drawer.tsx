@@ -1,10 +1,11 @@
-// 卡片抽屉：左右分栏布局（左：标题+描述+评论；右：状态+标签+关联+变更记录）
+// 卡片抽屉：左右分栏布局（左：标题+描述+富文本内容+评论；右：状态+标签+关联+变更记录）
+// 标题/描述用 contentEditable（Notion 式，无边框输入框）；内容用块富文本编辑器（含图片）
 // 蒙层点击自动关闭；改动自动保存
 import React, { useEffect, useRef, useState } from 'react'
 import { IconCloseOutline16 } from '@dsh-plugins/ui'
-import { mdToElements } from '@dsh-plugins/ui'
 import { fmtTime } from '@dsh-plugins/ui'
-import { KanbanCard, KanbanColumn } from '@dsh-plugins/ui'
+import { KanbanCard, KanbanColumn, KanbanBlock } from '@dsh-plugins/ui'
+import { RichTextEditor } from './rich-text'
 
 /** 关联类型定义（新增/展示按类型；git 关联 + 会话关联） */
 export const REF_KINDS: { kind: string; label: string }[] = [
@@ -15,11 +16,61 @@ export const REF_KINDS: { kind: string; label: string }[] = [
   { kind: 'session', label: '会话' },
 ]
 
+/** contentEditable 单行/多行文本（非受控 DOM，聚焦不回写避免光标跳动；单行 Enter 失焦） */
+function EditableLine(props: {
+  className: string
+  value: string
+  placeholder: string
+  singleLine?: boolean
+  onInput: (v: string) => void
+}) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const dom = useRef<string | null>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    if (document.activeElement === el) {
+      dom.current = el.innerHTML
+      return
+    }
+    const want = props.value
+    if (dom.current !== want) {
+      el.innerHTML = want
+      dom.current = want
+    }
+  }, [props.value])
+  return React.createElement('div', {
+    ref,
+    className: props.className,
+    contentEditable: true,
+    suppressContentEditableWarning: true,
+    spellCheck: false,
+    'data-placeholder': props.placeholder,
+    onInput: (e: React.FormEvent<HTMLDivElement>) => {
+      dom.current = e.currentTarget.innerHTML
+      e.currentTarget.classList.toggle('kbnb-editable-empty', (e.currentTarget.innerText || '').trim() === '')
+      props.onInput(e.currentTarget.innerHTML)
+    },
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (props.singleLine && e.key === 'Enter') {
+        e.preventDefault()
+        ;(e.currentTarget as HTMLElement).blur()
+      }
+    },
+    onBlur: (e: React.FocusEvent<HTMLDivElement>) => {
+      dom.current = e.currentTarget.innerHTML
+      e.currentTarget.classList.toggle('kbnb-editable-empty', (e.currentTarget.innerText || '').trim() === '')
+      props.onInput(e.currentTarget.innerHTML)
+    },
+  })
+}
+
 export function CardDetail(props: {
   card: KanbanCard
   columns: KanbanColumn[]
-  onSave: (title: string, description: string) => void
+  onSave: (title: string, description: string, content: KanbanBlock[]) => void
   onDelete?: () => void
+  onArchive?: () => void
   onClose?: () => void
   onAddComment: (text: string) => void
   onUpdateTags: (add: string[], remove: string[]) => void
@@ -29,9 +80,9 @@ export function CardDetail(props: {
   onOpenSession: (sessionId: string) => void
   actionHost?: (() => unknown) | null
 }) {
-  const [mode, setMode] = useState<'edit' | 'preview'>('edit')
   const [title, setTitle] = useState(props.card.title)
   const [description, setDescription] = useState(props.card.description || '')
+  const [content, setContent] = useState<KanbanBlock[]>(Array.isArray(props.card.content) ? props.card.content : [])
   const [comment, setComment] = useState('')
   const [refKind, setRefKind] = useState('github-repo')
   const [refExt, setRefExt] = useState('')
@@ -43,6 +94,7 @@ export function CardDetail(props: {
   useEffect(() => {
     setTitle(props.card.title)
     setDescription(props.card.description || '')
+    setContent(Array.isArray(props.card.content) ? props.card.content : [])
   }, [props.card.id])
 
   // 自动保存：内容变更立即提交（动态 client 半无 setTimeout，不做防抖；
@@ -56,15 +108,14 @@ export function CardDetail(props: {
       skipSave.current = false
       return
     }
-    props.onSave(title.trim(), description)
-  }, [title, description, props.card.id])
+    props.onSave(title.trim(), description, content)
+  }, [title, description, content, props.card.id])
 
   const comments = props.card.comments || []
   const activity = props.card.activity || []
   const currentCol = props.columns.find((c) => c.cards.some((k) => k.id === props.card.id))
   const refs: any[] = props.card.refs || []
   const meta: any = props.card.meta || {}
-  const syncEnv = meta.sync && meta.sync.github ? meta.sync.github : null
 
   function submitRef() {
     if (!refExt.trim()) return
@@ -82,226 +133,228 @@ export function CardDetail(props: {
 
   return (
     <div className="kbnb-card-detail kbnb-drawer-grid">
-      {/* ══ 左列：标题 + 描述 + 评论 ══ */}
-          <div className="kbnb-drawer-main">
-            {/* 标题：Notion 风格，无边框大号输入 */}
-            <div className="kbnb-title-row">
-              <input
-                className="kbnb-input-title"
-                value={title}
-                onChange={(evt) => setTitle(evt.target.value)}
-                placeholder="卡片标题"
-              />
-              {typeof props.onClose === 'function' ? (
-                <button className="kbnb-icon-btn" type="button" title="关闭" onClick={props.onClose}>
-                  <IconCloseOutline16 />
-                </button>
-              ) : null}
-            </div>
+      {/* ══ 左列：标题 + 描述 + 内容 + 评论 ══ */}
+      <div className="kbnb-drawer-main">
+        {/* 标题：Notion 风格，contentEditable 大标题（无 input 边框） */}
+        <div className="kbnb-title-row">
+          <EditableLine
+            className="kbnb-input-title-editable"
+            value={title}
+            placeholder="卡片标题"
+            onInput={setTitle}
+          />
+          {typeof props.onClose === 'function' ? (
+            <button className="kbnb-icon-btn" type="button" title="关闭" onClick={props.onClose}>
+              <IconCloseOutline16 />
+            </button>
+          ) : null}
+        </div>
 
-            {/* 描述 */}
-            <div className="kbnb-field">
-              <div className="kbnb-field-row">
-                <span className="kbnb-field-label">描述</span>
-                <div className="kbnb-switch" role="tablist">
-                  <button type="button" className={mode === 'edit' ? 'kbnb-switch-on' : ''} onClick={() => setMode('edit')}>
-                    编辑
-                  </button>
-                  <button type="button" className={mode === 'preview' ? 'kbnb-switch-on' : ''} onClick={() => setMode('preview')}>
-                    预览
-                  </button>
-                </div>
-              </div>
-              {mode === 'edit' ? (
-                <textarea
-                  className="kbnb-textarea"
-                  value={description}
-                  onChange={(evt) => setDescription(evt.target.value)}
-                  placeholder={'支持 **粗体**、*斜体*、`代码`、- 列表、[链接](url)、# 标题、空行分段'}
-                />
-              ) : (
-                <div className="kbnb-preview kbnb-preview-scroll">{mdToElements(description)}</div>
-              )}
-            </div>
-
-            {/* 评论 */}
-            <section className="kbnb-section">
-              <div className="kbnb-section-title">评论 {comments.length}</div>
-              {comments.length === 0 ? <div className="kbnb-section-empty">暂无评论</div> : null}
-              {comments.map((m) => (
-                <div key={m.id} className="kbnb-comment">
-                  <div className="kbnb-comment-text">{m.text}</div>
-                  <div className="kbnb-comment-time">{fmtTime(m.createdAt)}</div>
-                </div>
-              ))}
-              <div className="kbnb-comment-input">
-                <input
-                  className="kbnb-input"
-                  value={comment}
-                  onChange={(evt) => setComment(evt.target.value)}
-                  placeholder="写评论…"
-                  onKeyDown={(evt) => {
-                    if (evt.key === 'Enter' && comment.trim()) {
-                      props.onAddComment(comment.trim())
-                      setComment('')
-                    }
-                  }}
-                />
-                <button
-                  className="kbnb-btn kbnb-primary"
-                  type="button"
-                  disabled={!comment.trim()}
-                  onClick={() => {
-                    if (comment.trim()) {
-                      props.onAddComment(comment.trim())
-                      setComment('')
-                    }
-                  }}
-                >
-                  发送
-                </button>
-              </div>
-            </section>
+        {/* 描述：一句话纯文本（单行，不支持预览） */}
+        <div className="kbnb-field">
+          <div className="kbnb-field-row">
+            <span className="kbnb-field-label">描述</span>
           </div>
+          <EditableLine
+            className="kbnb-input-desc-editable"
+            value={description}
+            placeholder="一句话描述（纯文本）"
+            singleLine
+            onInput={setDescription}
+          />
+        </div>
 
-          {/* ══ 右列：状态 + 标签 + 关联卡片 + 变更记录 ══ */}
-          <div className="kbnb-drawer-side">
-            {/* 工具/状态栏：状态切换 + 删除 */}
-            <div className="kbnb-toolbar">
-              <label className="kbnb-status">
-                <span className="kbnb-status-label">状态</span>
-                <select
-                  className="kbnb-status-select"
-                  value={currentCol ? currentCol.id : ''}
-                  onChange={(evt) => {
-                    const target = evt.target.value
-                    if (target && currentCol && target !== currentCol.id) props.onMoveStatus(target)
-                  }}
+        {/* 内容：块富文本（Notion 式，支持图片粘贴/上传） */}
+        <div className="kbnb-field">
+          <div className="kbnb-field-row">
+            <span className="kbnb-field-label">内容</span>
+          </div>
+          <RichTextEditor value={content} onChange={setContent} placeholder="输入内容或粘贴图片…" />
+        </div>
+
+        {/* 评论 */}
+        <section className="kbnb-section">
+          <div className="kbnb-section-title">评论 {comments.length}</div>
+          {comments.length === 0 ? <div className="kbnb-section-empty">暂无评论</div> : null}
+          {comments.map((m) => (
+            <div key={m.id} className="kbnb-comment">
+              <div className="kbnb-comment-text">{m.text}</div>
+              <div className="kbnb-comment-time">{fmtTime(m.createdAt)}</div>
+            </div>
+          ))}
+          <div className="kbnb-comment-input">
+            <input
+              className="kbnb-input"
+              value={comment}
+              onChange={(evt) => setComment(evt.target.value)}
+              placeholder="写评论…"
+              onKeyDown={(evt) => {
+                if (evt.key === 'Enter' && comment.trim()) {
+                  props.onAddComment(comment.trim())
+                  setComment('')
+                }
+              }}
+            />
+            <button
+              className="kbnb-btn kbnb-primary"
+              type="button"
+              disabled={!comment.trim()}
+              onClick={() => {
+                if (comment.trim()) {
+                  props.onAddComment(comment.trim())
+                  setComment('')
+                }
+              }}
+            >
+              发送
+            </button>
+          </div>
+        </section>
+      </div>
+
+      {/* ══ 右列：状态 + 标签 + 关联卡片 + 变更记录 ══ */}
+      <div className="kbnb-drawer-side">
+        {/* 工具/状态栏：状态切换 + 归档 + 删除 */}
+        <div className="kbnb-toolbar">
+          <label className="kbnb-status">
+            <span className="kbnb-status-label">状态</span>
+            <select
+              className="kbnb-status-select"
+              value={currentCol ? currentCol.id : ''}
+              onChange={(evt) => {
+                const target = evt.target.value
+                if (target && currentCol && target !== currentCol.id) props.onMoveStatus(target)
+              }}
+            >
+              {props.columns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="kbnb-spacer" />
+          {typeof props.onArchive === 'function' ? (
+            <button className="kbnb-btn" type="button" title="移出看板，可在侧边栏归档中找回" onClick={props.onArchive}>
+              归档
+            </button>
+          ) : null}
+          <button className="kbnb-btn kbnb-danger" type="button" onClick={props.onDelete}>
+            删除
+          </button>
+        </div>
+
+        {/* 标签 */}
+        <div className="kbnb-tag-row">
+          <span className="kbnb-field-label">标签</span>
+          {(props.card.tags || []).map((tg) => (
+            <span key={tg} className="kbnb-tag kbnb-tag-removable" title={'移除标签 ' + tg} onClick={() => props.onUpdateTags([], [tg])}>
+              {tg}
+              <span className="kbnb-tag-x">×</span>
+            </span>
+          ))}
+          <TagInput onAdd={(t) => props.onUpdateTags([t], [])} />
+        </div>
+
+        {/* Git 关联卡片（G6/G7）：repo + MR 列表 + 状态徽标 + 同步时间 + 同步按钮（槽位） */}
+        <GitCard
+          card={props.card}
+          onRemoveRef={props.onRemoveRef}
+          actionHost={props.actionHost ? () => props.actionHost!() : null}
+        />
+
+        {/* 关联卡片（按类型管理）：git 分支/本地仓库/会话 + 新增折叠表单 + 删除 */}
+        <section className="kbnb-card kbnb-refs-card">
+          <header className="kbnb-card-sec-head">
+            <span className="kbnb-card-sec-title">关联 {refs.length}</span>
+            <button
+              className="kbnb-btn kbnb-ref-add-btn"
+              type="button"
+              onClick={() => setAddingRef(!addingRef)}
+            >
+              {addingRef ? '收起' : '+ 新增'}
+            </button>
+          </header>
+
+          {refs.length === 0 ? <div className="kbnb-refs-empty">暂无关联</div> : null}
+          {refs.map((r) => (
+            <div key={r.id} className="kbnb-ref-row">
+              <span className="kbnb-ref-kind">{r.kind}</span>
+              {r.kind === 'session' ? (
+                <button
+                  className="kbnb-ref-link kbnb-ref-session"
+                  type="button"
+                  title={'打开会话 ' + r.externalId}
+                  onClick={() => props.onOpenSession(String(r.externalId))}
                 >
-                  {props.columns.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <span className="kbnb-spacer" />
-              <button className="kbnb-btn kbnb-danger" type="button" onClick={props.onDelete}>
-                删除
+                  {r.display || r.externalId}
+                </button>
+              ) : r.url ? (
+                <a className="kbnb-ref-link" href={r.url} target="_blank" rel="noreferrer">
+                  {r.display || r.externalId}
+                </a>
+              ) : (
+                <span className="kbnb-ref-text">{r.display || r.externalId}</span>
+              )}
+              <span className="kbnb-ref-x" title="移除关联" onClick={() => props.onRemoveRef(r.id)}>
+                ×
+              </span>
+            </div>
+          ))}
+
+          {addingRef ? (
+            <div className="kbnb-ref-add">
+              <select
+                className="kbnb-input kbnb-ref-kind-select"
+                value={refKind}
+                onChange={(evt) => setRefKind(evt.target.value)}
+              >
+                {REF_KINDS.map((k) => (
+                  <option key={k.kind} value={k.kind}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="kbnb-input kbnb-ref-ext"
+                value={refExt}
+                onChange={(evt) => setRefExt(evt.target.value)}
+                placeholder={refKind === 'session' ? '会话 id（打开会话后可从会话页复制）' : 'external id（owner/repo、MR 号、路径…）'}
+              />
+              <input
+                className="kbnb-input kbnb-ref-display"
+                value={refDisplay}
+                onChange={(evt) => setRefDisplay(evt.target.value)}
+                placeholder={refKind === 'session' ? '展示文本（会话标题，可选）' : '展示文本（可选）'}
+              />
+              {refKind !== 'session' ? (
+                <input
+                  className="kbnb-input kbnb-ref-url"
+                  value={refUrl}
+                  onChange={(evt) => setRefUrl(evt.target.value)}
+                  placeholder="链接（可选）"
+                />
+              ) : null}
+              <button className="kbnb-btn kbnb-primary" type="button" disabled={!refExt.trim()} onClick={submitRef}>
+                添加
               </button>
             </div>
+          ) : null}
+        </section>
 
-            {/* 标签 */}
-            <div className="kbnb-tag-row">
-              <span className="kbnb-field-label">标签</span>
-              {(props.card.tags || []).map((tg) => (
-                <span key={tg} className="kbnb-tag kbnb-tag-removable" title={'移除标签 ' + tg} onClick={() => props.onUpdateTags([], [tg])}>
-                  {tg}
-                  <span className="kbnb-tag-x">×</span>
-                </span>
-              ))}
-              <TagInput onAdd={(t) => props.onUpdateTags([t], [])} />
+        {/* 变更记录 */}
+        <section className="kbnb-section">
+          <div className="kbnb-section-title">变更记录 {activity.length}</div>
+          {activity.length === 0 ? <div className="kbnb-section-empty">暂无记录</div> : null}
+          {activity.map((a) => (
+            <div key={a.id} className="kbnb-activity">
+              <span className="kbnb-activity-time">{fmtTime(a.at)}</span>
+              {a.actor ? <span className="kbnb-activity-actor">{a.actor}</span> : null}
+              <span className="kbnb-activity-text">{a.text}</span>
             </div>
-
-            {/* Git 关联卡片（G6/G7）：repo + MR 列表 + 状态徽标 + 同步时间 + 同步按钮（槽位） */}
-            <GitCard
-              card={props.card}
-              onRemoveRef={props.onRemoveRef}
-              actionHost={props.actionHost ? () => props.actionHost!() : null}
-            />
-
-            {/* 关联卡片（按类型管理）：git 分支/本地仓库/会话 + 新增折叠表单 + 删除 */}
-            <section className="kbnb-card kbnb-refs-card">
-              <header className="kbnb-card-sec-head">
-                <span className="kbnb-card-sec-title">关联 {refs.length}</span>
-                <button
-                  className="kbnb-btn kbnb-ref-add-btn"
-                  type="button"
-                  onClick={() => setAddingRef(!addingRef)}
-                >
-                  {addingRef ? '收起' : '+ 新增'}
-                </button>
-              </header>
-
-              {refs.length === 0 ? <div className="kbnb-refs-empty">暂无关联</div> : null}
-              {refs.map((r) => (
-                <div key={r.id} className="kbnb-ref-row">
-                  <span className="kbnb-ref-kind">{r.kind}</span>
-                  {r.kind === 'session' ? (
-                    <button
-                      className="kbnb-ref-link kbnb-ref-session"
-                      type="button"
-                      title={'打开会话 ' + r.externalId}
-                      onClick={() => props.onOpenSession(String(r.externalId))}
-                    >
-                      {r.display || r.externalId}
-                    </button>
-                  ) : r.url ? (
-                    <a className="kbnb-ref-link" href={r.url} target="_blank" rel="noreferrer">
-                      {r.display || r.externalId}
-                    </a>
-                  ) : (
-                    <span className="kbnb-ref-text">{r.display || r.externalId}</span>
-                  )}
-                  <span className="kbnb-ref-x" title="移除关联" onClick={() => props.onRemoveRef(r.id)}>
-                    ×
-                  </span>
-                </div>
-              ))}
-
-              {addingRef ? (
-                <div className="kbnb-ref-add">
-                  <select
-                    className="kbnb-input kbnb-ref-kind-select"
-                    value={refKind}
-                    onChange={(evt) => setRefKind(evt.target.value)}
-                  >
-                    {REF_KINDS.map((k) => (
-                      <option key={k.kind} value={k.kind}>
-                        {k.label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    className="kbnb-input kbnb-ref-ext"
-                    value={refExt}
-                    onChange={(evt) => setRefExt(evt.target.value)}
-                    placeholder={refKind === 'session' ? '会话 id（打开会话后可从会话页复制）' : 'external id（owner/repo、MR 号、路径…）'}
-                  />
-                  <input
-                    className="kbnb-input kbnb-ref-display"
-                    value={refDisplay}
-                    onChange={(evt) => setRefDisplay(evt.target.value)}
-                    placeholder={refKind === 'session' ? '展示文本（会话标题，可选）' : '展示文本（可选）'}
-                  />
-                  {refKind !== 'session' ? (
-                    <input
-                      className="kbnb-input kbnb-ref-url"
-                      value={refUrl}
-                      onChange={(evt) => setRefUrl(evt.target.value)}
-                      placeholder="链接（可选）"
-                    />
-                  ) : null}
-                  <button className="kbnb-btn kbnb-primary" type="button" disabled={!refExt.trim()} onClick={submitRef}>
-                    添加
-                  </button>
-                </div>
-              ) : null}
-            </section>
-
-            {/* 变更记录 */}
-            <section className="kbnb-section">
-              <div className="kbnb-section-title">变更记录 {activity.length}</div>
-              {activity.length === 0 ? <div className="kbnb-section-empty">暂无记录</div> : null}
-              {activity.map((a) => (
-                <div key={a.id} className="kbnb-activity">
-                  <span className="kbnb-activity-time">{fmtTime(a.at)}</span>
-                  {a.actor ? <span className="kbnb-activity-actor">{a.actor}</span> : null}
-                  <span className="kbnb-activity-text">{a.text}</span>
-                </div>
-              ))}
-            </section>
-          </div>
+          ))}
+        </section>
+      </div>
     </div>
   )
 }
@@ -310,8 +363,9 @@ export function CardDetail(props: {
 export function CardDrawer(props: {
   card: KanbanCard
   columns: KanbanColumn[]
-  onSave: (title: string, description: string) => void
+  onSave: (title: string, description: string, content: KanbanBlock[]) => void
   onDelete: () => void
+  onArchive: () => void
   onClose: () => void
   onAddComment: (text: string) => void
   onUpdateTags: (add: string[], remove: string[]) => void
@@ -335,6 +389,7 @@ export function CardDrawer(props: {
           columns={props.columns}
           onSave={props.onSave}
           onDelete={props.onDelete}
+          onArchive={props.onArchive}
           onClose={props.onClose}
           onAddComment={props.onAddComment}
           onUpdateTags={props.onUpdateTags}

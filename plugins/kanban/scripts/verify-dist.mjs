@@ -89,7 +89,10 @@ async function loadHost() {
   }
   const loaded = await handlers['kanban/load']()
   if (!loaded.board || loaded.board.columns.length !== 3) throw new Error('load default board wrong')
-  const expectTools = ['kanban_view','kanban_get_card','kanban_search','kanban_recent','kanban_create','kanban_move','kanban_update','kanban_tags','kanban_comment','kanban_delete','kanban_add_column','kanban_rename_column','kanban_delete_column','kanban_move_column','kanban_link','kanban_unlink']
+  if (!Array.isArray(loaded.board.archive)) throw new Error('load default board archive missing')
+  // v3 归档工具注册：kanban_archive / kanban_unarchive / kanban_list_archived
+  if (typeof handlers['kanban/save'] !== 'function') throw new Error('kanban/save missing')
+  const expectTools = ['kanban_view','kanban_get_card','kanban_search','kanban_recent','kanban_create','kanban_move','kanban_update','kanban_tags','kanban_comment','kanban_archive','kanban_unarchive','kanban_list_archived','kanban_delete','kanban_add_column','kanban_rename_column','kanban_delete_column','kanban_move_column','kanban_link','kanban_unlink']
   const missing = expectTools.filter((t) => !registered.includes(t))
   if (missing.length > 0) throw new Error('tools missing: ' + missing.join(','))
   if (!provided['kanban'] || typeof provided['kanban'].getCard !== 'function' || typeof provided['kanban'].updateCard !== 'function' || typeof provided['kanban'].listCards !== 'function') {
