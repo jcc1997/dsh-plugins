@@ -9,7 +9,7 @@ export const boardCss = `
 .kbnb-nav-on:hover{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-state-business-primary)}
 .kbnb-nav-icon{flex:none;color:currentColor}
 .kbnb-nav-label{flex:1;text-align:left;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.kbnb-nav-badge{font-size:11px;color:var(--dsw-alias-label-secondary);background:var(--dsw-static-neutral-bluish-50);border-radius:999px;padding:1px 8px;border:1px solid var(--dsw-alias-border-l2);font-variant-numeric:tabular-nums;flex:none}
+.kbnb-nav-badge{font-size:11px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border-radius:999px;padding:1px 8px;border:1px solid var(--dsw-alias-border-l2);font-variant-numeric:tabular-nums;flex:none}
 .kbnb-main{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 
 /* ══ 看板工具行（分组/列配置） ══ */
@@ -23,7 +23,7 @@ export const boardCss = `
 .kbnb-group{display:flex;flex-direction:column;min-height:0;flex:1 1 0;min-height:170px;border-bottom:1px solid var(--dsw-alias-border-l2)}
 .kbnb-group:last-child{border-bottom:none}
 .kbnb-group-single{flex:1 1 auto;border-bottom:none;min-height:0}
-.kbnb-group-head{flex:none;display:flex;align-items:center;gap:8px;padding:7px 16px;border-bottom:1px solid var(--dsw-alias-border-l2);background:var(--dsw-static-neutral-bluish-50)}
+.kbnb-group-head{flex:none;display:flex;align-items:center;gap:8px;padding:7px 16px;border-bottom:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-interactive-bg-hover)}
 .kbnb-group-title{font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kbnb-group-count{font-size:11px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:1px 8px;font-variant-numeric:tabular-nums;flex:none}
 .kbnb-group-row{flex:1;display:flex;overflow-x:auto;align-items:stretch;min-height:0}
@@ -34,7 +34,7 @@ export const boardCss = `
 .kbnb-column-drop{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px;border-radius:8px}
 .kbnb-column-head{display:flex;align-items:center;gap:8px;padding:0 0 12px;cursor:grab;flex:none}
 .kbnb-column-title{font-weight:600;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.2px}
-.kbnb-column-count{font-size:11px;color:var(--dsw-alias-label-secondary);background:var(--dsw-static-neutral-bluish-50);border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums;border:1px solid var(--dsw-alias-border-l2)}
+.kbnb-column-count{font-size:11px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums;border:1px solid var(--dsw-alias-border-l2)}
 
 /* ══ 卡片（title + 标签 + 一句话描述，单行省略） ══ */
 .kbnb-cards{display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;min-height:40px;padding:6px 0 4px}
@@ -47,7 +47,7 @@ export const boardCss = `
 .kbnb-card-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .kbnb-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--dsw-alias-state-business-primary);background:rgba(65, 118, 230, .08);border-radius:999px;padding:2px 8px;line-height:1.6;white-space:nowrap}
 .kbnb-tag-removable{cursor:pointer;transition:all 150ms cubic-bezier(.4, 0, .2, 1)}
-.kbnb-tag-removable:hover{background:var(--dsw-static-red-50);color:var(--dsw-alias-state-error-primary)}
+.kbnb-tag-removable:hover{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}
 .kbnb-tag-x{font-size:12px;line-height:1;opacity:.7}
 .kbnb-tag-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--dsw-alias-border-l2)}
 .kbnb-tag-row .kbnb-field-label{flex:none}

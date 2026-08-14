@@ -19,14 +19,14 @@ export const editorCss = `
 .kbnb-rt-block:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .kbnb-rt-on{background:var(--dsw-alias-interactive-bg-hover)}
 .kbnb-rt-editable{flex:1;min-width:0;outline:none;font-size:14px;line-height:1.7;word-break:break-word;padding:2px 0;color:var(--dsw-alias-label-primary)}
-.kbnb-rt-editable code{background:var(--dsw-static-neutral-bluish-50);border:1px solid var(--dsw-alias-border-l2);border-radius:4px;padding:0 4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em}
+.kbnb-rt-editable code{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:4px;padding:0 4px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em}
 .kbnb-rt-editable b,.kbnb-rt-editable strong{font-weight:600}
 .kbnb-rt-h1{font-size:22px;font-weight:700;line-height:1.4}
 .kbnb-rt-h2{font-size:18px;font-weight:700;line-height:1.4}
 .kbnb-rt-h3{font-size:15px;font-weight:600;line-height:1.4}
 .kbnb-rt-marker{flex:none;min-width:20px;text-align:right;color:var(--dsw-alias-label-secondary);font-variant-numeric:tabular-nums;line-height:1.9;font-size:13.5px}
 .kbnb-rt-quote{border-left:3px solid var(--dsw-alias-border-l2);padding-left:10px;color:var(--dsw-alias-label-secondary)}
-.kbnb-rt-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;background:var(--dsw-static-neutral-bluish-50);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:8px 10px;white-space:pre-wrap;color:var(--dsw-alias-label-primary)}
+.kbnb-rt-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:8px 10px;white-space:pre-wrap;color:var(--dsw-alias-label-primary)}
 .kbnb-rt-divider-wrap{display:block;padding:8px 4px 4px}
 .kbnb-rt-divider{border:none;border-top:1px solid var(--dsw-alias-border-l2);margin:0}
 .kbnb-rt-imgwrap{display:block;padding:4px}

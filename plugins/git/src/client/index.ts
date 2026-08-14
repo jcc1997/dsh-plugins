@@ -7,7 +7,7 @@ export const name = 'git'
 export const inject = ['slots']
 
 const gitCss = `.git-sync-btn-wrap{display:inline-flex;align-items:center;gap:8px}
-.git-sync-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-l2);color:var(--dsw-alias-label-primary);cursor:pointer;padding:0;transition:border-color 150ms cubic-bezier(.4, 0, .2, 1),color 150ms cubic-bezier(.4, 0, .2, 1)}
+.git-sync-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);cursor:pointer;padding:0;transition:border-color 150ms cubic-bezier(.4, 0, .2, 1),color 150ms cubic-bezier(.4, 0, .2, 1)}
 .git-sync-icon-btn:hover{border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary)}
 .git-sync-icon-btn:disabled{cursor:default;opacity:.75}
 .git-sync-spin{animation:gitSyncSpin 0.9s linear infinite}
