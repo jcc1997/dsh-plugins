@@ -5,7 +5,7 @@ DSH 看板插件（动态插件开发版，热更新迭代中）。
 ## 能力
 
 - **UI**：侧边栏「看板」入口（全屏页）→ 竖线分割列看板、拖拽排序/跨列、新建弹窗、编辑抽屉（720px，Notion 风格大标题，自动保存）、标签 chips、评论｜变更记录双栏、列配置弹窗、当前卡高亮
-- **Agent 工具**（host 注册，10 个）：`kanban_view` / `get_card` / `search` / `recent` / `create` / `move` / `update` / `tags` / `comment` / `delete`；操作自动写入变更记录（`actor: "agent"`）
+- **Agent 工具**（host 注册，14 个）：卡片 `view` / `get_card` / `search` / `recent` / `create` / `move` / `update` / `tags` / `comment` / `delete` + 列 `add_column` / `rename_column` / `delete_column`（非空需 force）/ `move_column`；操作自动写入变更记录（`actor: "agent"`）
 - **设置**：settings.section 配置数据目录（默认 `~/.dsh/kanban/board.json`，可指向 git 仓库）
 
 ## 目录

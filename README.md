@@ -15,7 +15,7 @@
 
 ### Agent 工具
 
-插件向模型注册 10 个工具，Agent 可以直接读写看板：
+插件向模型注册 14 个工具，Agent 可以直接读写看板：
 
 **查询**
 | 工具 | 说明 |
@@ -34,6 +34,14 @@
 | `kanban_tags` | 增减标签 |
 | `kanban_comment` | 添加评论 |
 | `kanban_delete` | 删除卡片 |
+
+**列管理**
+| 工具 | 说明 |
+|---|---|
+| `kanban_add_column` | 新建列（可指定插入位置） |
+| `kanban_rename_column` | 重命名列 |
+| `kanban_delete_column` | 删除列（非空默认拒绝，`force: true` 级联删除卡片） |
+| `kanban_move_column` | 调整列顺序（按目标位置） |
 
 所有 Agent 操作自动写入变更记录（`actor: "agent"`），与 UI 手动操作（`actor: "手动调整"`）同源可追溯。
 

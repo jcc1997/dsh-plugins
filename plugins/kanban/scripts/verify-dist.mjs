@@ -65,7 +65,7 @@ async function loadHost() {
   }
   const loaded = await handlers['kanban/load']()
   if (!loaded.board || loaded.board.columns.length !== 3) throw new Error('load default board wrong')
-  const expectTools = ['kanban_view','kanban_get_card','kanban_search','kanban_recent','kanban_create','kanban_move','kanban_update','kanban_tags','kanban_comment','kanban_delete']
+  const expectTools = ['kanban_view','kanban_get_card','kanban_search','kanban_recent','kanban_create','kanban_move','kanban_update','kanban_tags','kanban_comment','kanban_delete','kanban_add_column','kanban_rename_column','kanban_delete_column','kanban_move_column']
   const missing = expectTools.filter((t) => !registered.includes(t))
   if (missing.length > 0) throw new Error('tools missing: ' + missing.join(','))
   console.log('host.js: OK (handlers=' + keys.join(',') + ', tools=' + registered.length + ', default board 3 columns)')
