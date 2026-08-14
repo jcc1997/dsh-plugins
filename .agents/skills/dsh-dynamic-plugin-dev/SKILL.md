@@ -18,13 +18,13 @@ DSH 动态插件（`cordis_define` / `cordis_run`）开发技能：受限环境�
 | | Host | Client |
 |---|---|---|
 | 可用 | `ctx`(get/on/once/provide/effect)、`harness`(handle/defineTool/registerTool)、`console`、btoa/atob、TextEncoder | `React`(createElement + hooks)、`host.call`、`styles.insert`、`ctx`、`console` |
-| 禁用 | import/require、process、fs、os；**ctx.emit**（发事件） | import/require、window、document、localStorage、fetch、JSX；**ctx.emit**（发事件） |
+| 禁用 | import/require、process、fs、os；**ctx.emit**（发事件） | import/require、**setTimeout/setInterval/clearTimeout/clearInterval/fetch**（遮蔽成抛错 trap）、process/Buffer（void 0）、JSX、**ctx.emit**（发事件） |
 
 关键约束：
 - **无 JSX**：用 `React.createElement` 或 TSX 编译管线（§四）
 - **hooks 只在组件渲染函数内**：slot 渲染函数被当普通函数调用，直接调 hooks 返回 undefined → 必须 `() => React.createElement(Comp)` 包一层
 - **无跨组件 store**：动态 occupant 间订阅不可靠，单组件 `useState` 即可
-- **无 document/window**：拖拽定位用 `evt.currentTarget.getBoundingClientRect()`；Esc 关闭等用显式按钮
+- **document/window/FileReader/URL 等浏览器全局可用（2026-08 源码级实测，旧文档说"无 document/window"是错的）**：client 半闭包参数只遮蔽 `setTimeout/setInterval/clearTimeout/clearInterval/fetch/require`（+ process/Buffer=undefined），其余环境全局照常取到。因此 contentEditable 富文本、FileReader 读图（dataURL）、window.confirm 都能用；但**任何对 setTimeout 等 6 名的裸引用都会抛错**（走 ctx.timer 或不用）。拖拽定位仍建议 `evt.currentTarget.getBoundingClientRect()`
 - **Date/Math/JSON 可用**，仍建议 try/catch 兜底
 - **动态插件产物必须导出插件对象**（模块加载时 `export default makePlugin()`），导出函数会报 `Invalid effect`
 
@@ -179,6 +179,7 @@ node scripts/verify-dist.mjs   # 验证产物可加载（含工具注册数断�
    - 定义：`tools.cordis_define({ plugin:{kind:'existing', pluginId}, code:{host, client} })`
    - 更新：`tools.cordis_run({ pluginId, packageId, mode:'update' })`
 3. 注意：SDK 的 `tools.read` 2000 字符/行截断，读大文件必须用 bash+python+fold
+4. **读段文件两个坑（2026-08 实测）**：① bash 结果取 `r.stdout.text`（不是 `r.stdout`，对象拼接会变 "[object Object]"）；② 段文件末尾带换行，拼接后先 `.replace(/\n/g, "")` 再 JSON.parse（JSON.stringify 不会产生裸换行，剔除安全）
 
 ## 六、架构决策记录
 
