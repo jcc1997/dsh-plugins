@@ -5,7 +5,7 @@ DSH git 插件：让 kanban task 关联 GitHub 仓库 / 本地仓库 / branch / 
 ## 状态
 
 - M0 调研 + M1 数据模型 v2（kanban 侧 refs/taskId/meta.sync 信封，已完成）→ **M2 骨架完成**（本插件：git 服务 + 6 个工具 + GitHub API + [ID] 自动关联，构建与受限环境端到端验证通过）
-- 尚未在真实宿主热更新激活（需要 Code Mode 会话 `cordis_define`），首次激活若有签名偏差以 `cordis_inspect_query` 实测为准
+- **已在真实宿主热更新激活**（2026-08，Code Mode 会话 `cordis_define` + `cordis_run`），真实 GitHub 端到端验证通过：`git_configure`（repo + token）→ `git_claim_task_id`（`dsh-plugins-1`）→ `git_sync` 匹配远端 PR #1 标题 `[dsh-plugins-1]` → 自动补 `github-mr` ref + 写回 `meta.sync.github` 信封
 - 详细需求与方案见 [PLAN.md](PLAN.md)
 
 ## 能力（agent 工具，前缀 `git_`）
@@ -13,7 +13,7 @@ DSH git 插件：让 kanban task 关联 GitHub 仓库 / 本地仓库 / branch / 
 | 工具 | 说明 |
 |---|---|
 | `git_configure` | 配置远端 GitHub 仓库（owner/repo）、本地仓库路径、GitHub token（写入宿主 credentials，ref 名 `GITHUB_TOKEN`） |
-| `git_claim_task_id` | 为卡片认领 [ID] 约定 taskId（`<repo-name>-<int>`，同 repo 递增） |
+| `git_claim_task_id` | 为卡片认领 [ID] 约定 taskId（`<repo-name>-<int>`，同 repo 递增）；卡片未关联 github-repo 且未配置远端仓库时拒绝认领（不编造 ID） |
 | `git_link` | 带验证地建立关联（github-repo / github-branch / github-mr / local-repo），写入卡片 refs |
 | `git_list_mrs` | 列出仓库 open MR（GitHub PR），含标题解析出的 [taskId] |
 | `git_sync` | 拉取 open MR → 按 [ID] 自动关联本卡 taskId 的 MR（补 refs）→ 写回 `meta.sync.github` 信封 |

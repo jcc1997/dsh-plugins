@@ -121,10 +121,15 @@ async function loadHost() {
   console.log('tools=' + registered.length + ', service=git, handlers=' + (Object.keys(handlers).join(',') || 'none'))
 
   // ── 端到端逻辑测试 ──
-  // 1) git_claim_task_id：k2 无 ID → 无 repo 关联 → fallback 'task' → task-1
+  // 1) git_claim_task_id：k2 无 ID 且无 repo 关联/配置 → 拒绝（[ID] 约定要求 <repo-name>-<int>，不得编造 ID）
   const claim1 = findTool('git_claim_task_id', registered)
   const rClaim = await claim1.execute({ card_id: 'k2' })
-  if (!rClaim.ok || rClaim.taskId !== 'task-1') throw new Error('claim failed: ' + JSON.stringify(rClaim))
+  if (rClaim.ok) throw new Error('claim should reject without repo: ' + JSON.stringify(rClaim))
+  // 1b) 先 git_link github-repo → 再 claim → dsh-plugins-2（k1 已占 dsh-plugins-1，同 repo 递增）
+  const rLinkRepo = await findTool('git_link', registered).execute({ card_id: 'k2', kind: 'github-repo', external_id: 'jcc1997/dsh-plugins' })
+  if (!rLinkRepo.ok) throw new Error('link repo failed: ' + JSON.stringify(rLinkRepo))
+  const rClaim2 = await claim1.execute({ card_id: 'k2' })
+  if (!rClaim2.ok || rClaim2.taskId !== 'dsh-plugins-2') throw new Error('claim after link failed: ' + JSON.stringify(rClaim2))
   // 2) git_sync：k1（taskId dsh-plugins-1）→ 匹配 PR #1，自动补 github-mr ref，写 meta.sync.github
   const rSync = await findTool('git_sync', registered).execute({ card_id: 'k1' })
   if (!rSync.ok) throw new Error('sync failed: ' + JSON.stringify(rSync))
@@ -143,7 +148,7 @@ async function loadHost() {
   if (!rLink.ok) throw new Error('link failed: ' + JSON.stringify(rLink))
   // 5) token 经 env 传递（bash 调用断言在 mock 内）
   if (bashCalls < 1) throw new Error('bash not used')
-  console.log('logic: OK (claim=' + rClaim.taskId + ', sync matched=' + rSync.matched_mrs.join(',') + ', auto-linked=' + mrRef.externalId + ', envelope.version=' + syncEnv.version + ')')
+  console.log('logic: OK (claim-reject=' + (rClaim.error ? 'yes' : 'no') + ', claim=' + rClaim2.taskId + ', sync matched=' + rSync.matched_mrs.join(',') + ', auto-linked=' + mrRef.externalId + ', envelope.version=' + syncEnv.version + ')')
 }
 
 function findTool(name, registered) {

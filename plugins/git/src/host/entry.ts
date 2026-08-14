@@ -162,7 +162,11 @@ function makePlugin() {
         const existing = taskIdOf(card)
         if (existing) return { ok: true, card_id: cardId, taskId: existing, reused: true }
         const repo = repoFromCard(card)
-        const repoName = repo ? repo.name : (await readConfig()).repo ? (await readConfig()).repo.name : 'task'
+        const cfg = await readConfig()
+        const repoName = repo ? repo.name : (cfg.repo && cfg.repo.name) ? cfg.repo.name : null
+        if (!repoName) {
+          return { ok: false, error: '无法认领 taskId：卡片未关联 github-repo 且未配置远端仓库（先 git_configure 配 repo 或用 git_link 关联 github-repo），[ID] 约定要求 <repo-name>-<int>' }
+        }
         let max = 0
         try {
           const all = await kanban.listCards()
