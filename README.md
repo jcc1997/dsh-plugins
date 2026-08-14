@@ -1,91 +1,76 @@
-# dsh-plugins — DSH 插件大仓
+# dsh-plugins
 
-DeepSeek Harness（DSH）插件开发仓库，双形态并存：
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）开发的插件集合。
 
-| 形态 | 用途 | 发布 | 开发方式 |
-|---|---|---|---|
-| **发布版 bundle**（`plugins/hello` 模板） | 正式安装分发 | npm / tarball，`dsh plugin add` | 官方规范：ESM 模块 + cordis.patch.yml，无需编译 |
-| **动态插件**（`plugins/kanban` 管线） | 会话内热更新迭代 | 不进 npm，`cordis_define` 即时加载 | TS/TSX 源码 + esbuild 管线 + Code Mode SDK 零粘贴 |
+当前包含 **看板（kanban）插件**：一个嵌入 DSH 侧边栏的全功能看板，同时提供**给 Agent 调用的 10 个工具**，让人和 AI 在同一块板上协作。
 
-> 开发前先加载 skill：`.agents/skills/dsh-dynamic-plugin-dev`（受限环境约束 + 代码模板 + 踩坑清单 + 编译管线）。
+## 看板插件
 
-## 仓库结构
+### 界面能力
 
-```
-dsh-plugins/
-├── package.json + pnpm-workspace.yaml   # workspace 根
-├── plugins/
-│   ├── hello/         # 发布版示例插件（官方规范：Config schema + 工具）
-│   └── kanban/        # 动态插件：TS 源码 + esbuild 管线 + 10 个 agent 工具
-├── packages/ui/       # 共享包 @dsh-plugins/ui：design tokens + 图标 + 工具函数 + 组件
-│   └── DESIGN.md      # UI 设计规范（原则 + tokens + 组件契约 + 间距契约）
-├── vendor/deepseek-harness/   # 官方仓库 submodule（sparse checkout，图标源码来源）
-└── .agents/skills/dsh-dynamic-plugin-dev/  # 动态插件开发 skill
-```
+- **看板**：竖线分隔列、拖拽排序与跨列移动、当前卡高亮、空状态引导
+- **卡片**：新建弹窗（Notion 风格大标题）、编辑抽屉（720px，自动保存）、标签、评论、Markdown 描述（编辑/预览）
+- **变更记录**：创建 / 更新 / 状态变更 / 标签 / 评论全量留痕，含时间与操作者（`手动调整` / `agent`）
+- **设置**：数据目录可配置（默认 `~/.dsh/kanban/board.json`，可指向 git 仓库随版本同步）
 
-## kanban 动态插件能力总览
+### Agent 工具
 
-### UI（`sidebar.footer.action` 入口，全屏看板页）
-- 看板：竖线分隔列、拖拽排序/跨列移动、当前卡高亮、空状态引导
-- 卡片：新建弹窗（Notion 风格大标题）、编辑抽屉（720px，自动保存）、标签 chips、评论｜变更记录双栏
-- 日志：创建/更新/状态变更/标签/评论全记录，含时间与操作者（`手动调整` / `agent`）
-- 设置：`settings.section` 配置数据目录（`~/.dsh/kanban/board.json`，可指向 git 仓库同步）
-
-### Agent 工具（host 注册，模型可直接调用）
+插件向模型注册 10 个工具，Agent 可以直接读写看板：
 
 **查询**
 | 工具 | 说明 |
 |---|---|
 | `kanban_view` | 看板全览：所有列 + 卡片概要 |
 | `kanban_get_card` | 单卡完整详情（含评论、变更记录） |
-| `kanban_search` | 条件查询：keyword + status（列名/id）+ tags 组合 |
-| `kanban_recent` | 最近改动（updatedAt 倒序，默认 10） |
+| `kanban_search` | 条件查询：关键词 + 状态（列名/ID）+ 标签组合 |
+| `kanban_recent` | 最近改动（按更新时间倒序） |
 
 **操作**
 | 工具 | 说明 |
 |---|---|
-| `kanban_create` | 新建卡片（title 必填，可带 status/description/tags） |
-| `kanban_move` | 移动状态（列名或列 id） |
-| `kanban_update` | 更新标题/描述（实际变化才记日志） |
-| `kanban_tags` | 增减标签（add/remove 数组） |
+| `kanban_create` | 新建卡片（可指定状态 / 描述 / 标签） |
+| `kanban_move` | 移动状态 |
+| `kanban_update` | 更新标题 / 描述 |
+| `kanban_tags` | 增减标签 |
 | `kanban_comment` | 添加评论 |
-| `kanban_delete` | 删除卡片（不可恢复） |
+| `kanban_delete` | 删除卡片 |
 
-所有操作自动写入变更记录（`actor: "agent"`），与 UI 手动操作（`actor: "手动调整"`）同源可追溯。
+所有 Agent 操作自动写入变更记录（`actor: "agent"`），与 UI 手动操作（`actor: "手动调整"`）同源可追溯。
 
-## 开发动态插件（快速开始）
+## 设计规范
 
-``bash
-# 1. 初始化 submodule（图标源）
-git submodule update --init
-# 2. 安装依赖
-pnpm install
-# 3. 改源码（plugins/kanban/src/client/*.tsx、src/host/entry.ts）
-# 4. 构建 + 验证
-cd plugins/kanban && node build.mjs && node scripts/verify-dist.mjs
-# 5. 热更新（Code Mode 会话内）
-#    run_code 程序里 SDK 零粘贴：切块读入 submit.json → cordis_define → cordis_run update
+插件 UI 与 DSH 宿主规范统一：直接引用宿主运行时注入的官方设计 tokens（`--dsw-*`，明暗主题自动适配），权威色板已抽取到 [`packages/ui/dsh/design-platform.css`](packages/ui/dsh/design-platform.css)，完整规范见 [`packages/ui/DESIGN.md`](packages/ui/DESIGN.md)。
+
+## 仓库结构
+
+```
+dsh-plugins/
+├── plugins/
+│   ├── hello/         # 发布版示例插件（官方 bundle 规范）
+│   └── kanban/        # 看板插件：TS 源码 + 编译管线 + 10 个 agent 工具
+├── packages/ui/       # 共享包 @dsh-plugins/ui：设计 tokens + 图标 + 工具函数 + 组件
+│   ├── DESIGN.md      # UI 设计规范（与 DSH 宿主统一）
+│   └── dsh/design-platform.css   # DSH 官方设计 tokens（抽取自 dsh-client-ui-theme）
+└── vendor/deepseek-harness/     # 官方仓库 submodule（图标源码等参考来源）
 ```
 
-**Code Mode 硬性规则**：未以 `DSH_TOOLS_MODE=code` 启动时，拒绝 cordis_define 热更新（产物每次全量进上下文 ≈ 50KB+/次）。详见 skill 第零节。
+## 安装
 
-## 发布版 bundle 插件（官方形态）
+**发布版 bundle**（`plugins/hello` 示范）：
 
-以 `plugins/hello` 为模板：`cp plugins/hello/{cordis.patch.yml,package.json} plugins/my-plugin/`，入口导出 `name` / `Config`(可省) / `apply(ctx, config)`。
-
-``bash
-dsh plugin --profile web add ./plugins/hello        # 本地目录
-pnpm --filter dsh-plugins-hello pack               # tarball 分发
-dsh plugin --profile web add dsh-plugins-hello     # npm 发布后
-dsh --profile web --dump-config                    # 验证组合层
+```bash
+dsh plugin --profile web add ./plugins/hello   # 或 npm 包名
 ```
 
-> 安装后重启 dsh web 进程生效；插件不随仓库自动分发。
+安装后重启 dsh 生效。
+
+**动态插件**（`plugins/kanban`）：在会话内通过 `cordis_define` 即时加载，随会话存在；源码与构建管线见 [`plugins/kanban/README.md`](plugins/kanban/README.md)。
+
+## 开发
+
+仓库是 pnpm workspace。动态插件开发（热更新迭代）的完整方法论见 [`.agents/skills/dsh-dynamic-plugin-dev`](.agents/skills/dsh-dynamic-plugin-dev/SKILL.md)，包含受限环境约束、代码模板与踩坑清单。
 
 ## 参考
 
-- [官方开发文档](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs/user/develop)
-- [Your first plugin](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/index.md)
-- [Build a tool](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/tool.md)
-- [Package and install](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)
-- [UI 设计规范（packages/ui/DESIGN.md）](packages/ui/DESIGN.md)
+- [DSH 官方开发文档](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs/user/develop)
+- [官方插件教程：Your first plugin](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/index.md)

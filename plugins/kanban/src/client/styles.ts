@@ -65,7 +65,7 @@ export const kbnbCss = designTokensCss + `
 
 /* ══ 遮罩 / 弹窗 ══ */
 .kbnb-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:70;pointer-events:auto}
-.kbnb-modal{background:var(--kbnb-bg);border-radius:var(--kbnb-radius-lg);box-shadow:var(--kbnb-shadow-lg);width:480px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+.kbnb-modal{background:var(--kbnb-bg);border-radius:var(--kbnb-radius-xl);box-shadow:var(--kbnb-shadow-lg);width:480px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
 .kbnb-modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px var(--kbnb-space-4) 12px;border-bottom:1px solid var(--kbnb-border)}
 .kbnb-modal-title{font-size:var(--kbnb-font-md);font-weight:600}
 .kbnb-modal-body{padding:var(--kbnb-space-4);overflow-y:auto}

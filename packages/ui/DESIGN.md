@@ -1,32 +1,46 @@
-# dsh-plugins UI 设计规范 v1
+# dsh-plugins UI 设计规范 v2
 
-> 所有 dsh-plugins 插件 UI 必须遵守本规范。Tokens 在 `src/tokens.ts` 以 CSS 变量落地，
-> 组件样式一律引用变量，**禁止硬编码颜色 / 间距 / 圆角 / 阴影**。
+> 所有 dsh-plugins 插件 UI 必须遵守本规范。
+> **第一原则：与 DSH 宿主规范统一** —— 插件运行在 DeepSeek Harness 里，视觉语言、色彩、字号、圆角、交互节奏必须跟随宿主，而不是自创一套。
+
+## 〇、与 DSH 宿主规范的统一（最高优先）
+
+DSH 宿主在运行时注入完整的官方设计 tokens（`--dsw-static-*` 色板 + `--dsw-alias-*` 语义层 + `--dsw-shadow-lv*`），并随 `body[data-ds-dark-theme]` **自动切换明暗主题**。权威定义已抽取到 `packages/ui/dsh/design-platform.css`（来源：`@deepseek-ai/dsh-client-ui-theme`，MIT）。
+
+**规则**：
+1. **优先引用宿主变量**：插件样式直接用 `--dsw-alias-*` / `--dsw-static-*`，明暗主题自动适配，无需自管主题
+2. **`--kbnb-*` 只是语义别名层**（`packages/ui/src/tokens.ts`）：把宿主变量按用途重命名（如 `--kbnb-bg` = `var(--dsw-alias-bg-base)`），保证语义清晰且宿主改名时只需改一处
+3. **宿主没有的语义才自建**：自建值必须取色于官方色板（`--dsw-static-*`），禁止任意色值
+4. **组件形态对齐官方**：圆角按官方实测（小控件 6 / 按钮输入 8 / 卡片 12 / 浮层 14）；阴影用 `--dsw-shadow-lv2/lv3`；正文基准字号 13px（`--dsw-font-xs-13`）
+5. **可对照官方组件源码**：`vendor/deepseek-harness/packages/client/ui-primitives/src/*.module.css`（Button/Input/Modal 等）是官方实现，样式拿不准时照抄其取值
 
 ## 一、设计原则
 
-1. **少即是多** — 一屏内不超过 1 个强调色（品牌蓝）。层次靠留白与字重表达，不靠堆边框。
+1. **少即是多** — 一屏内不超过 1 个强调色（品牌色 = 官方 deepseek 蓝）。层次靠留白与字重表达，不靠堆边框。
 2. **Notion 式轻表单** — 标题编辑无边框无背景；输入类控件聚焦时用 ring 而非变色边框。
 3. **反馈即时** — hover 轻量（背景/边框变化），active 明确，拖拽有可见轨迹，保存有状态提示。
 4. **一致性优先** — 所有组件共用同一套 token；同义操作（主按钮/次按钮/危险按钮）全局唯一形态。
 5. **克制动效** — 仅过渡（150ms ease）与浮层出现（240ms）；不添加旋转/弹跳等装饰动画。
 
-## 二、Tokens（src/tokens.ts）
+## 二、Tokens（packages/ui/src/tokens.ts，全部映射宿主）
 
-| 类别 | 变量 | 值 | 用途 |
+| 类别 | 变量 | 宿主映射 | 用途 |
 |---|---|---|---|
-| 品牌 | `--kbnb-accent` | #2563eb | 主操作、选中、焦点 |
-| 品牌 | `--kbnb-accent-hover` | #1d4ed8 | 主按钮 hover |
-| 品牌 | `--kbnb-accent-soft` | rgba(37,99,235,.08) | 标签/激活底色 |
-| 品牌 | `--kbnb-accent-ring` | rgba(37,99,235,.18) | focus ring、拖拽轨迹 |
-| 中性 | `--kbnb-bg` / `--kbnb-bg-subtle` / `--kbnb-bg-hover` / `--kbnb-bg-active` | 白→浅灰四阶 | 页面/浮层/悬停/按下 |
-| 文字 | `--kbnb-fg` / `--kbnb-fg-secondary` / `--kbnb-fg-tertiary` / `--kbnb-fg-quaternary` | 四阶 | 主文/次文/辅助/占位 |
-| 边框 | `--kbnb-border` / `--kbnb-border-strong` | #e5e6eb / #d0d3da | 分隔/强分隔 |
-| 语义 | `--kbnb-danger` / `--kbnb-danger-soft` / `--kbnb-success` | — | 危险/成功 |
-| 圆角 | `--kbnb-radius-sm/md/lg/full` | 6/10/14/999px | 控件/卡片/浮层/胶囊 |
-| 阴影 | `--kbnb-shadow-xs/sm/md/lg` | 四层 | 卡片/浮层/抽屉 |
-| 字阶 | `--kbnb-font-xs…title` | 11→26px | 见下方阶梯 |
-| 间距 | `--kbnb-space-1…7` | 4→32px | 4n 体系 |
+| 品牌 | `--kbnb-accent` | `--dsw-alias-state-business-primary` | 主操作、选中、焦点（浅色 = deepseek-500） |
+| 品牌 | `--kbnb-accent-hover` | `--dsw-static-deepseek-600` | 主按钮 hover |
+| 品牌 | `--kbnb-accent-soft/ring` | 官方色板换算 rgba | 标签底色 / focus ring、拖拽轨迹 |
+| 中性 | `--kbnb-bg` | `--dsw-alias-bg-base` | 页面 / 浮层 |
+| 中性 | `--kbnb-bg-subtle` | `--dsw-static-neutral-bluish-50` | 浅灰底（评论气泡等） |
+| 中性 | `--kbnb-bg-hover/active` | `--dsw-alias-interactive-bg-hover/active` | 悬停 / 按下 |
+| 文字 | `--kbnb-fg / secondary / tertiary` | `--dsw-alias-label-*` | 主文 / 次文 / 辅助 |
+| 边框 | `--kbnb-border / border-strong` | `--dsw-alias-border-l2` / `neutral-bluish-300` | 分隔 / 强分隔 |
+| 语义 | `--kbnb-danger / success` | `--dsw-alias-state-error/success-primary` | 危险 / 成功 |
+| 圆角 | `--kbnb-radius-sm/md/lg/xl` | 官方实测 6 / 8 / 12 / 14 | 控件 / 按钮输入 / 卡片 / 浮层 |
+| 阴影 | `--kbnb-shadow-sm/md/lg` | 自定 xs / `--dsw-shadow-lv2` / `lv3` | 卡片 / 浮层 / 抽屉 |
+| 字阶 | `--kbnb-font-xs…title` | 官方体系，正文基准 13px | 11→26px |
+| 间距 | `--kbnb-space-1…7` | 4n 体系 | 4→32px |
+
+完整色板与明暗值：`packages/ui/dsh/design-platform.css`（浅色 `:root` + 深色 `body[data-ds-dark-theme]` 两段）。
 
 ### 间距契约（组件级，统一遵守，禁止随手写任意值）
 | 场景 | 值 |
@@ -44,29 +58,17 @@
 | 表单控件之间 | 16px；标签与控件之间 8px |
 | 列表项（活动行） | 行内 5px，虚线分隔 |
 
-### 字阶阶梯
-| 用途 | 值 |
-|---|---|
-| 页面大标题（卡片编辑） | 26px / 700 |
-| 列标题 / 弹窗标题 | 17px / 600 |
-| 页面标题 | 16-17px / 600 |
-| 卡片标题 | 15px / 600 |
-| 正文 / 按钮 / 输入 | 13px |
-| 辅助说明 | 12px |
-| 时间戳 / 徽标 | 11px |
-
 ## 三、组件样式契约
-
 | 组件 | 规范 |
 |---|---|
-| 主按钮（.kbnb-primary） | 蓝底白字，radius-md(10px)，padding 6px 14px；hover 深一档；disabled opacity .5 |
-| 次按钮（.kbnb-btn） | 白底 + border；hover 浅灰底 |
-| 危险按钮（.kbnb-danger） | 白底 + 红字红边；hover 红字加深 |
-| 输入/文本域 | 白底 + border；**focus: border 不变 + box-shadow ring(accent-ring)** |
+| 主按钮（.kbnb-primary） | 品牌蓝底白字，radius-md(8px)，padding 6px 14px；hover 深一档；disabled opacity .5 |
+| 次按钮（.kbnb-btn） | 白底 + border-l2；hover 浅灰底（interactive-bg-hover） |
+| 危险按钮（.kbnb-danger） | 白底 + 红字红边；hover 红字加深 + danger-soft 底 |
+| 输入/文本域 | 白底 + border-l2；**focus: 边框不变 + ring(accent-ring 2px)** |
 | 大标题输入（.kbnb-input-title） | 无边框无背景；26px/700；placeholder 用 tertiary |
-| 卡片（.kbnb-card） | 白底、radius-lg(14px)、border、shadow-xs；hover: border 品牌色 + shadow-sm 微抬；active(选中): border 品牌色 + ring |
+| 卡片（.kbnb-card） | 白底、radius-lg(12px)、border-l2、shadow-xs；hover: border 品牌色 + shadow-sm 微抬；active(选中): border 品牌色 + ring |
 | 列 | 白底，列间 1px 竖线分隔；列头计数为灰底胶囊 |
-| 弹窗（.kbnb-modal） | radius-lg、shadow-lg；遮罩 rgba(0,0,0,.35)；不点击遮罩关闭 |
+| 弹窗（.kbnb-modal） | radius-xl(14px)、shadow-lg；遮罩 rgba(0,0,0,.35)；不点击遮罩关闭 |
 | 抽屉（.kbnb-drawer） | 宽 720px、shadow-lg、左侧 1px 分隔线 |
 | 评论气泡 | radius-md、浅灰底（bg-subtle） |
 | 变更记录 | 时间戳 tabular-nums；操作者 11px 蓝色小徽章（accent-soft 底） |
