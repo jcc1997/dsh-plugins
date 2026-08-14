@@ -15,12 +15,12 @@ export const REF_KINDS: { kind: string; label: string }[] = [
   { kind: 'session', label: '会话' },
 ]
 
-export function CardDrawer(props: {
+export function CardDetail(props: {
   card: KanbanCard
   columns: KanbanColumn[]
   onSave: (title: string, description: string) => void
-  onDelete: () => void
-  onClose: () => void
+  onDelete?: () => void
+  onClose?: () => void
   onAddComment: (text: string) => void
   onUpdateTags: (add: string[], remove: string[]) => void
   onMoveStatus: (targetColId: string) => void
@@ -38,7 +38,6 @@ export function CardDrawer(props: {
   const [refDisplay, setRefDisplay] = useState('')
   const [refUrl, setRefUrl] = useState('')
   const [addingRef, setAddingRef] = useState(false)
-  const first = useRef(true)
 
   // 切换卡片时同步本地状态
   useEffect(() => {
@@ -46,15 +45,19 @@ export function CardDrawer(props: {
     setDescription(props.card.description || '')
   }, [props.card.id])
 
-  // 自动保存：title/description 变化后 600ms 防抖提交（首次渲染跳过）
+  // 自动保存：内容变更立即提交（动态 client 半无 setTimeout，不做防抖；
+  // 切换卡片时首帧跳过，避免把上一张卡的内容写回新卡）
+  const skipSave = useRef(true)
   useEffect(() => {
-    if (first.current) {
-      first.current = false
+    skipSave.current = true
+  }, [props.card.id])
+  useEffect(() => {
+    if (skipSave.current) {
+      skipSave.current = false
       return
     }
-    const timer = setTimeout(() => props.onSave(title.trim(), description), 600)
-    return () => clearTimeout(timer)
-  }, [title, description])
+    props.onSave(title.trim(), description)
+  }, [title, description, props.card.id])
 
   const comments = props.card.comments || []
   const activity = props.card.activity || []
@@ -78,16 +81,8 @@ export function CardDrawer(props: {
   }
 
   return (
-    <div
-      className="kbnb-drawer-mask"
-      onClick={(evt) => {
-        // 点击蒙层（非抽屉内部）自动关闭
-        if (evt.target === evt.currentTarget) props.onClose()
-      }}
-    >
-      <aside className="kbnb-drawer">
-        <div className="kbnb-drawer-body kbnb-drawer-grid">
-          {/* ══ 左列：标题 + 描述 + 评论 ══ */}
+    <div className="kbnb-card-detail kbnb-drawer-grid">
+      {/* ══ 左列：标题 + 描述 + 评论 ══ */}
           <div className="kbnb-drawer-main">
             {/* 标题：Notion 风格，无边框大号输入 */}
             <div className="kbnb-title-row">
@@ -97,9 +92,11 @@ export function CardDrawer(props: {
                 onChange={(evt) => setTitle(evt.target.value)}
                 placeholder="卡片标题"
               />
-              <button className="kbnb-icon-btn" type="button" title="关闭" onClick={props.onClose}>
-                <IconCloseOutline16 />
-              </button>
+              {typeof props.onClose === 'function' ? (
+                <button className="kbnb-icon-btn" type="button" title="关闭" onClick={props.onClose}>
+                  <IconCloseOutline16 />
+                </button>
+              ) : null}
             </div>
 
             {/* 描述 */}
@@ -305,12 +302,52 @@ export function CardDrawer(props: {
               ))}
             </section>
           </div>
-        </div>
-      </aside>
     </div>
   )
 }
 
+/** 抽屉外壳：蒙层点击关闭 + 加宽；内容复用 CardDetail */
+export function CardDrawer(props: {
+  card: KanbanCard
+  columns: KanbanColumn[]
+  onSave: (title: string, description: string) => void
+  onDelete: () => void
+  onClose: () => void
+  onAddComment: (text: string) => void
+  onUpdateTags: (add: string[], remove: string[]) => void
+  onMoveStatus: (targetColId: string) => void
+  onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
+  onRemoveRef: (refId: string) => void
+  onOpenSession: (sessionId: string) => void
+  actionHost?: (() => unknown) | null
+}) {
+  return (
+    <div
+      className="kbnb-drawer-mask"
+      onClick={(evt) => {
+        // 点击蒙层（非抽屉内部）自动关闭
+        if (evt.target === evt.currentTarget) props.onClose()
+      }}
+    >
+      <aside className="kbnb-drawer">
+        <CardDetail
+          card={props.card}
+          columns={props.columns}
+          onSave={props.onSave}
+          onDelete={props.onDelete}
+          onClose={props.onClose}
+          onAddComment={props.onAddComment}
+          onUpdateTags={props.onUpdateTags}
+          onMoveStatus={props.onMoveStatus}
+          onAddRef={props.onAddRef}
+          onRemoveRef={props.onRemoveRef}
+          onOpenSession={props.onOpenSession}
+          actionHost={props.actionHost}
+        />
+      </aside>
+    </div>
+  )
+}
 /** Git 关联卡片：repo + MR 列表 + 状态徽标 + 同步时间 + 同步按钮（git 插件槽位注入） */
 function GitCard(props: {
   card: KanbanCard

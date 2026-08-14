@@ -188,18 +188,19 @@ export function useKanbanBoard(host: HostLike) {
     })
   }
 
-  /* ── 会话关联查询：refs 含 session 且 externalId 匹配的卡片 ── */
-  function cardsBySession(sessionId: string): Array<{ id: string; title: string; status: string }> {
+  /* ── 会话关联查询：refs 含 session 且 externalId 匹配的卡片（按 updatedAt 倒序，最近在前） ── */
+  function cardsBySession(sessionId: string): Array<{ id: string; title: string; status: string; updatedAt: string }> {
     if (!board) return []
-    const out: Array<{ id: string; title: string; status: string }> = []
+    const out: Array<{ id: string; title: string; status: string; updatedAt: string }> = []
     for (const col of board.columns || []) {
       for (const card of col.cards || []) {
         const refs: any[] = card.refs || []
         if (refs.some((r) => r.kind === 'session' && String(r.externalId) === sessionId)) {
-          out.push({ id: card.id, title: card.title, status: col.title })
+          out.push({ id: card.id, title: card.title, status: col.title, updatedAt: card.updatedAt || '' })
         }
       }
     }
+    out.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
     return out
   }
 

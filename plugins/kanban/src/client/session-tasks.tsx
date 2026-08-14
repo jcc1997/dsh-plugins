@@ -1,9 +1,10 @@
-// 会话 Task 面板：注册在 conversation.view 槽位（session scope）
-// 展示当前会话关联的看板 task（refs 含 session 且 externalId === 当前 sessionId），点击打开可编辑详情（复用 CardDrawer）
-// 同步按钮：槽位渲染授权仅限看板侧条目，这里走 kanban/git-sync 桥接 RPC（跨插件服务通道）
-import React, { useState } from 'react'
-import { CardDrawer } from './drawer'
+// 会话 Task 工作台：注册在 conversation.view 槽位（session scope）
+// 左侧：当前会话关联的 task 列表（基础信息 + 状态 + 更新时间）
+// 右侧：直接内嵌展示详情（默认最近更新的一个，点击左侧切换）——复用 CardDetail，无抽屉外壳
+import React, { useEffect, useState } from 'react'
+import { CardDetail } from './drawer'
 import { useKanbanBoard, HostLike } from './board-hook'
+import { fmtTime } from '@dsh-plugins/ui'
 
 export interface SessionsLike {
   open(id: string): void
@@ -51,61 +52,87 @@ function SyncButton(props: { cardId: string; host: HostLike; onDone: () => void 
   )
 }
 
+/** 单卡详情包装：绑定 board 操作 + 同步按钮 */
+function CardDetailPane(props: { card: any; columns: any[]; cardId: string; kb: ReturnType<typeof useKanbanBoard>; host: HostLike; sessions?: SessionsLike }) {
+  const { card, columns, cardId, kb, host, sessions } = props
+  return (
+    <CardDetail
+      card={card}
+      columns={columns}
+      onSave={(title, description) => kb.saveCard(cardId, title, description)}
+      onDelete={() => kb.deleteCard(cardId)}
+      onAddComment={(text) => kb.addComment(cardId, text)}
+      onUpdateTags={(add, remove) => kb.updateTags(cardId, add, remove)}
+      onMoveStatus={(targetColId) => kb.moveCardToStatus(cardId, targetColId)}
+      onAddRef={(ref) => kb.addRef(cardId, ref)}
+      onRemoveRef={(refId) => kb.removeRef(cardId, refId)}
+      onOpenSession={(sid) => {
+        if (sessions && typeof sessions.open === 'function') {
+          try { sessions.open(sid) } catch { /* 会话可能已不存在 */ }
+        }
+      }}
+      actionHost={() => <SyncButton cardId={cardId} host={host} onDone={() => kb.reload()} />}
+    />
+  )
+}
+
 export function SessionTaskPanel(props: SessionTaskPanelProps) {
   const kb = useKanbanBoard(props.host)
-  const [openCardId, setOpenCardId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const sessionId = props.sessionId
   const related = sessionId ? kb.cardsBySession(sessionId) : []
 
-  const openHit = openCardId ? kb.findCard(openCardId) : null
-  const openCard = openHit ? openHit.card : null
+  // 默认选最近更新的一个（updatedAt 倒序）
+  useEffect(() => {
+    if (selectedId && related.some((t) => t.id === selectedId)) return
+    if (related.length > 0) setSelectedId(related[0].id)
+    else setSelectedId(null)
+  }, [sessionId, related.map((t) => t.id).join(',')])
+
+  const selectedHit = selectedId ? kb.findCard(selectedId) : null
+  const selectedCard = selectedHit ? selectedHit.card : null
 
   return (
     <div className="kbnb-session-tasks">
-      <header className="kbnb-session-tasks-head">
-        <span className="kbnb-session-tasks-title">关联任务 {related.length}</span>
-        <span className="kbnb-session-tasks-hint">与当前会话关联的看板卡片（卡片侧「关联 → 新增 → 会话」建立）</span>
-      </header>
-      {related.length === 0 ? (
-        <div className="kbnb-session-tasks-empty">
-          当前会话暂无关联任务。打开看板卡片 → 右侧「关联」→「+ 新增」→ 类型「会话」填入本会话 id 即可关联。
-        </div>
-      ) : (
-        <div className="kbnb-session-tasks-list">
-          {related.map((t) => (
-            <button key={t.id} type="button" className="kbnb-session-task" onClick={() => setOpenCardId(t.id)}>
-              <span className="kbnb-session-task-title">{t.title}</span>
-              <span className="kbnb-session-task-status">{t.status}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {openCard && openCardId ? (
-        <CardDrawer
-          key={openCardId}
-          card={openCard}
-          columns={kb.board ? kb.board.columns : []}
-          onSave={(title, description) => kb.saveCard(openCardId, title, description)}
-          onDelete={() => {
-            kb.deleteCard(openCardId)
-            setOpenCardId(null)
-          }}
-          onClose={() => setOpenCardId(null)}
-          onAddComment={(text) => kb.addComment(openCardId, text)}
-          onUpdateTags={(add, remove) => kb.updateTags(openCardId, add, remove)}
-          onMoveStatus={(targetColId) => kb.moveCardToStatus(openCardId, targetColId)}
-          onAddRef={(ref) => kb.addRef(openCardId, ref)}
-          onRemoveRef={(refId) => kb.removeRef(openCardId, refId)}
-          onOpenSession={(sid) => {
-            if (props.sessions && typeof props.sessions.open === 'function') {
-              try { props.sessions.open(sid) } catch { /* 会话可能已不存在 */ }
-            }
-            setOpenCardId(null)
-          }}
-          actionHost={() => <SyncButton cardId={openCardId} host={props.host} onDone={() => kb.reload()} />}
-        />
-      ) : null}
+      {/* ── 左侧：任务列表 ── */}
+      <div className="kbnb-session-side">
+        <header className="kbnb-session-side-head">
+          <span className="kbnb-session-tasks-title">关联任务 {related.length}</span>
+        </header>
+        {related.length === 0 ? (
+          <div className="kbnb-session-tasks-empty">
+            当前会话暂无关联任务。打开看板卡片 → 右侧「关联」→「+ 新增」→ 类型「会话」填入本会话 id 即可关联。
+          </div>
+        ) : (
+          <div className="kbnb-session-tasks-list">
+            {related.map((t) => {
+              const full = kb.findCard(t.id)
+              const updatedAt = full && full.card && full.card.updatedAt ? full.card.updatedAt : ''
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={'kbnb-session-task' + (selectedId === t.id ? ' kbnb-session-task-on' : '')}
+                  onClick={() => setSelectedId(t.id)}
+                >
+                  <span className="kbnb-session-task-title">{t.title}</span>
+                  <span className="kbnb-session-task-status">{t.status}</span>
+                  {updatedAt ? <span className="kbnb-session-task-time">{fmtTime(updatedAt)}</span> : null}
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+      {/* ── 右侧：详情（内嵌，默认最近一个） ── */}
+      <div className="kbnb-session-main">
+        {selectedCard && selectedId ? (
+          <CardDetailPane card={selectedCard} columns={kb.board ? kb.board.columns : []} cardId={selectedId} kb={kb} host={props.host} sessions={props.sessions} />
+        ) : (
+          <div className="kbnb-session-main-empty">选择左侧任务查看详情</div>
+        )}
+      </div>
     </div>
   )
 }

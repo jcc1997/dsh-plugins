@@ -215,17 +215,25 @@ export const kbnbCss = `
 .kbnb-ref-url{flex:1 1 200px;min-width:140px;padding:4px 8px;font-size:12px}
 .kbnb-ref-add .kbnb-btn{padding:4px 12px;font-size:12px;flex:none}
 
-/* ══ 会话 Task 面板（conversation.view tab） ══ */
-.kbnb-session-tasks{padding:16px 20px;display:flex;flex-direction:column;gap:12px;height:100%;overflow-y:auto;color:var(--dsw-alias-label-primary)}
-.kbnb-session-tasks-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* ══ 会话 Task 工作台（conversation.view tab）：左侧列表 + 右侧内嵌详情 ══ */
+.kbnb-session-tasks{height:100%;display:grid;grid-template-columns:300px minmax(0,1fr);color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-base)}
+.kbnb-session-side{display:flex;flex-direction:column;gap:10px;padding:14px;border-right:1px solid var(--dsw-alias-border-l2);overflow-y:auto;min-width:0}
+.kbnb-session-side-head{display:flex;align-items:center;gap:8px}
 .kbnb-session-tasks-title{font-size:14px;font-weight:600}
 .kbnb-session-tasks-hint{font-size:12px;color:var(--dsw-alias-label-tertiary)}
 .kbnb-session-tasks-empty{font-size:13px;color:var(--dsw-alias-label-tertiary);line-height:1.7;background:var(--dsw-static-neutral-bluish-50);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:14px 16px}
 .kbnb-session-tasks-list{display:flex;flex-direction:column;gap:8px}
-.kbnb-session-task{display:flex;align-items:center;gap:10px;text-align:left;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:10px 14px;cursor:pointer;font-family:inherit;color:var(--dsw-alias-label-primary);transition:all 150ms cubic-bezier(.4, 0, .2, 1)}
+.kbnb-session-task{display:flex;flex-direction:column;align-items:flex-start;gap:4px;text-align:left;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:10px 14px;cursor:pointer;font-family:inherit;color:var(--dsw-alias-label-primary);transition:all 150ms cubic-bezier(.4, 0, .2, 1);width:100%}
 .kbnb-session-task:hover{border-color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover)}
-.kbnb-session-task-title{flex:1;font-size:14px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.kbnb-session-task-status{flex:none;font-size:11px;color:var(--dsw-alias-label-secondary);background:var(--dsw-static-neutral-bluish-50);border-radius:999px;padding:2px 10px}
+.kbnb-session-task-on{border-color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover);box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary)}
+.kbnb-session-task-title{width:100%;font-size:14px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kbnb-session-task-status{font-size:11px;color:var(--dsw-alias-label-secondary);background:var(--dsw-static-neutral-bluish-50);border-radius:999px;padding:2px 10px}
+.kbnb-session-task-time{font-size:11px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
+.kbnb-session-main{min-width:0;overflow-y:auto}
+.kbnb-session-main-empty{padding:60px 20px;text-align:center;color:var(--dsw-alias-label-tertiary)}
+/* CardDetail 内嵌形态（无抽屉外壳）：滚动 + 两列 */
+.kbnb-card-detail{flex:1;overflow-y:auto;padding:20px 28px;min-width:0}
+.kbnb-session-main .kbnb-card-detail{height:100%;box-sizing:border-box}
 
 /* ══ 加载 ══ */
 .kbnb-loading{padding:60px;text-align:center;color:var(--dsw-alias-label-tertiary)}
