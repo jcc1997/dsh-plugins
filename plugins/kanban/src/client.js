@@ -5,19 +5,7 @@ return {
     if (slots === undefined) return
     console.log('[kanban] client apply running')
 
-    // ── 共享 store：看板页开关 ────────────────────────────────
-    const listeners = new Set()
-    let open = false
-    const store = {
-      get open() { return open },
-      subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn) },
-      toggle() { open = !open; console.log('[kanban] toggle ->', open); listeners.forEach((fn) => fn()) },
-    }
-    function useStore() {
-      const [v, setV] = React.useState(open)
-      React.useEffect(() => store.subscribe(setV), [])
-      return v
-    }
+
 
     // ── 工具函数 ──────────────────────────────────────────────
     function safeId(prefix) {
@@ -74,16 +62,18 @@ return {
         React.createElement('rect', { x: 10.5, y: 2, width: 4, height: 5, rx: 1 }),
       )
     }
-    function SidebarButton(props) {
-      const isOpen = useStore()
-      console.log('[kanban] render sidebar button, wide=', props.wide)
-      return React.createElement('button', {
-        className: 'kbnb-side-btn' + (isOpen ? ' kbnb-side-btn-on' : ''),
-        type: 'button',
-        title: '看板',
-        'aria-label': '看板',
-        onClick: () => { console.log('[kanban] sidebar button clicked'); store.toggle() },
-      }, props.wide ? [React.createElement(BoardIcon, { key: 'i' }), React.createElement('span', { key: 't' }, '看板')] : React.createElement(BoardIcon, null))
+    function KanbanEntry(props) {
+      const [open, setOpen] = React.useState(false)
+      return React.createElement('div', null,
+        React.createElement('button', {
+          className: 'kbnb-side-btn' + (open ? ' kbnb-side-btn-on' : ''),
+          type: 'button',
+          title: '看板',
+          'aria-label': '看板',
+          onClick: () => { console.log('[kanban] sidebar button clicked, open=', !open); setOpen(!open) },
+        }, props.wide ? [React.createElement(BoardIcon, { key: 'i' }), React.createElement('span', { key: 't' }, '看板')] : React.createElement(BoardIcon, null)),
+        open ? React.createElement(KanbanPage, { onClose: () => setOpen(false) }) : null,
+      )
     }
 
     // ── 看板页面 ──────────────────────────────────────────────
@@ -267,7 +257,7 @@ return {
 
       return React.createElement('div', { className: 'kbnb-page' },
         React.createElement('header', { className: 'kbnb-header' },
-          React.createElement('button', { className: 'kbnb-back', type: 'button', onClick: () => store.toggle() }, '← 返回'),
+          React.createElement('button', { className: 'kbnb-back', type: 'button', onClick: () => props.onClose() }, '← 返回'),
           React.createElement('span', { className: 'kbnb-title' }, '🗂 看板'),
           React.createElement('span', { className: 'kbnb-saving' }, saving ? '保存中…' : ''),
           React.createElement('div', { className: 'kbnb-header-actions' },
@@ -388,20 +378,7 @@ return {
     // ── 注册槽位 ──────────────────────────────────────────────
     slots.inject('sidebar.footer.action', () => slots.register(
       { name: 'sidebar.footer.action', id: 'kanban', order: 10, label: () => '看板' },
-      (props) => React.createElement(SidebarButton, { wide: props.wide }),
-    ))
-    function OverlayHost() {
-      const o = useStore()
-      console.log('[kanban] overlay render, open=', o)
-      return o ? React.createElement(KanbanPage) : null
-    }
-    slots.inject('shell.overlay', () => slots.register(
-      { name: 'shell.overlay', id: 'kanban-overlay', order: 0, label: () => '看板' },
-      () => React.createElement(OverlayHost),
-    ))
-    slots.inject('tool.view.cordis', () => slots.register(
-      { name: 'tool.view.cordis', key: 'self' },
-      () => React.createElement('div', { style: { padding: 8, fontSize: 12 } }, 'kanban client OK (open=' + String(store.open) + ')'),
+      (props) => React.createElement(KanbanEntry, { wide: props.wide }),
     ))
   },
 }
