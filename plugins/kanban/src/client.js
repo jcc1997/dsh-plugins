@@ -55,6 +55,17 @@ return {
     }
 
     // ── 侧边栏按钮 ────────────────────────────────────────────
+    function TrashIcon() {
+      return React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.2, 'aria-hidden': true },
+        React.createElement('path', { d: 'M2.5 4.5h11M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M4 4.5l.7 8a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-8' }),
+      )
+    }
+    function GearIcon() {
+      return React.createElement('svg', { width: 13, height: 13, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.2, 'aria-hidden': true },
+        React.createElement('circle', { cx: 8, cy: 8, r: 2.2 }),
+        React.createElement('path', { d: 'M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M12.4 3.6L11 5M5 11l-1.4 1.4' }),
+      )
+    }
     function BoardIcon() {
       return React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.2, 'aria-hidden': true },
         React.createElement('rect', { x: 1.5, y: 2, width: 4, height: 12, rx: 1 }),
@@ -257,18 +268,18 @@ return {
 
       return React.createElement('div', { className: 'kbnb-page' },
         React.createElement('header', { className: 'kbnb-header' },
-          React.createElement('button', { className: 'kbnb-back', type: 'button', onClick: () => props.onClose() }, '← 返回'),
-          React.createElement('span', { className: 'kbnb-title' }, '🗂 看板'),
+          React.createElement('button', { className: 'kbnb-back', type: 'button', onClick: () => props.onClose() }, '返回'),
+          React.createElement('span', { className: 'kbnb-title' }, '看板'),
           React.createElement('span', { className: 'kbnb-saving' }, saving ? '保存中…' : ''),
           React.createElement('div', { className: 'kbnb-header-actions' },
-            React.createElement('button', { className: 'kbnb-btn', type: 'button', onClick: () => setModal({ kind: 'settings', dir: dataDir }) }, '⚙ 数据目录'),
-            React.createElement('button', { className: 'kbnb-btn kbnb-primary', type: 'button', onClick: () => setModal({ kind: 'newColumn', title: '' }) }, '＋ 新建列'),
+            React.createElement('button', { className: 'kbnb-btn', type: 'button', onClick: () => setModal({ kind: 'settings', dir: dataDir }) }, [React.createElement(GearIcon, { key: 'g' }), ' 数据目录']),
+            React.createElement('button', { className: 'kbnb-btn kbnb-primary', type: 'button', onClick: () => setModal({ kind: 'newColumn', title: '' }) }, '+ 新建列'),
           ),
         ),
         error ? React.createElement('div', { className: 'kbnb-error' }, error) : null,
         React.createElement('main', { className: 'kbnb-board' },
           board.columns.length === 0
-            ? React.createElement('div', { className: 'kbnb-empty' }, '空看板，点右上角「＋ 新建列」开始')
+            ? React.createElement('div', { className: 'kbnb-empty' }, '空看板，点右上角「+ 新建列」开始')
             : board.columns.map((col, colIndex) => React.createElement('section', {
                 key: col.id,
                 className: 'kbnb-column' + (hint && hint.columnId === col.id ? ' kbnb-column-drop' : ''),
@@ -283,7 +294,7 @@ return {
                 },
                   React.createElement('span', { className: 'kbnb-column-title', onClick: () => setModal({ kind: 'renameColumn', columnId: col.id, title: col.title }), title: '点击重命名' }, col.title),
                   React.createElement('span', { className: 'kbnb-column-count' }, col.cards.length),
-                  React.createElement('button', { className: 'kbnb-icon-btn', type: 'button', title: '删除列', onClick: () => requestDeleteColumn(col) }, '🗑'),
+                  React.createElement('button', { className: 'kbnb-icon-btn', type: 'button', title: '删除列', onClick: () => requestDeleteColumn(col) }, React.createElement(TrashIcon, null)),
                 ),
                 React.createElement('div', { className: 'kbnb-cards' },
                   col.cards.map((card) => React.createElement('article', {
@@ -300,7 +311,7 @@ return {
                   )),
                   hint && hint.columnId === col.id ? React.createElement('div', { className: 'kbnb-drop-line' }) : null,
                 ),
-                React.createElement('button', { className: 'kbnb-add-card', type: 'button', onClick: () => openCard(col.id, null) }, '＋ 添加卡片'),
+                React.createElement('button', { className: 'kbnb-add-card', type: 'button', onClick: () => openCard(col.id, null) }, '+ 添加卡片'),
               )),
         ),
         // 卡片详情/新建弹窗
