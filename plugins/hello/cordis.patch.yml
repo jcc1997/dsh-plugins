@@ -1,8 +1,0 @@
-# 本 bundle 的配置层：装进 profile 后插入 hello 插件行。
-# 行内 name 指向包名（Node 解析已安装的包），config 经插件导出的 Config schema 校验。
-- insert:
-    - id: hello
-      name: dsh-plugins-hello
-      config:
-        greeting: '你好，插件世界'
-        verbose: true

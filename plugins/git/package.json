@@ -1,0 +1,9 @@
+{
+  "name": "dsh-plugins-git",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DSH git 插件：task 关联 GitHub/本地仓库/branch/MR + 跨插件同步（规划中）",
+  "type": "module",
+  "scripts": {},
+  "license": "MIT"
+}

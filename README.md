@@ -2,7 +2,7 @@
 
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）开发的插件集合。
 
-当前包含 **看板（kanban）插件**：一个嵌入 DSH 侧边栏的全功能看板，同时提供**给 Agent 调用的 10 个工具**，让人和 AI 在同一块板上协作。
+当前包含 **看板（kanban）插件**：一个嵌入 DSH 侧边栏的全功能看板，同时提供**给 Agent 调用的 14 个工具**，让人和 AI 在同一块板上协作。规划中：**git 插件**（task 关联 GitHub/本地仓库/branch/MR + 注册进看板的同步按钮，需求与方案见 [`plugins/git/PLAN.md`](plugins/git/PLAN.md)）。
 
 ## 看板插件
 
@@ -54,8 +54,8 @@
 ```
 dsh-plugins/
 ├── plugins/
-│   ├── hello/         # 发布版示例插件（官方 bundle 规范）
-│   └── kanban/        # 看板插件：TS 源码 + 编译管线 + 10 个 agent 工具
+│   ├── git/           # git 插件（规划中）：关联仓库/branch/MR + 跨插件同步，方案见 PLAN.md
+│   └── kanban/        # 看板插件：TS 源码 + 编译管线 + 14 个 agent 工具
 ├── packages/ui/       # 共享包 @dsh-plugins/ui：设计 tokens + 图标 + 工具函数 + 组件
 │   ├── DESIGN.md      # UI 设计规范（与 DSH 宿主统一）
 │   └── dsh/design-platform.css   # DSH 官方设计 tokens（抽取自 dsh-client-ui-theme）
@@ -64,15 +64,9 @@ dsh-plugins/
 
 ## 安装
 
-**发布版 bundle**（`plugins/hello` 示范）：
-
-```bash
-dsh plugin --profile web add ./plugins/hello   # 或 npm 包名
-```
-
-安装后重启 dsh 生效。
-
 **动态插件**（`plugins/kanban`）：在会话内通过 `cordis_define` 即时加载，随会话存在；源码与构建管线见 [`plugins/kanban/README.md`](plugins/kanban/README.md)。
+
+**发布版 bundle**：官方规范见 [DSH 插件教程](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/index.md)，安装方式 `dsh plugin --profile web add <插件目录或 npm 包名>`，安装后重启 dsh 生效。
 
 ## 开发
 

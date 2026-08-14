@@ -5,9 +5,6 @@
   "description": "DSH 插件大仓：遵循 deepseek-harness 官方规范的 Cordis 插件 bundle 集合（workspace 根）",
   "type": "module",
   "scripts": {
-    "build:hello": "pnpm --filter dsh-plugins-hello pack",
-    "install:demo": "dsh plugin --profile demo add ./plugins/hello",
-    "install:web": "dsh plugin --profile web add ./plugins/hello",
     "verify": "dsh --profile demo --dump-config"
   },
   "engines": {
@@ -15,7 +12,6 @@
   },
   "packageManager": "pnpm@10.20.0",
   "devDependencies": {
-    "@deepseek-ai/cordis": "^4.0.1",
-    "dsh-plugins-hello": "workspace:*"
+    "@deepseek-ai/cordis": "^4.0.1"
   }
 }
