@@ -36,6 +36,11 @@ Host/Client 代码都是**纯 JS 函数体**，在受限执行环境运行：
 9. **TS 重写时别丢 styles.insert**：从手写 JS 迁移到 TS 时，CSS 必须放进 `styles.ts` 并在 apply 里 `styles.insert(kbnbCss)` 调用——漏掉则整个插件无样式（按钮不可见/布局乱）。编译产物要 grep 校验 CSS 字符串存在。
 10. **插件状态在会话内存**：`cordis_inspect_self` 可读源码；重启进程即失。代码要同步到大仓 `plugins/<name>/src/`。
 
+## 二点五、插件导出形态
+
+- **静态 bundle 插件**（官方 basic 教程）：function / object / class 三种形态均可，function 最常用
+- **动态插件**（cordis_define 的 code）：runner 直接取执行结果，**必须返回插件对象** `{ name, apply }`；导出函数会报 `Invalid effect`（实测 pkg-13）。TS 入口写 `export default makePlugin()`（模块加载时执行），不要 `export default makePlugin`
+
 ## 三、TS 编译管线（推荐开发方式）
 
 大仓 `plugins/<name>/` 标准结构：

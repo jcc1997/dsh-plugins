@@ -71,4 +71,18 @@ async function run() {
   if (watch) console.log('[kanban] watching src/ ...')
 }
 
-run().catch((e) => { console.error(e); process.exit(1) })
+async function makeSubmit() {
+  const c = await readFile(join(root, 'dist', 'client.js'), 'utf8')
+  const h = await readFile(join(root, 'dist', 'host.js'), 'utf8')
+  const j = JSON.stringify({ client: c, host: h })
+  fs.writeFileSync(join(root, 'dist', 'submit.json'), j)
+  const SEG = 1900
+  let start = 0, idx = 0
+  while (start < j.length) {
+    fs.writeFileSync('/tmp/kanban-segs/seg-' + String(idx).padStart(2, '0') + '.txt', j.slice(start, start + SEG) + '\n')
+    start += SEG; idx++
+  }
+  console.log('[kanban] submit.json +', idx, 'segments ready (total', j.length, 'bytes)')
+}
+
+run().then(makeSubmit).catch((e) => { console.error(e); process.exit(1) })
