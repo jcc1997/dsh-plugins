@@ -326,6 +326,13 @@ function makePlugin() {
         return { ok: true, card_id: cardId, taskId: taskIdOf(card), sync }
       }
 
+      /* ── M3：client sync 按钮私有 RPC（host.call('git/sync')） ── */
+      harness.handle('git/sync', async (args: unknown) => {
+        const a = (args || {}) as { cardId?: string }
+        if (!a.cardId) return { ok: false, error: 'cardId required' }
+        return syncCard(String(a.cardId))
+      })
+
       /* ── 跨插件服务（M3 sync 按钮 / 适配层用） ── */
       ctx.provide('git', {
         isConfigured: async () => {

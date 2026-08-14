@@ -17,6 +17,7 @@ export function CardDrawer(props: {
   onMoveStatus: (targetColId: string) => void
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
+  actionHost?: (() => unknown) | null
 }) {
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
   const [title, setTitle] = useState(props.card.title)
@@ -172,6 +173,31 @@ export function CardDrawer(props: {
               </button>
             </div>
           </div>
+
+          {/* 卡片操作槽位宿主（M3）：git 插件注册的「同步」按钮渲染于此 */}
+          {props.actionHost ? <div className="kbnb-card-actions-host">{props.actionHost()}</div> : null}
+
+          {/* MR 状态展示（G7）：github-mr refs 渲染 state 徽标 + 最近同步时间 */}
+          {(() => {
+            const mrRefs = (props.card.refs || []).filter((ref: any) => ref.kind === 'github-mr')
+            const syncEnv = props.card.meta && props.card.meta.sync && props.card.meta.sync.github ? props.card.meta.sync.github : null
+            if (mrRefs.length === 0 && !syncEnv) return null
+            return (
+              <div className="kbnb-mr-row">
+                <span className="kbnb-field-label">MR 状态</span>
+                {mrRefs.map((ref: any) => (
+                  <span key={ref.id} className={'kbnb-mr-badge kbnb-mr-' + ((ref.meta && ref.meta.state) || 'open')}>
+                    <span className="kbnb-mr-number">#{ref.externalId}</span>
+                    <span className="kbnb-mr-state">{(ref.meta && ref.meta.state) || 'open'}</span>
+                  </span>
+                ))}
+                {syncEnv && syncEnv.lastSyncAt ? (
+                  <span className="kbnb-mr-synced">同步于 {fmtTime(syncEnv.lastSyncAt)}</span>
+                ) : null}
+                {syncEnv && syncEnv.error ? <span className="kbnb-mr-error">上次同步失败：{syncEnv.error}</span> : null}
+              </div>
+            )
+          })()}
 
           {/* 描述 */}
           <div className="kbnb-field">

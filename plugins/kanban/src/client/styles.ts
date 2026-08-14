@@ -165,6 +165,21 @@ export const kbnbCss = `
 .kbnb-ref-display{flex:1 1 140px;min-width:100px;padding:4px 8px;font-size:12px}
 .kbnb-ref-url{flex:1 1 200px;min-width:140px;padding:4px 8px;font-size:12px}
 .kbnb-ref-add .kbnb-btn{padding:4px 12px;font-size:12px;flex:none}
+/* ══ 卡片操作槽位宿主（M3） + MR 状态（G7） ══ */
+.kbnb-card-actions-host{display:flex;align-items:center;gap:8px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.kbnb-card-actions-host .kbnb-btn{margin:0}
+.kbnb-card-actions{display:inline-flex;align-items:center;gap:8px}
+.kbnb-mr-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.kbnb-mr-row .kbnb-field-label{flex:none}
+.kbnb-mr-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;border-radius:999px;padding:2px 10px;line-height:1.6;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-static-neutral-bluish-50)}
+.kbnb-mr-number{font-weight:600;color:var(--dsw-alias-label-primary);font-variant-numeric:tabular-nums}
+.kbnb-mr-state{font-size:11px;text-transform:capitalize}
+.kbnb-mr-open .kbnb-mr-state{color:var(--dsw-alias-state-success-primary)}
+.kbnb-mr-merged .kbnb-mr-state{color:var(--dsw-alias-state-business-primary)}
+.kbnb-mr-closed .kbnb-mr-state{color:var(--dsw-alias-state-error-primary)}
+.kbnb-mr-synced{font-size:11px;color:var(--dsw-alias-label-tertiary);margin-left:auto}
+.kbnb-mr-error{font-size:11px;color:var(--dsw-alias-state-error-primary);width:100%}
+
 /* ══ 加载 ══ */
 .kbnb-loading{padding:60px;text-align:center;color:var(--dsw-alias-label-tertiary)}
 

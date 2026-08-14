@@ -10,15 +10,30 @@ const root = dirname(fileURLToPath(import.meta.url)) + '/..'
 async function loadClient() {
   const src = await readFile(join(root, 'dist', 'client.js'), 'utf8')
   const React = await import('react')
-  const sandbox = { React, console, styles: { insert: () => () => {} }, host: { call: async () => ({ ok: true }) }, ctx: { get: () => undefined } }
+  const registered = []
+  const slotsMock = {
+    inject: (name, fn) => { if (name === 'kanban.card.actions') fn() },
+    register: (options, component) => { registered.push({ options, component }); return () => {} },
+  }
+  const sandbox = {
+    React,
+    console,
+    styles: { insert: () => () => {} },
+    host: { call: async (m) => ({ ok: true, method: m }) },
+    ctx: { get: (name) => (name === 'slots' ? slotsMock : undefined) },
+  }
   const ctx = vm.createContext(sandbox)
   const result = await vm.runInContext('(async () => {' + src + '\n})()', ctx)
   const plugin = await result
   if (!plugin || plugin.name !== 'git') throw new Error('client plugin shape wrong: ' + JSON.stringify(plugin && plugin.name))
   if (typeof plugin.apply !== 'function') throw new Error('client apply missing')
-  const ret = plugin.apply({})
+  const ret = plugin.apply(sandbox.ctx)
   if (ret !== undefined) throw new Error('apply should return undefined')
-  console.log('client.js: OK (plugin=git)')
+  // M3：应注册 git-sync 条目到 kanban.card.actions
+  const syncEntry = registered.find((e) => e.options && e.options.name === 'kanban.card.actions' && e.options.id === 'git-sync')
+  if (!syncEntry) throw new Error('git-sync slot entry not registered: ' + JSON.stringify(registered.map((e) => e.options && e.options.name)))
+  if (typeof syncEntry.component !== 'function') throw new Error('git-sync component missing')
+  console.log('client.js: OK (plugin=git, slot entry=kanban.card.actions/git-sync)')
 }
 
 async function loadHost() {
@@ -119,6 +134,7 @@ async function loadHost() {
     throw new Error('git service not provided correctly')
   }
   console.log('tools=' + registered.length + ', service=git, handlers=' + (Object.keys(handlers).join(',') || 'none'))
+  if (typeof handlers['git/sync'] !== 'function') throw new Error('git/sync RPC handler missing (M3 sync 按钮链路)')
 
   // ── 端到端逻辑测试 ──
   // 1) git_claim_task_id：k2 无 ID 且无 repo 关联/配置 → 拒绝（[ID] 约定要求 <repo-name>-<int>，不得编造 ID）
@@ -148,6 +164,9 @@ async function loadHost() {
   if (!rLink.ok) throw new Error('link failed: ' + JSON.stringify(rLink))
   // 5) token 经 env 传递（bash 调用断言在 mock 内）
   if (bashCalls < 1) throw new Error('bash not used')
+  // 6) M3：git/sync RPC（client sync 按钮 → host.call）
+  const rRpc = await handlers['git/sync']({ cardId: 'k1' })
+  if (!rRpc.ok || rRpc.open_mrs !== 2) throw new Error('git/sync RPC failed: ' + JSON.stringify(rRpc))
   console.log('logic: OK (claim-reject=' + (rClaim.error ? 'yes' : 'no') + ', claim=' + rClaim2.taskId + ', sync matched=' + rSync.matched_mrs.join(',') + ', auto-linked=' + mrRef.externalId + ', envelope.version=' + syncEnv.version + ')')
 }
 

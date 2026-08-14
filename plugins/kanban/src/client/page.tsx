@@ -13,7 +13,15 @@ export interface DrawerState {
   cardId: string
 }
 
-export function KanbanPage(props: { host: { call(method: string, args?: unknown): Promise<any> }; onClose: () => void }) {
+export interface RenderSlotLike {
+  (key: string, owner: unknown, opts?: unknown): unknown
+}
+
+export function KanbanPage(props: {
+  host: { call(method: string, args?: unknown): Promise<any> }
+  onClose: () => void
+  renderSlot?: RenderSlotLike
+}) {
   const [board, setBoard] = useState<KanbanBoard | null>(null)
   const [error, setError] = useState('')
   const [drawer, setDrawer] = useState<DrawerState | null>(null)
@@ -23,11 +31,15 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
   const [hint, setHint] = useState<{ columnId: string; index: number } | null>(null)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
+  function reload() {
     props.host
       .call('kanban/load', {})
       .then((r) => setBoard(r.board))
       .catch((e) => setError('加载失败: ' + String(e)))
+  }
+
+  useEffect(() => {
+    reload()
   }, [props.host])
 
   function save(next: KanbanBoard) {
@@ -385,6 +397,11 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
           onMoveStatus={moveCardToStatus}
           onAddRef={(ref) => addRef(drawer.cardId, ref)}
           onRemoveRef={(refId) => removeRef(drawer.cardId, refId)}
+          actionHost={props.renderSlot ? () => (
+            <div className="kbnb-card-actions">
+              {props.renderSlot!('kanban.card.actions', { cardId: drawer.cardId, onSynced: reload }, {})}
+            </div>
+          ) : null}
         />
       ) : null}
       {creating ? (

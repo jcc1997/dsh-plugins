@@ -11,6 +11,11 @@ async function loadClient() {
   const src = await readFile(join(root, 'dist', 'client.js'), 'utf8')
   const React = await import('react')
   const calls = []
+  const registrations = []
+  const slotsMock = {
+    inject: (name, fn) => { fn() },
+    register: (options, component) => { registrations.push({ options, component }); return () => {} },
+  }
   const sandbox = {
     React,
     console,
@@ -22,17 +27,22 @@ async function loadClient() {
         return { ok: true }
       },
     },
-    ctx: { get: () => undefined },
+    ctx: { get: (name) => (name === 'slots' ? slotsMock : undefined) },
   }
   const ctx = vm.createContext(sandbox)
   const result = await vm.runInContext('(async () => {' + src + '\n})()', ctx)
   const plugin = await result
   if (!plugin || plugin.name !== 'kanban') throw new Error('client plugin shape wrong: ' + JSON.stringify(plugin && plugin.name))
   if (typeof plugin.apply !== 'function') throw new Error('client apply missing')
-  // 模拟 apply（slots 未提供 → 直接返回）
-  const ret = plugin.apply({ get: () => undefined })
-  if (ret !== undefined) throw new Error('apply with no slots should return undefined, got ' + ret)
-  console.log('client.js: OK (plugin=' + plugin.name + ', apply exists)')
+  const ret = plugin.apply(sandbox.ctx)
+  if (ret !== undefined) throw new Error('apply should return undefined, got ' + ret)
+  // M3：sidebar 条目必须声明 kanban.card.actions 子槽位
+  const side = registrations.find((r) => r.options && r.options.name === 'sidebar.footer.action' && r.options.id === 'kanban')
+  if (!side) throw new Error('sidebar.footer.action kanban entry missing')
+  if (!side.options.children || !side.options.children['kanban.card.actions']) {
+    throw new Error('kanban.card.actions child slot not declared: ' + JSON.stringify(side.options.children))
+  }
+  console.log('client.js: OK (plugin=' + plugin.name + ', apply exists, child slot kanban.card.actions declared)')
 }
 
 async function loadHost() {

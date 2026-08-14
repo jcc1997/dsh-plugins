@@ -8,11 +8,18 @@ import { kbnbCss } from './styles'
 
 interface SlotsLike {
   inject(name: string, fn: () => unknown): void
+  register(options: Record<string, unknown>, component: (props: any) => unknown): unknown
 }
 
 /** 受限环境注入的 host.call（构建后引用全局 host） */
 declare const host: { call(method: string, args?: unknown): Promise<any> }
 declare const styles: { insert(css: string): unknown }
+
+/** kanban.card.actions 槽位的 owner props：卡片 id + 刷新回调（git 插件注册的按钮消费） */
+export interface CardActionsOwner {
+  cardId: string
+  onSynced: () => void
+}
 
 function makePlugin() {
   return {
@@ -23,7 +30,9 @@ function makePlugin() {
       if (!slots) return
 
       // 侧边栏入口：按钮 + 全屏看板（单一组件，无跨组件状态）
-      function KanbanEntry(props: { wide: boolean }) {
+      // 声明子槽位 kanban.card.actions（list）：git 等插件向其中注册「同步」按钮；
+      // 声明方（本条目）独占渲染授权，经 renderSlot 渲染到卡片抽屉。
+      function KanbanEntry(props: { wide: boolean; renderSlot?: (key: string, owner: unknown, opts?: unknown) => unknown }) {
         const [open, setOpen] = useState(false)
         return (
           <div>
@@ -43,15 +52,25 @@ function makePlugin() {
                 <IconBoard />
               )}
             </button>
-            {open ? <KanbanPage host={host} onClose={() => setOpen(false)} /> : null}
+            {open ? <KanbanPage host={host} onClose={() => setOpen(false)} renderSlot={props.renderSlot} /> : null}
           </div>
         )
       }
 
       slots.inject('sidebar.footer.action', () =>
         slots.register(
-          { name: 'sidebar.footer.action', id: 'kanban', order: 10, label: () => '看板' },
-          (props: { wide: boolean }) => <KanbanEntry wide={props.wide} />,
+          {
+            name: 'sidebar.footer.action',
+            id: 'kanban',
+            order: 10,
+            label: () => '看板',
+            children: {
+              'kanban.card.actions': { kind: 'list', scope: 'root' },
+            },
+          },
+          (props: { wide: boolean; renderSlot?: (key: string, owner: unknown, opts?: unknown) => unknown }) => (
+            <KanbanEntry wide={props.wide} renderSlot={props.renderSlot} />
+          ),
         ),
       )
       slots.inject('settings.section', () =>

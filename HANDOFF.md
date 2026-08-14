@@ -10,7 +10,8 @@
 - **M2 git 骨架完成并已在真实宿主热更新激活**：6 工具、`git` 服务、GitHub API（bash curl + credentials token → ctx.web 匿名退化）、[ID] 自动关联。**真实端到端验证通过**（2026-08-14）：git_configure（jcc1997/dsh-plugins + token）→ claim `dsh-plugins-1` → git_sync 匹配 PR #1 标题 `[dsh-plugins-1]` → 自动补 github-mr ref + 写 meta.sync.github 信封落盘。
 - **M2 修复**：git_claim_task_id 在卡片未关联 repo 且未配置远端仓库时**拒绝认领**（原实现编造 `task-N` 不合规 ID，已修 + verify 断言更新）。
 - **注意**：宿主进程里曾有旧会话激活的 kanban 工具注册（其他工作区会话残留）导致首次 `cordis_run` 报 `tool kanban_view is already registered`——停掉旧 Run 后重新激活即可，非源码问题。
-- **未做**：M3 sync 按钮；M4 本地 git 命令/MR 创建。
+- **M3 sync 按钮完成并激活验证通过**：kanban client 声明子槽位 `kanban.card.actions`（sidebar 条目 children，list/root）+ 抽屉内渲染槽位宿主；git client 向该槽位注册 `git-sync` 按钮（onClick → host.call('git/sync') → owner onSynced 回调刷新看板）；host 半暴露 `harness.handle('git/sync')`；抽屉新增 MR state 徽标（open/merged/closed）+ 同步时间（G7）。实测：`Slots.listSubTree(root=kanban.card.actions)` 显示 declaredBy kbnb-3、occupants 含 git-sync（active）。**M3 验收达成：点击按钮 → 拉取 → 写回 → UI 刷新**。
+- **未做**：M4 本地 git 命令（ctx.shell）/MR 创建（G9）。
 
 ## 新会话起步清单（创造模式 + Code Mode）
 
@@ -34,10 +35,11 @@
 - 动态插件限制：ctx.emit 不可用（不能发事件）、ctx.tools 只读（不能跨插件调工具 execute）、harness.handle/host.call 每插件私有、inject 需对象形式、会话态重启即失。
 - 完整机制见 skill §七；设计论证见 plugins/git/PLAN.md §2/§5。
 
-## M3 设计要点（sync 按钮）
+## M3 实现要点（已完成，2026-08-14 实测）
 
-- kanban client 声明并渲染槽位：`kanban.board.toolbar` / `kanban.card.actions`（全屏页增加槽位宿主区域）。
-- git client：`ctx.slots.inject('kanban.card.actions', () => ctx.slots.register({ name, id: 'git-sync', order, label }, SyncButton))`；onClick → `host.call('git/sync', { cardId })`（git 私有 RPC，宿主半已有 syncCard）→ 写回走 `ctx.get('kanban')`。
-- UI 刷新：先做"同步后 kanban 重新 kanban/load"；槽位 props 能力用 `cordis_inspect_query` Slots.listSubTree 确认后再决定是否传回调。
-- MR 状态展示：卡片 refs 与 meta.sync.github.snapshot.mrs 渲染 state 徽标（open/merged/closed）+ 最近同步时间。
-- 降级：git 未激活 → 槽位无条目，kanban 无感。
+- kanban client 在 sidebar.footer.action 条目 register 时传 `children: { 'kanban.card.actions': { kind: 'list', scope: 'root' } }` 声明子槽位；组件 props 收到 `renderSlot`（声明即渲染授权，plain-JS 无类型检查），经 KanbanPage 透传到抽屉，以 `renderSlot('kanban.card.actions', { cardId, onSynced }, {})` 渲染。
+- git client：`slots.inject('kanban.card.actions', () => slots.register({ name, id: 'git-sync', order: 10, label: () => '同步' }, SyncButton))`；onClick → `host.call('git/sync', { cardId })`（host 半 `harness.handle('git/sync')` → syncCard）→ 成功调 owner `onSynced` → kanban 重新 kanban/load。
+- 槽位 props 能力**已实测可用**（owner props 任意对象透传，含函数回调）；`cordis_inspect_query` → Slots.listSubTree(root=槽位) 可查 declaredBy + occupants（含 registrant/id/order/priority/active）。
+- MR 状态展示：抽屉渲染 github-mr refs 的 state 徽标 + meta.sync.github 最近同步时间/错误（G7）。
+- 降级：git 未激活 → 槽位无条目，kanban 无感（inject 在声明存在时同步执行，kanban 先激活则直接注册；反之 git 先激活则等待声明出现）。
+- 坑：切块读 submit.json 前必须 `mkdir -p` 段目录，否则段文件缺失 → define 传空代码 → `Host half returned undefined`。
