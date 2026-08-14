@@ -26,9 +26,12 @@ export function fmtTime(iso?: string): string {
   }
 }
 
-export function appendActivity(card: KanbanCard, text: string): void {
+export const ACTOR_UI = '手动调整'
+export const ACTOR_AGENT = 'agent'
+
+export function appendActivity(card: KanbanCard, text: string, actor?: string): void {
   if (!card.activity) card.activity = []
-  card.activity.push({ id: safeId('a'), text, at: safeNow() })
+  card.activity.push({ id: safeId('a'), text, at: safeNow(), actor: actor || ACTOR_UI })
 }
 
 export function findCard(board: KanbanBoard, colId: string, cardId: string): KanbanCard | null {

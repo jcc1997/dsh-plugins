@@ -21,6 +21,8 @@ export interface KanbanActivity {
   id: string
   text: string
   at?: string
+  /** 操作者：UI 手动修改 = "手动调整"；agent 修改 = "agent" */
+  actor?: string
 }
 
 export interface KanbanColumn {

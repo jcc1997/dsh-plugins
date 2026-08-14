@@ -1,21 +1,23 @@
-// 看板页面：顶部栏 + 竖线分割列 + 拖拽 + 抽屉 + 列配置弹窗
+// 看板页面：顶部栏 + 竖线分割列 + 拖拽 + 编辑抽屉 + 新建弹窗 + 列配置弹窗
 import React, { useEffect, useState } from 'react'
 import { IconChevronLeftOutline14 } from '@dsh-plugins/ui'
 import { Modal } from '@dsh-plugins/ui'
 import { CardDrawer } from './drawer'
+import { CreateCardModal } from './create'
 import { ColumnsPanel } from './columns'
-import { appendActivity, colTitle, findCard, safeId, safeNow } from '@dsh-plugins/ui'
+import { appendActivity, findCard, safeId, safeNow } from '@dsh-plugins/ui'
 import { KanbanBoard } from '@dsh-plugins/ui'
 
 export interface DrawerState {
   columnId: string
-  cardId: string | null // null = 新建
+  cardId: string
 }
 
 export function KanbanPage(props: { host: { call(method: string, args?: unknown): Promise<any> }; onClose: () => void }) {
   const [board, setBoard] = useState<KanbanBoard | null>(null)
   const [error, setError] = useState('')
   const [drawer, setDrawer] = useState<DrawerState | null>(null)
+  const [creating, setCreating] = useState<string | null>(null) // 新建弹窗：目标列
   const [showColumns, setShowColumns] = useState(false)
   const [drag, setDrag] = useState<{ kind: 'card'; cardId: string; from: string } | { kind: 'column'; from: number } | null>(null)
   const [hint, setHint] = useState<{ columnId: string; index: number } | null>(null)
@@ -49,7 +51,26 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
 
   // ── 卡片操作 ──
   function openNewCard(columnId: string) {
-    setDrawer({ columnId, cardId: null })
+    setCreating(columnId)
+  }
+  function createCard(columnId: string, title: string, description: string) {
+    mutate((b) => {
+      const col = b.columns.find((c) => c.id === columnId)
+      if (!col) return
+      const card = {
+        id: safeId('k'),
+        title,
+        description,
+        links: [],
+        meta: {},
+        comments: [],
+        activity: [],
+        createdAt: safeNow(),
+        updatedAt: safeNow(),
+      }
+      appendActivity(card, '创建卡片')
+      col.cards.push(card)
+    })
   }
   function openCard(columnId: string, cardId: string) {
     setDrawer({ columnId, cardId })
@@ -57,41 +78,39 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
   function saveCard(title: string, description: string) {
     if (!drawer) return
     const colId = drawer.columnId
-    if (drawer.cardId) {
-      mutate((b) => {
-        const col = b.columns.find((c) => c.id === colId)
-        const card = col && col.cards.find((k) => k.id === drawer.cardId)
-        if (card) {
-          card.title = title
-          card.description = description
-          card.updatedAt = safeNow()
-          appendActivity(card, '更新卡片')
-        }
-      })
-    } else {
-      const newId = mutate((b) => {
-        const col = b.columns.find((c) => c.id === colId)
-        if (!col) return null
-        const card = {
-          id: safeId('k'),
-          title,
-          description,
-          links: [],
-          meta: {},
-          comments: [],
-          activity: [],
-          createdAt: safeNow(),
-          updatedAt: safeNow(),
-        }
-        appendActivity(card, '创建卡片')
-        col.cards.push(card)
-        return card.id
-      })
-      if (newId) setDrawer({ columnId: colId, cardId: newId })
-    }
+    const cardId = drawer.cardId
+    mutate((b) => {
+      const col = b.columns.find((c) => c.id === colId)
+      const card = col && col.cards.find((k) => k.id === cardId)
+      if (!card) return
+      // 仅在内容实际变化时落库 + 记日志（自动保存防抖会重复触发）
+      if (card.title === title && (card.description || '') === description) return
+      card.title = title
+      card.description = description
+      card.updatedAt = safeNow()
+      appendActivity(card, '更新卡片')
+    })
+  }
+  function moveCardToStatus(targetColId: string) {
+    if (!drawer) return
+    const fromId = drawer.columnId
+    const cardId = drawer.cardId
+    mutate((b) => {
+      const fromCol = b.columns.find((c) => c.id === fromId)
+      const toCol = b.columns.find((c) => c.id === targetColId)
+      if (!fromCol || !toCol || fromId === targetColId) return
+      const idx = fromCol.cards.findIndex((k) => k.id === cardId)
+      if (idx < 0) return
+      const [card] = fromCol.cards.splice(idx, 1)
+      card.updatedAt = safeNow()
+      appendActivity(card, '状态变更：' + fromCol.title + ' → ' + toCol.title)
+      toCol.cards.push(card)
+    })
+    // drawer 跟随卡片移动后的新列
+    setDrawer({ columnId: targetColId, cardId })
   }
   function deleteCard() {
-    if (!drawer || !drawer.cardId) return
+    if (!drawer) return
     const colId = drawer.columnId
     const cardId = drawer.cardId
     mutate((b) => {
@@ -101,7 +120,7 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
     setDrawer(null)
   }
   function addComment(text: string) {
-    if (!drawer || !drawer.cardId) return
+    if (!drawer) return
     const colId = drawer.columnId
     const cardId = drawer.cardId
     mutate((b) => {
@@ -176,11 +195,13 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
           let target = index
           if (idx < target) target -= 1
           toCol.cards.splice(target, 0, card)
+          card.updatedAt = safeNow()
+          appendActivity(card, '调整顺序')
         } else {
           toCol.cards.splice(index, 0, card)
+          card.updatedAt = safeNow()
+          appendActivity(card, '状态变更：' + fromCol.title + ' → ' + toCol.title)
         }
-        card.updatedAt = safeNow()
-        appendActivity(card, '移至「' + toCol.title + '」')
       })
     } else if (drag.kind === 'column') {
       mutate((b) => {
@@ -207,7 +228,7 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
     )
   }
 
-  const drawerCard = drawer && drawer.cardId ? findCard(board, drawer.columnId, drawer.cardId) : null
+  const drawerCard = drawer ? findCard(board, drawer.columnId, drawer.cardId) : null
 
   return (
     <div className="kbnb-page">
@@ -254,7 +275,11 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
                   <article
                     key={card.id}
                     data-card=""
-                    className={'kbnb-card' + (drag && drag.kind === 'card' && drag.cardId === card.id ? ' kbnb-card-drag' : '')}
+                    className={
+                      'kbnb-card' +
+                      (drag && drag.kind === 'card' && drag.cardId === card.id ? ' kbnb-card-drag' : '') +
+                      (drawer && drawer.cardId === card.id ? ' kbnb-card-active' : '')
+                    }
                     draggable
                     onDragStart={(evt) => {
                       evt.dataTransfer.effectAllowed = 'move'
@@ -280,15 +305,22 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
           ))
         )}
       </main>
-      {drawer ? (
+      {drawer && drawerCard ? (
         <CardDrawer
-          key={drawer.cardId || 'new'}
+          key={drawer.cardId}
           card={drawerCard}
-          isNew={!drawer.cardId}
+          columns={board.columns}
           onSave={saveCard}
           onDelete={deleteCard}
           onClose={() => setDrawer(null)}
           onAddComment={addComment}
+          onMoveStatus={moveCardToStatus}
+        />
+      ) : null}
+      {creating ? (
+        <CreateCardModal
+          onCreate={(title, description) => createCard(creating, title, description)}
+          onClose={() => setCreating(null)}
         />
       ) : null}
       {showColumns ? (

@@ -3,6 +3,7 @@
 // 用法：node build.mjs [--watch]
 import { build } from 'esbuild'
 import { readFile, writeFile, rm } from 'node:fs/promises'
+import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
