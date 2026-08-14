@@ -32,6 +32,7 @@ DSH 动态插件（`cordis_define` / `cordis_run`）开发技能：受限环境�
 
 - **ctx 动词白名单**（host/client 两半同款）：`effect / on / once / provide` + timer 系（timeout/interval/setTimeout/setInterval/throttle/debounce，需 inject `timer` 后可用）。
 - **`ctx.emit` 不在白名单 —— 动态插件不能发事件**。跨插件"事件推送"物理不可行：只能 `ctx.on/once` 监听宿主事件（50 个：credentials/updated、tools/change、session/*、slots/changed…），不能 emit 给别的插件。跨插件通知 = 服务（provide/get）+ 私有 RPC（harness.handle/host.call）+ 槽位 owner props 回调。**别再尝试突破**（白名单逐字核对 + ctx.remote 桥不可达）。
+- **受限是动态插件专属（重要）**：上述限制全部来自 `dsh-cordis-*-runner` 的沙箱白名单（模型挂载、随时热更新的代码不能绕过守卫链），**不是平台不支持**——cordis 核心有完整 `ctx.emit`，正式 bundle 插件（profile `dsh.profile.bundles` 挂载）无沙箱：emit/timer/import 全部可用。迁移路径见 plugins/git/PLAN.md §8。
 - **`setTimeout` 等 timer 全局在动态 client 半不可用**：在组件 effect 里直接用 → 渲染时崩溃（`setTimeout is not available in a dynamic client half`）。要防抖/定时 → 组件外（apply 内）用 `ctx.timer.debounce/throttle`，或干脆去掉防抖（变更即存 + 首帧跳过）。
 
 ## 二、标准模板（直接抄）

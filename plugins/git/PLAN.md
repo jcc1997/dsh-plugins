@@ -217,3 +217,46 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 
 1. 评审本文档（重点：4.2 数据格式、5.3 服务契约、5.4 槽位契约）。
 2. 通过后按 M1 → M2 → M3 实施；每个里程碑单独 commit，文档同步更新。
+
+## 8. 动态 → 部署迁移路径（2026-08 源码级核实）
+
+> 目的：动态插件（`cordis_define`/hot-update）是**迭代手段**，最终以**正式 bundle 插件**部署。
+> 本节回答：受限来自哪、部署形态是什么、代码要改什么。来源：cordis 核心 + cordis-plugin-loader + dsh README（bundles 机制）+ dsh-cordis-*-runner（白名单）源码。
+
+### 8.1 受限来源（重要结论）
+
+**所有受限（ctx.emit 禁用、timer 全局禁用、ctx.tools 只读、无 import/require、harness.handle 私有）都是 `dsh-cordis-host-runner / dsh-cordis-client-runner` 给"模型挂载、随时热更新"代码套的安全边界，不是平台能力缺失。**
+
+- Cordis 核心：`ctx.emit(...)` 完整实现（lib/index.js:280）—— emit 平台支持
+- cordis-plugin-loader：无 VM、无沙箱，正常模块加载
+- dsh 部署机制：profile `package.json` 的 `dsh.profile.bundles` 挂树外插件（README 明确；demo profile 曾 `link:` 本地 `dsh-plugins-hello`）—— 这就是部署路径
+- 动态 runner 包描述自证："sandboxed host half" + 白名单门面（effect/on/once/provide，无 emit）
+
+### 8.2 部署形态
+
+1. 每个插件一个正式包（`plugins/kanban` / `plugins/git` 已具备 package.json），按 cordis 插件规范导出（host/client 两半标准入口，非 iife/受限函数体）。
+2. 目标 profile 的 `package.json`：`dependencies` 加 `link:` 或 registry 引用 + `dsh.profile.bundles` 数组追加包名。
+3. 启动 profile（如 web）即生效；无需 `cordis_define`，重启不丢。
+
+### 8.3 迁移改动点（代码层面）
+
+| 受限项（动态） | 部署后 | 改动 |
+|---|---|---|
+| `ctx.emit` 禁用 | ✅ 可 emit（cordis 原生） | 跨插件通知可改为**真事件**：git sync 完成 → `ctx.emit('kanban/card-synced')` → kanban `ctx.on` 监听刷新（替代回调/重 load） |
+| `setTimeout` 等无 | ✅ Node/浏览器原生 | 自动保存可恢复防抖 |
+| `ctx.tools` 只读 | ✅ 可调工具 execute | 插件间协作仍建议走服务（契约不变） |
+| 无 import/require | ✅ 正常模块 | 可引第三方库（axios 等替代 curl） |
+| `harness.handle/host.call` 私有 RPC | ✅ 标准机制 | client↔host 通信改标准 cordis 通道（服务/事件/官方 UI 桥） |
+| `slots.register` 受限调用 | ✅ 标准注册 | UI 挂载方式不变（slots 是常规服务） |
+
+### 8.4 不变的部分（契约层，部署零改动）
+
+- 数据模型 v2：refs / meta.taskId / meta.sync.<provider> 信封
+- [ID] 约定（§5.5）与自动关联逻辑
+- `kanban` / `git` 跨插件服务接口（getCard/updateCard/listCards / isConfigured/claimTaskId/link/listMrs/sync/snapshot）
+- 槽位契约（kanban.card.actions / conversation.view）与降级策略
+- GitHub API 逻辑（curl 可保留或换 fetch/axios）
+
+### 8.5 建议顺序
+
+M3 验收通过 → 先按 §8.2 做**一个插件的试部署**（建议 git，依赖少）→ 验证部署形态的 emit/事件链路 → 再迁移 kanban（UI 复杂，最后做）→ 动态版本降级为"预览/调试通道"，文档标注。
