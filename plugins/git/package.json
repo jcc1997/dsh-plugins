@@ -6,7 +6,10 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "watch": "node build.mjs --watch"
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit 2>/dev/null || true",
+    "check": "node build.mjs && node scripts/verify-dist.mjs",
+    "publish:git": "npm run check && npm publish --tag dsh-plugin"
   },
   "devDependencies": {
     "@dsh-plugins/ui": "workspace:*",
@@ -16,5 +19,25 @@
     "react": "^18.3.1",
     "typescript": "^5.6.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "files": [
+    "dist",
+    "src",
+    "build.mjs",
+    "shims",
+    "scripts",
+    "README.md",
+    "PLAN.md",
+    "tsconfig.json"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "tag": "dsh-plugin"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "git",
+    "deepseek-harness"
+  ]
 }

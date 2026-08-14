@@ -1,5 +1,6 @@
-// 看板页面：顶栏 + 左侧边栏（看板/归档/设置）+ 主区（分组看板/归档列表/设置）
-// 布局：页面上下撑满；列间竖线拉到底；每列独立纵向滚动；看板整体横向滚动
+// client/page.tsx — 看板页装配：顶栏 + 左侧边栏导航（看板/归档/设置）+ 主区视图切换
+// 看板视图在 board-view.tsx，归档视图在 archive-view.tsx，设置视图复用 settings.tsx；
+// 抽屉/新建/列配置弹窗在此装配；数据操作全部走 useKanbanBoard。
 import React, { useState } from 'react'
 import { IconChevronLeftOutline14, IconSettingsOutline16 } from '@dsh-plugins/ui'
 import { Modal } from '@dsh-plugins/ui'
@@ -7,9 +8,11 @@ import { CardDrawer } from './drawer'
 import { CreateCardModal } from './create'
 import { ColumnsPanel } from './columns'
 import { KanbanSettings } from './settings'
-import { safeId, safeNow, appendActivity, fmtTime } from '@dsh-plugins/ui'
-import { useKanbanBoard, HostLike, cardRepoOf } from './board-hook'
+import { safeId, safeNow, appendActivity } from '@dsh-plugins/ui'
+import { useKanbanBoard, HostLike } from './board-hook'
 import { KanbanBlock } from '@dsh-plugins/ui'
+import { BoardView, GroupBy } from './board-view'
+import { ArchiveView } from './archive-view'
 
 export interface DrawerState {
   columnId: string
@@ -25,14 +28,6 @@ export interface SessionsLike {
 }
 
 type View = 'board' | 'archive' | 'settings'
-type GroupBy = 'none' | 'repo'
-
-interface Group {
-  key: string
-  label: string
-  count: number
-  columns: Array<{ id: string; title: string; cards: any[]; meta?: any }>
-}
 
 export function KanbanPage(props: {
   host: HostLike
@@ -46,11 +41,10 @@ export function KanbanPage(props: {
   const [drawer, setDrawer] = useState<DrawerState | null>(null)
   const [creating, setCreating] = useState<string | null>(null)
   const [showColumns, setShowColumns] = useState(false)
-  const [drag, setDrag] = useState<{ kind: 'card'; cardId: string; from: string; groupKey: string } | { kind: 'column'; from: number } | null>(null)
-  const [hint, setHint] = useState<{ columnId: string; index: number } | null>(null)
 
   const board = kb.board
 
+  /* ── 卡片操作回调（透传给抽屉） ── */
   function openCard(columnId: string, cardId: string) {
     setDrawer({ columnId, cardId })
   }
@@ -120,71 +114,6 @@ export function KanbanPage(props: {
   function renameColumn(colId: string, title: string) { kb.renameColumn(colId, title) }
   function deleteColumn(colId: string) { kb.deleteColumn(colId) }
   function moveColumn(colId: string, dir: number) { kb.moveColumn(colId, dir) }
-  function computeCardIndex(evt: React.DragEvent) {
-    const el = evt.currentTarget
-    try {
-      const cards = Array.from(el.children).filter(
-        (child) => child instanceof HTMLElement && child.getAttribute('data-card') !== null,
-      )
-      for (let i = 0; i < cards.length; i++) {
-        const r = cards[i].getBoundingClientRect()
-        if (evt.clientY < r.top + r.height / 2) return i
-      }
-      return cards.length
-    } catch {
-      return 0
-    }
-  }
-  function onColumnOver(columnId: string, evt: React.DragEvent) {
-    evt.preventDefault()
-    if (!drag) return
-    if (drag.kind === 'card') setHint({ columnId, index: computeCardIndex(evt) })
-  }
-  function onColumnDrop(columnId: string, groupKey: string, evt: React.DragEvent) {
-    evt.preventDefault()
-    if (!drag) return
-    if (drag.kind === 'card') {
-      if (drag.groupKey !== groupKey) {
-        setDrag(null)
-        setHint(null)
-        return
-      }
-      const index = computeCardIndex(evt)
-      kb.mutate((b) => {
-        const fromCol = b.columns.find((c) => c.id === drag.from)
-        const toCol = b.columns.find((c) => c.id === columnId)
-        if (!fromCol || !toCol) return
-        const idx = fromCol.cards.findIndex((k) => k.id === drag.cardId)
-        if (idx < 0) return
-        const [card] = fromCol.cards.splice(idx, 1)
-        if (fromCol.id === toCol.id) {
-          let target = index
-          if (idx < target) target -= 1
-          toCol.cards.splice(target, 0, card)
-          card.updatedAt = safeNow()
-          appendActivity(card, '调整顺序')
-        } else {
-          toCol.cards.splice(index, 0, card)
-          card.updatedAt = safeNow()
-          appendActivity(card, '状态变更：' + fromCol.title + ' → ' + toCol.title)
-        }
-      })
-    } else if (drag.kind === 'column') {
-      kb.mutate((b) => {
-        const from = drag.from
-        const to = b.columns.findIndex((c) => c.id === columnId)
-        if (from < 0 || to < 0 || from === to) return
-        const [col] = b.columns.splice(from, 1)
-        b.columns.splice(to, 0, col)
-      })
-    }
-    setDrag(null)
-    setHint(null)
-  }
-  function onDragEnd() {
-    setDrag(null)
-    setHint(null)
-  }
 
   if (!board) {
     return (
@@ -199,114 +128,9 @@ export function KanbanPage(props: {
   const archived = board.archive || []
   const activeCount = board.columns.reduce((n, col) => n + col.cards.length, 0)
 
-  /** 分组计算：groupBy=none 时单组；repo 时按 github-repo 关联分组（未关联在最后） */
-  function buildGroups(): Group[] {
-    if (groupBy === 'none') {
-      return [{
-        key: '',
-        label: '',
-        count: activeCount,
-        columns: board.columns.map((c) => ({ ...c })),
-      }]
-    }
-    const map = new Map<string, Group>()
-    const keys: string[] = []
-    for (const col of board.columns) {
-      for (const card of col.cards) {
-        const key = cardRepoOf(card)
-        if (!map.has(key)) {
-          map.set(key, {
-            key,
-            label: key || '未关联',
-            count: 0,
-            columns: board.columns.map((c) => ({ ...c, cards: [] })),
-          })
-          keys.push(key)
-        }
-      }
-    }
-    keys.sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a < b ? -1 : a > b ? 1 : 0))
-    for (const col of board.columns) {
-      const colIdx = board.columns.findIndex((c) => c.id === col.id)
-      for (const card of col.cards) {
-        const key = cardRepoOf(card)
-        const g = map.get(key)
-        if (g) {
-          g.columns[colIdx].cards.push(card)
-          g.count += 1
-        }
-      }
-    }
-    return keys.map((k) => map.get(k)!)
-  }
-
-  /** 渲染单列（分组模式传入 groupKey 限制拖拽范围） */
-  function renderColumn(col: any, colIndex: number, groupKey: string) {
-    return (
-      <section
-        key={col.id}
-        className={'kbnb-column' + (hint && hint.columnId === col.id ? ' kbnb-column-drop' : '')}
-        onDragOver={(evt) => onColumnOver(col.id, evt)}
-        onDrop={(evt) => onColumnDrop(col.id, groupKey, evt)}
-      >
-        <header
-          className="kbnb-column-head"
-          draggable={groupBy === 'none'}
-          onDragStart={(evt) => {
-            evt.dataTransfer.effectAllowed = 'move'
-            setDrag({ kind: 'column', from: colIndex })
-          }}
-          onDragEnd={onDragEnd}
-        >
-          <span className="kbnb-column-title" title={groupBy === 'none' ? '拖拽排序' : col.title}>
-            {col.title}
-          </span>
-          <span className="kbnb-column-count">{col.cards.length}</span>
-        </header>
-        <div className="kbnb-cards">
-          {col.cards.map((card: any) => (
-            <article
-              key={card.id}
-              data-card=""
-              className={
-                'kbnb-card' +
-                (drag && drag.kind === 'card' && drag.cardId === card.id ? ' kbnb-card-drag' : '') +
-                (drawer && drawer.cardId === card.id ? ' kbnb-card-active' : '')
-              }
-              draggable
-              onDragStart={(evt) => {
-                evt.dataTransfer.effectAllowed = 'move'
-                setDrag({ kind: 'card', cardId: card.id, from: col.id, groupKey })
-              }}
-              onDragEnd={onDragEnd}
-              onClick={() => openCard(col.id, card.id)}
-            >
-              <div className="kbnb-card-title">{card.title}</div>
-              {card.tags && card.tags.length > 0 ? (
-                <div className="kbnb-card-tags">
-                  {card.tags.map((tg: string) => (
-                    <span key={tg} className="kbnb-tag">{tg}</span>
-                  ))}
-                </div>
-              ) : null}
-              {card.description ? (
-                <div className="kbnb-card-desc">{card.description}</div>
-              ) : null}
-            </article>
-          ))}
-          {hint && hint.columnId === col.id ? <div className="kbnb-drop-line" /> : null}
-        </div>
-        <button className="kbnb-add-card" type="button" onClick={() => setCreating(col.id)}>
-          + 添加卡片
-        </button>
-      </section>
-    )
-  }
-
-  const groups = buildGroups()
-
   return (
     <div className="kbnb-page">
+      {/* 顶栏：返回 / 标题 / 统计 / 保存状态 */}
       <header className="kbnb-header">
         <button className="kbnb-icon-btn kbnb-back" type="button" title="返回" onClick={props.onClose}>
           <IconChevronLeftOutline14 />
@@ -347,115 +171,21 @@ export function KanbanPage(props: {
           </button>
         </aside>
 
+        {/* ══ 主区：视图切换 ══ */}
         <main className="kbnb-main">
           {view === 'board' ? (
-            <>
-              <div className="kbnb-board-toolbar">
-                <label className="kbnb-status">
-                  <span className="kbnb-status-label">分组</span>
-                  <select
-                    className="kbnb-status-select"
-                    value={groupBy}
-                    onChange={(evt) => setGroupBy(evt.target.value as GroupBy)}
-                  >
-                    <option value="none">不分组</option>
-                    <option value="repo">Git 仓库</option>
-                  </select>
-                </label>
-                <span className="kbnb-spacer" />
-                <button className="kbnb-btn" type="button" onClick={() => setShowColumns(true)}>
-                  列配置
-                </button>
-              </div>
-              {board.columns.length === 0 ? (
-                <div className="kbnb-empty">空看板，点右上角「列配置」添加列</div>
-              ) : (
-                <main className={'kbnb-board' + (groupBy === 'repo' ? ' kbnb-board-groups' : '')}>
-                  {groups.map((g) => (
-                    <section key={g.key || '__single__'} className={'kbnb-group' + (groupBy === 'none' ? ' kbnb-group-single' : '')}>
-                      {groupBy === 'repo' ? (
-                        <header className="kbnb-group-head">
-                          <span className="kbnb-group-title">{g.label}</span>
-                          <span className="kbnb-group-count">{g.count} 张卡</span>
-                        </header>
-                      ) : null}
-                      <div className="kbnb-group-row">
-                        {g.columns.map((col, colIndex) => renderColumn(col, colIndex, g.key))}
-                      </div>
-                    </section>
-                  ))}
-                </main>
-              )}
-            </>
+            <BoardView
+              board={board}
+              groupBy={groupBy}
+              onGroupByChange={setGroupBy}
+              onShowColumns={() => setShowColumns(true)}
+              onOpenCard={openCard}
+              onStartCreate={setCreating}
+              activeCardId={drawer ? drawer.cardId : null}
+              kb={kb}
+            />
           ) : null}
-
-          {view === 'archive' ? (
-            <div className="kbnb-archive">
-              <div className="kbnb-archive-head">
-                <span className="kbnb-archive-title">归档 {archived.length}</span>
-                {archived.length > 0 ? (
-                  <button
-                    className="kbnb-btn kbnb-danger"
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm('清空归档？所有归档卡片将被永久删除，不可恢复。')) {
-                        kb.mutate((b) => {
-                          b.archive = []
-                        })
-                      }
-                    }}
-                  >
-                    清空归档
-                  </button>
-                ) : null}
-              </div>
-              {archived.length === 0 ? (
-                <div className="kbnb-empty">归档为空。看板卡片右上角「归档」后可在侧边栏这里找回。</div>
-              ) : (
-                <div className="kbnb-archive-list">
-                  {archived.map((card: any) => {
-                    const fromCol = board.columns.find((c) => c.id === (card.archivedFrom || ''))
-                    return (
-                      <div key={card.id} className="kbnb-arch-row">
-                        <div className="kbnb-arch-info">
-                          <div className="kbnb-arch-title">{card.title}</div>
-                          {card.description ? <div className="kbnb-arch-desc">{card.description}</div> : null}
-                          <div className="kbnb-arch-meta">
-                            {fromCol ? <span className="kbnb-arch-col">原列 {fromCol.title}</span> : null}
-                            {card.archivedAt ? <span className="kbnb-arch-time">归档于 {fmtTime(card.archivedAt)}</span> : null}
-                          </div>
-                        </div>
-                        <div className="kbnb-arch-actions">
-                          <button
-                            className="kbnb-btn"
-                            type="button"
-                            onClick={() => {
-                              kb.unarchiveCard(card.id)
-                              setView('board')
-                            }}
-                          >
-                            恢复
-                          </button>
-                          <button
-                            className="kbnb-btn kbnb-danger"
-                            type="button"
-                            onClick={() => {
-                              if (window.confirm('永久删除卡片「' + card.title + '」？不可恢复。')) {
-                                kb.deleteArchivedCard(card.id)
-                              }
-                            }}
-                          >
-                            删除
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          ) : null}
-
+          {view === 'archive' ? <ArchiveView board={board} kb={kb} onBackToBoard={() => setView('board')} /> : null}
           {view === 'settings' ? (
             <div className="kbnb-archive">
               <KanbanSettings host={props.host} />
@@ -464,6 +194,7 @@ export function KanbanPage(props: {
         </main>
       </div>
 
+      {/* 卡片抽屉（key 按 cardId 重建，保证切换卡片时状态干净） */}
       {drawer && drawerCard ? (
         <CardDrawer
           key={drawer.cardId}
@@ -481,7 +212,7 @@ export function KanbanPage(props: {
           onOpenSession={openSession}
           actionHost={props.renderSlot ? () => (
             <div className="kbnb-card-actions">
-              {props.renderSlot!('kanban.card.actions', { cardId: drawer.cardId, onSynced: kb.reload }, {})}
+              {props.renderSlot!('kanban.card.actions', { cardId: drawer.cardId, onSynced: kb.reload }, {}) as React.ReactNode}
             </div>
           ) : null}
         />
@@ -507,6 +238,7 @@ export function KanbanPage(props: {
   )
 }
 
+/** 侧边栏图标（官方风格，本地绘制） */
 function IconBoardGlyph() {
   return (
     <svg width={15} height={15} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="kbnb-nav-icon">

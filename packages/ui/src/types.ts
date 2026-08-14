@@ -29,6 +29,9 @@ export interface KanbanCard {
   activity?: KanbanActivity[]
   createdAt?: string
   updatedAt?: string
+  /** 归档时记录来源列 id（恢复时回原列）；恢复后保留 */
+  archivedFrom?: string
+  archivedAt?: string
 }
 
 /** 平台无关的外部引用。kind 命名空间：<platform>-<type>；payload 细节归 provider */
@@ -57,7 +60,7 @@ export interface KanbanActivity {
   actor?: string
 }
 
-/** 归档时记录来源列，恢复时默认回原列 */
+/** 归档卡片：额外记录来源列与归档时间（恢复时回原列） */
 export interface ArchivedCard extends KanbanCard {
   archivedFrom?: string
   archivedAt?: string

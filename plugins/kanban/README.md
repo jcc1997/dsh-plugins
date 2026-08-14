@@ -37,9 +37,9 @@ plugins/kanban/
 ## 开发
 
 ```bash
-node build.mjs                 # 构建
-node build.mjs --watch         # 监听
-node scripts/verify-dist.mjs   # 验证
+npm run typecheck              # 类型检查（tsc --noEmit，LSP 替代：改完必跑）
+npm run check                  # 类型 + 构建 + 受限环境验证（改完必跑）
+node build.mjs --watch         # 监听构建
 ```
 
 热更新：Code Mode 会话内 SDK 零粘贴（切块读入 submit.json → cordis_define → cordis_run update），详见根目录 skill。

@@ -1,13 +1,15 @@
-// Notion 式块富文本编辑器（自研轻量版，无外部依赖）
+// client/rich-text.tsx — Notion 式块富文本编辑器主组件（自研轻量版，零外部依赖）
 // 受限动态 client 环境：无 import/require、无 timer 全局、fetch 被拒；
 // document/FileReader 等浏览器全局可用 → contentEditable + execCommand + FileReader(dataURL 图片)。
-// 数据模型：KanbanBlock[]（见 packages/ui types），text 存内联 HTML 片段。
-import React, { useEffect, useRef, useState } from 'react'
+// 数据模型：KanbanBlock[]（packages/ui types）；text 存内联 HTML 片段；块渲染在 rt-blocks.tsx。
+import React, { useRef, useState } from 'react'
 import { safeId } from '@dsh-plugins/ui'
 import { KanbanBlock } from '@dsh-plugins/ui'
+import { BlockRow, ToolBtn } from './rt-blocks'
 
 const BLOCK_TYPES = ['text', 'h1', 'h2', 'h3', 'bullet', 'ordered', 'check', 'quote', 'code', 'divider', 'image']
 
+/** content 归一化：数组清洗；字符串转单文本块（与 host 侧语义一致） */
 export function normalizeBlocks(raw: unknown): KanbanBlock[] {
   if (Array.isArray(raw)) {
     const out: KanbanBlock[] = []
@@ -28,7 +30,7 @@ export function normalizeBlocks(raw: unknown): KanbanBlock[] {
   return []
 }
 
-/** 块数组 → 纯文本（评论/搜索兜底展示） */
+/** 块数组 → 纯文本（搜索兜底展示） */
 export function blocksToText(blocks: KanbanBlock[]): string {
   return (blocks || [])
     .map((b) => {
@@ -41,7 +43,8 @@ export function blocksToText(blocks: KanbanBlock[]): string {
     .join('\n')
 }
 
-interface PendingFocus {
+/** 结构性操作后的焦点请求（由 BlockRow 消费，聚焦 + 光标定位） */
+export interface PendingFocus {
   id: string
   where: 'start' | 'end'
 }
@@ -59,11 +62,13 @@ export function RichTextEditor(props: {
   function commit(next: KanbanBlock[]) {
     props.onChange(next)
   }
+  /** 定位块；找不到返回 null（插入时 append 到末尾） */
   function blockAt(id: string): { block: KanbanBlock; index: number } | null {
     const index = blocks.findIndex((b) => b.id === id)
     if (index < 0) return null
     return { block: blocks[index], index }
   }
+  /** 在 id 之后插入块（id 不存在 → 末尾），并聚焦新块 */
   function insertAfter(id: string, block: KanbanBlock, focus: 'start' | 'end' = 'start') {
     const hit = blockAt(id)
     const next = blocks.slice()
@@ -73,6 +78,7 @@ export function RichTextEditor(props: {
     setPendingFocus({ id: block.id, where: focus })
     setActiveId(block.id)
   }
+  /** 删除块；focusPrev 时焦点回上一块末尾 */
   function removeBlock(id: string, focusPrev: boolean) {
     const hit = blockAt(id)
     if (!hit) return
@@ -91,14 +97,17 @@ export function RichTextEditor(props: {
       setActiveId(null)
     }
   }
+  /** 块类型切换（列表/标题/引用/代码…） */
   function setType(id: string, type: string) {
     if (!activeId) return
     commit(blocks.map((b) => (b.id === id ? { ...b, type } : b)))
   }
+  /** 待办勾选 */
   function toggleCheck(id: string) {
     commit(blocks.map((b) => (b.id === id ? { ...b, checked: !b.checked } : b)))
   }
 
+  // Enter：列表类（bullet/ordered/check）继承类型，其余回 text；新块聚焦开头
   function handleEnter(id: string) {
     const hit = blockAt(id)
     if (!hit) return
@@ -108,11 +117,11 @@ export function RichTextEditor(props: {
     if (hit.block.type === 'check') nb.checked = false
     insertAfter(id, nb, 'start')
   }
+  // Backspace：空块或行首（非首块）→ 合并到上一块（焦点回上一块末尾）；首块仅空时删除
   function handleBackspace(id: string) {
     const hit = blockAt(id)
     if (!hit) return
     if (hit.index === 0) {
-      // 首块：仅在内容为空时删除（否则保留，让浏览器默认删除字符）
       const empty = (hit.block.text || '').replace(/<[^>]+>/g, '').trim() === ''
       if (empty && blocks.length > 1) {
         commit(blocks.filter((b) => b.id !== id))
@@ -121,7 +130,6 @@ export function RichTextEditor(props: {
       }
       return
     }
-    // 合并到上一块
     const prev = blocks[hit.index - 1]
     const next = blocks.slice()
     next[hit.index - 1] = { ...prev, text: (prev.text || '') + (hit.block.text || '') }
@@ -131,6 +139,7 @@ export function RichTextEditor(props: {
     setActiveId(prev.id)
   }
 
+  /** 内联格式：execCommand（作用于当前选区，工具栏按钮已 preventDefault 保住选区） */
   function exec(cmd: string) {
     try {
       document.execCommand(cmd, false)
@@ -138,6 +147,7 @@ export function RichTextEditor(props: {
       /* 忽略 execCommand 异常 */
     }
   }
+  /** 行内包裹（如 <code>）：读取选区文本后 insertHTML */
   function wrapInline(tag: string) {
     try {
       const sel = document.getSelection()
@@ -152,6 +162,7 @@ export function RichTextEditor(props: {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   }
 
+  /** 图片块：dataURL（粘贴或文件选择 → FileReader），插到当前块之后 */
   function addImage(url: string, afterId: string | null) {
     const nb: KanbanBlock = { id: safeId('blk'), type: 'image', url }
     if (afterId && blockAt(afterId)) insertAfter(afterId, nb, 'start')
@@ -168,6 +179,7 @@ export function RichTextEditor(props: {
     }
     reader.readAsDataURL(f)
   }
+  /** 粘贴图片：剪贴板文件 → dataURL 插入（文本粘贴走默认行为） */
   function handlePaste(evt: React.ClipboardEvent) {
     const files = evt.clipboardData && evt.clipboardData.files
     if (files && files.length > 0) {
@@ -183,7 +195,7 @@ export function RichTextEditor(props: {
     }
   }
 
-  // 有序列表编号
+  // 有序列表编号：连续 ordered 块递增，遇其他类型重置
   let orderedRun = 0
   const orderedNo = blocks.map((b) => {
     if (b.type === 'ordered') {
@@ -200,6 +212,7 @@ export function RichTextEditor(props: {
 
   return (
     <div className="kbnb-rt" onPaste={handlePaste}>
+      {/* 工具栏：内联格式 + 块类型 + 分割线 + 图片；onMouseDown preventDefault 保选区 */}
       <div className="kbnb-rt-toolbar" onMouseDown={(e) => e.preventDefault()}>
         <ToolBtn label="B" title="粗体" onAction={() => exec('bold')} bold />
         <ToolBtn label="I" title="斜体" onAction={() => exec('italic')} italic />
@@ -215,7 +228,12 @@ export function RichTextEditor(props: {
         <ToolBtn label="待办" title="待办清单" onAction={() => activeId && setType(activeId, 'check')} disabled={!activeId} />
         <ToolBtn label="引用" title="引用" onAction={() => activeId && setType(activeId, 'quote')} disabled={!activeId} />
         <ToolBtn label="代码" title="代码块" onAction={() => activeId && setType(activeId, 'code')} disabled={!activeId} />
-        <ToolBtn label="—" title="分割线" onAction={() => activeId ? insertAfter(activeId, { id: safeId('blk'), type: 'divider' }, 'start') : blocks.length > 0 ? insertAfter(blocks[blocks.length - 1].id, { id: safeId('blk'), type: 'divider' }, 'start') : commit([{ id: safeId('blk'), type: 'divider' }])} disabled={blocks.length === 0 && !activeId} />
+        <ToolBtn
+          label="—"
+          title="分割线"
+          onAction={() => activeId ? insertAfter(activeId, { id: safeId('blk'), type: 'divider' }, 'start') : blocks.length > 0 ? insertAfter(blocks[blocks.length - 1].id, { id: safeId('blk'), type: 'divider' }, 'start') : commit([{ id: safeId('blk'), type: 'divider' }])}
+          disabled={blocks.length === 0 && !activeId}
+        />
         <ToolBtn label="图片" title="插入图片（粘贴或选择文件）" onAction={() => fileRef.current && fileRef.current.click()} />
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileInput} />
         <span className="kbnb-rt-hint">{activeIsTextish ? '支持加粗/斜体/删除线/行内代码' : activeType === 'code' ? '代码块内 Enter 换行' : '选中文字后点工具按钮'}</span>
@@ -255,248 +273,3 @@ export function RichTextEditor(props: {
     </div>
   )
 }
-
-function ToolBtn(props: {
-  label: string
-  title: string
-  onAction: () => void
-  disabled?: boolean
-  bold?: boolean
-  italic?: boolean
-  strike?: boolean
-  code?: boolean
-}) {
-  const cls = 'kbnb-rt-btn' + (props.bold ? ' kbnb-rt-b' : '') + (props.italic ? ' kbnb-rt-i' : '') + (props.strike ? ' kbnb-rt-s' : '') + (props.code ? ' kbnb-rt-c' : '')
-  return (
-    <button
-      type="button"
-      className={cls}
-      title={props.title}
-      disabled={props.disabled}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={() => props.onAction()}
-    >
-      {props.label}
-    </button>
-  )
-}
-
-/** 光标是否在元素开头 */
-function caretAtStart(el: HTMLElement): boolean {
-  try {
-    const sel = document.getSelection()
-    if (!sel || sel.rangeCount === 0 || !el.contains(sel.anchorNode)) return false
-    const range = sel.getRangeAt(0)
-    if (range.startContainer === el) return range.startOffset === 0
-    const pre = document.createRange()
-    pre.selectNodeContents(el)
-    pre.setEnd(range.startContainer, range.startOffset)
-    return pre.toString().length === 0
-  } catch {
-    return false
-  }
-}
-
-function BlockRow(props: {
-  block: KanbanBlock
-  index: number
-  orderedNo: number
-  active: boolean
-  pendingFocus: PendingFocus | null
-  onFocus: () => void
-  onFocusHandled: (id: string) => void
-  onText: (id: string, html: string) => void
-  onEnter: (id: string) => void
-  onBackspaceAtStart: (id: string) => void
-  onRemove: (id: string) => void
-  onToggleCheck: (id: string) => void
-}) {
-  const { block } = props
-  const ref = useRef<HTMLDivElement | null>(null)
-  const domText = useRef<string | null>(null)
-
-  // DOM 同步：聚焦中的块不回写（避免光标跳动）；失焦后按最新值回写
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    if (document.activeElement === el) {
-      domText.current = el.innerHTML
-      return
-    }
-    const want = block.text || ''
-    if (block.type === 'code') {
-      if (domText.current !== 'code:' + want) {
-        el.textContent = want
-        domText.current = 'code:' + want
-      }
-      return
-    }
-    if (domText.current !== want) {
-      el.innerHTML = want
-      domText.current = want
-    }
-  }, [block.text, block.type])
-
-  // 结构性操作后的焦点请求
-  useEffect(() => {
-    const el = ref.current
-    if (!el || !props.pendingFocus || props.pendingFocus.id !== block.id) return
-    el.focus()
-    try {
-      const sel = document.getSelection()
-      const range = document.createRange()
-      range.selectNodeContents(el)
-      range.collapse(props.pendingFocus.where === 'start')
-      if (sel) {
-        sel.removeAllRanges()
-        sel.addRange(range)
-      }
-    } catch {
-      /* ignore */
-    }
-    props.onFocusHandled(block.id)
-  }, [props.pendingFocus])
-
-  if (block.type === 'divider') {
-    return (
-      <div className={'kbnb-rt-block kbnb-rt-divider-wrap' + (props.active ? ' kbnb-rt-on' : '')} onClick={() => props.onFocus()}>
-        <hr className="kbnb-rt-divider" />
-        <button type="button" className="kbnb-rt-remove" title="删除分割线" onClick={() => props.onRemove(block.id)}>
-          ×
-        </button>
-      </div>
-    )
-  }
-  if (block.type === 'image') {
-    return (
-      <div className={'kbnb-rt-block kbnb-rt-imgwrap' + (props.active ? ' kbnb-rt-on' : '')} onClick={() => props.onFocus()}>
-        {block.url ? <img className="kbnb-rt-img" src={block.url} alt="粘贴或上传的图片" /> : <span className="kbnb-rt-img-missing">图片缺失</span>}
-        <button type="button" className="kbnb-rt-remove" title="删除图片" onClick={() => props.onRemove(block.id)}>
-          ×
-        </button>
-      </div>
-    )
-  }
-  if (block.type === 'check') {
-    return (
-      <div className={'kbnb-rt-block kbnb-rt-check' + (props.active ? ' kbnb-rt-on' : '')}>
-        <span
-          className={'kbnb-rt-checkbox' + (block.checked ? ' kbnb-rt-checked' : '')}
-          onClick={() => props.onToggleCheck(block.id)}
-          title={block.checked ? '取消完成' : '标记完成'}
-        />
-        <Editable
-          ref={ref}
-          className={'kbnb-rt-editable' + (block.checked ? ' kbnb-rt-done' : '')}
-          html={block.text || ''}
-          domText={domText}
-          placeholder="待办事项"
-          onInput={(html) => props.onText(block.id, html)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              props.onEnter(block.id)
-            } else if (e.key === 'Backspace') {
-              const el = ref.current
-              if (!el) return
-              const empty = (el.textContent || '').trim() === ''
-              if (empty || (caretAtStart(el) && props.index > 0)) {
-                e.preventDefault()
-                props.onBackspaceAtStart(block.id)
-              }
-            }
-          }}
-          onFocus={props.onFocus}
-        />
-      </div>
-    )
-  }
-
-  const clsByType: Record<string, string> = {
-    text: 'kbnb-rt-text',
-    h1: 'kbnb-rt-h1',
-    h2: 'kbnb-rt-h2',
-    h3: 'kbnb-rt-h3',
-    bullet: 'kbnb-rt-bullet',
-    ordered: 'kbnb-rt-ordered',
-    quote: 'kbnb-rt-quote',
-    code: 'kbnb-rt-code',
-  }
-  const marker = block.type === 'bullet' ? (
-    <span className="kbnb-rt-marker">•</span>
-  ) : block.type === 'ordered' ? (
-    <span className="kbnb-rt-marker">{props.orderedNo}.</span>
-  ) : null
-
-  const placeholder =
-    block.type === 'h1' ? '标题 1' : block.type === 'h2' ? '标题 2' : block.type === 'h3' ? '标题 3' : block.type === 'quote' ? '引用' : block.type === 'code' ? '代码…' : '输入文字…'
-
-  return (
-    <div className={'kbnb-rt-block' + (props.active ? ' kbnb-rt-on' : '')} onClick={() => props.onFocus()}>
-      {marker}
-      <Editable
-        ref={ref}
-        className={'kbnb-rt-editable ' + (clsByType[block.type] || 'kbnb-rt-text')}
-        html={block.text || ''}
-        domText={domText}
-        pre={block.type === 'code'}
-        placeholder={placeholder}
-        onInput={(html) => props.onText(block.id, html)}
-        onKeyDown={(e) => {
-          if (block.type === 'code') return
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
-            props.onEnter(block.id)
-          } else if (e.key === 'Backspace') {
-            const el = ref.current
-            if (!el) return
-            const empty = (el.textContent || '').trim() === ''
-            if (empty || (caretAtStart(el) && props.index > 0)) {
-              e.preventDefault()
-              props.onBackspaceAtStart(block.id)
-            }
-          }
-        }}
-        onFocus={props.onFocus}
-      />
-    </div>
-  )
-}
-
-/** contentEditable 组件：非受控 DOM + 外部同步；html 仅在其与 DOM 不同且未聚焦时回写 */
-const Editable = React.forwardRef(function Editable(
-  props: {
-    className: string
-    html: string
-    domText: React.MutableRefObject<string | null>
-    pre?: boolean
-    placeholder?: string
-    onInput: (html: string) => void
-    onKeyDown: (e: React.KeyboardEvent) => void
-    onFocus: () => void
-  },
-  ref: React.ForwardedRef<HTMLDivElement>,
-) {
-  return React.createElement('div', {
-    ref,
-    className: props.className,
-    contentEditable: true,
-    suppressContentEditableWarning: true,
-    spellCheck: false,
-    'data-placeholder': props.placeholder || '',
-    onInput: (e: React.FormEvent<HTMLDivElement>) => {
-      const el = e.currentTarget
-      el.classList.toggle('kbnb-editable-empty', (el.innerText || '').trim() === '')
-      props.onInput(props.pre ? el.innerText || '' : el.innerHTML)
-    },
-    onKeyDown: props.onKeyDown,
-    onFocus: props.onFocus,
-    onBlur: () => {
-      const el = ref as React.MutableRefObject<HTMLDivElement | null>
-      if (el.current) {
-        el.current.classList.toggle('kbnb-editable-empty', (el.current.innerText || '').trim() === '')
-        props.onInput(props.pre ? el.current.innerText || '' : el.current.innerHTML)
-      }
-    },
-  })
-})

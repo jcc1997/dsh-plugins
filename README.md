@@ -63,8 +63,10 @@
 dsh-plugins/
 ├── plugins/
 │   ├── git/           # git 插件（M3 完成）：git 服务 + 7 工具 + [ID] 自动关联 + MR 同步/合并，方案见 PLAN.md
-│   └── kanban/        # 看板插件：TS 源码 + 编译管线 + 19 个 agent 工具 + kanban 服务（v3：归档/分组/富文本）
-├── packages/ui/       # 共享包 @dsh-plugins/ui：设计 tokens + 图标 + 工具函数 + 组件
+│   └── kanban/        # 看板插件：TS 源码（模块化拆分）+ 编译管线 + 19 个 agent 工具 + kanban 服务（v3：归档/分组/富文本）
+├── packages/
+│   ├── communication/ # 通信协议层（bus/rpc/services，开发/部署双形态工厂）
+│   └── ui/            # 共享包 @dsh-plugins/ui：设计 tokens + 图标 + 工具函数 + 组件
 │   ├── DESIGN.md      # UI 设计规范（与 DSH 宿主统一）
 │   └── dsh/design-platform.css   # DSH 官方设计 tokens（抽取自 dsh-client-ui-theme）
 └── vendor/deepseek-harness/     # 官方仓库 submodule（sparse checkout：仅 client/ui-primitives 图标与组件源码，无宿主核心）
@@ -72,9 +74,45 @@ dsh-plugins/
 
 ## 安装
 
-**动态插件**（`plugins/kanban`）：在会话内通过 `cordis_define` 即时加载，随会话存在；源码与构建管线见 [`plugins/kanban/README.md`](plugins/kanban/README.md)。
+### 方式一：动态插件（开发/试用，推荐）
 
-**发布版 bundle**：官方规范见 [DSH 插件教程](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/index.md)，安装方式 `dsh plugin --profile web add <插件目录或 npm 包名>`，安装后重启 dsh 生效。**本仓库插件尚未走此路径**——部署形态、通信协议层与迁移顺序见 [git PLAN §8](plugins/git/PLAN.md)。
+会话需为 **创造模式 + Code Mode**（工具列表含 `cordis_define` / `cordis_run` / `run_code`）。步骤：
+
+```bash
+# 1. 重建产物（dist 为 gitignore，新会话必须重建）
+cd plugins/kanban && node build.mjs && node scripts/verify-dist.mjs
+# 2. 在会话内定义并激活（SDK 零粘贴流程，见 .agents/skills/dsh-dynamic-plugin-dev SKILL §五）
+#    cordis_define(kind: new) → cordis_run → Run 卡片批准
+# 3. 激活后：侧边栏出现「看板」入口；19 个 kanban_* 工具可供 agent 调用
+```
+
+注意：动态插件**随会话存在，重启进程即失**（需重新 `cordis_define`）；刷新页面后 Client 半需在 Run 卡片手动重新激活。
+
+### 方式二：发布版 bundle（npm 包，正式部署）
+
+插件按 cordis 规范打包发布为 npm 包（见下「发布」），然后：
+
+```bash
+# 安装到 web profile（官方 CLI，详见 DSH 插件教程）
+dsh plugin --profile web add dsh-plugins-kanban
+# 或本地目录：dsh plugin --profile web add /path/to/dsh-plugins/plugins/kanban
+# 安装后重启 dsh 生效；重启不丢，无需 cordis_define
+```
+
+**当前状态**：两插件均以动态形态运行，**正式 bundle 部署尚未执行**——迁移路径（受限来源、通信协议层 `packages/communication`、代码迁移表、建议顺序）见 [git PLAN §8](plugins/git/PLAN.md)。
+
+## 发布
+
+插件包发布到 npm（registry），**统一使用 dist-tag `dsh-plugin`**：
+
+```bash
+# 每个插件一个发布脚本：check（类型+构建+验证）→ publish（--tag dsh-plugin）
+cd plugins/kanban && npm run publish:kanban
+cd plugins/git   && npm run publish:git
+# 已配置：files 白名单（dist/src/scripts…）、publishConfig.tag=dsh-plugin、keywords 含 dsh-plugin
+```
+
+发布物为**源码包 + 构建产物**（当前是动态插件形态产物）；正式 bundle 化（cordis 规范导出）后再发布即为部署形态，见 [git PLAN §8](plugins/git/PLAN.md)。
 
 ## 开发
 
