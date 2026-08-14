@@ -88,7 +88,7 @@ async function loadHost() {
     unset: async (ref) => { delete secrets[ref] },
   }
   const cannedPulls = JSON.stringify([
-    { number: 1, title: '[dsh-plugins-1] docs(git): MR 自动关联规范', state: 'open', html_url: 'https://github.com/jcc1997/dsh-plugins/pull/1', updated_at: '2025-08-14T00:00:00Z', mergeable: true },
+    { number: 1, title: '[dsh-plugins-1] docs(git): MR 自动关联规范', state: 'closed', merged_at: '2025-08-14T01:00:00Z', html_url: 'https://github.com/jcc1997/dsh-plugins/pull/1', updated_at: '2025-08-14T00:00:00Z', mergeable: true },
     { number: 2, title: 'feat: 无 ID 的 MR', state: 'open', html_url: 'https://github.com/jcc1997/dsh-plugins/pull/2', updated_at: '2025-08-14T00:00:00Z', mergeable: true },
   ])
   let bashCalls = 0
@@ -127,7 +127,7 @@ async function loadHost() {
   if (!plugin || plugin.name !== 'git') throw new Error('host plugin shape wrong')
   plugin.apply(sandbox.ctx)
 
-  const expectTools = ['git_configure', 'git_claim_task_id', 'git_link', 'git_list_mrs', 'git_sync', 'git_status']
+  const expectTools = ['git_configure', 'git_claim_task_id', 'git_link', 'git_list_mrs', 'git_sync', 'git_status', 'git_merge_pr']
   const missing = expectTools.filter((t) => !registered.map((d) => d && d.name).includes(t))
   if (missing.length > 0) throw new Error('tools missing: ' + missing.join(','))
   if (!provided['git'] || typeof provided['git'].sync !== 'function' || typeof provided['git'].isConfigured !== 'function') {
@@ -149,11 +149,11 @@ async function loadHost() {
   // 2) git_sync：k1（taskId dsh-plugins-1）→ 匹配 PR #1，自动补 github-mr ref，写 meta.sync.github
   const rSync = await findTool('git_sync', registered).execute({ card_id: 'k1' })
   if (!rSync.ok) throw new Error('sync failed: ' + JSON.stringify(rSync))
-  if (rSync.open_mrs !== 2 || rSync.matched_mrs.length !== 1 || rSync.matched_mrs[0] !== 1) throw new Error('sync match wrong: ' + JSON.stringify(rSync))
+  if (rSync.open_mrs !== 1 || rSync.matched_mrs.length !== 1 || rSync.matched_mrs[0] !== 1) throw new Error('sync match wrong: ' + JSON.stringify(rSync))
   const k1 = await kanbanSvc.getCard('k1')
   const syncEnv = k1.meta && k1.meta.sync && k1.meta.sync.github
   if (!syncEnv || syncEnv.version !== 1 || !syncEnv.lastSyncAt || syncEnv.error !== null) throw new Error('envelope wrong: ' + JSON.stringify(syncEnv))
-  if (syncEnv.snapshot.mrs.length !== 2) throw new Error('snapshot mrs wrong')
+  if (syncEnv.snapshot.mrs.length !== 2) throw new Error('snapshot mrs wrong: ' + JSON.stringify(syncEnv.snapshot.mrs))
   const mrRef = (k1.refs || []).find((r) => r.kind === 'github-mr' && r.externalId === '1')
   if (!mrRef || mrRef.url !== 'https://github.com/jcc1997/dsh-plugins/pull/1') throw new Error('auto-link ref missing: ' + JSON.stringify(k1.refs))
   // 3) git_status 读回信封
@@ -166,7 +166,7 @@ async function loadHost() {
   if (bashCalls < 1) throw new Error('bash not used')
   // 6) M3：git/sync RPC（client sync 按钮 → host.call）
   const rRpc = await handlers['git/sync']({ cardId: 'k1' })
-  if (!rRpc.ok || rRpc.open_mrs !== 2) throw new Error('git/sync RPC failed: ' + JSON.stringify(rRpc))
+  if (!rRpc.ok || rRpc.open_mrs !== 1) throw new Error('git/sync RPC failed: ' + JSON.stringify(rRpc))
   // 7) 通信协议：sync 成功发布 git/card-synced 事件（comm.bus 服务总线）
   const bus = provided['comm.bus']
   if (!bus || typeof bus.subscribe !== 'function') throw new Error('comm.bus service missing (通信协议)')
@@ -174,9 +174,13 @@ async function loadHost() {
   const off = bus.subscribe('git/card-synced', (payload) => { received = payload })
   const rSync2 = await findTool('git_sync', registered).execute({ card_id: 'k1' })
   if (!rSync2.ok) throw new Error('sync2 failed: ' + JSON.stringify(rSync2))
-  if (!received || received.cardId !== 'k1' || received.openMrs !== 2) throw new Error('sync event not published: ' + JSON.stringify(received))
+  if (!received || received.cardId !== 'k1' || received.openMrs !== 1) throw new Error('sync event not published: ' + JSON.stringify(received))
   off()
-  console.log('logic: OK (claim-reject=' + (rClaim.error ? 'yes' : 'no') + ', claim=' + rClaim2.taskId + ', sync matched=' + rSync.matched_mrs.join(',') + ', auto-linked=' + mrRef.externalId + ', envelope.version=' + syncEnv.version + ')')
+  // 8) 状态变更：PR #1 已 merged（canned 数据）→ 已有 ref 的 state 应更新为 merged
+  const k1b = await kanbanSvc.getCard('k1')
+  const mrRefB = (k1b.refs || []).find((r) => r.kind === 'github-mr' && r.externalId === '1')
+  if (!mrRefB || !mrRefB.meta || mrRefB.meta.state !== 'merged') throw new Error('ref state not updated to merged: ' + JSON.stringify(mrRefB))
+  console.log('logic: OK (claim-reject=' + (rClaim.error ? 'yes' : 'no') + ', claim=' + rClaim2.taskId + ', sync matched=' + rSync.matched_mrs.join(',') + ', auto-linked=' + mrRef.externalId + ', envelope.version=' + syncEnv.version + ', state-updated=' + mrRefB.meta.state + ')')
 }
 
 function findTool(name, registered) {

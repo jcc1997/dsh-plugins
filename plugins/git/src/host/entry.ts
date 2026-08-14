@@ -237,23 +237,26 @@ function makePlugin() {
           if (cfg.repo && cfg.repo.owner && cfg.repo.name) { o = o || cfg.repo.owner; n = n || cfg.repo.name }
         }
         if (!o || !n) return { ok: false, error: 'no repo configured（git_configure 或卡片 github-repo 关联）' }
-        const gh = await ghFetch(o, n, 'pulls?state=open&per_page=50')
+        const gh = await ghFetch(o, n, 'pulls?state=all&per_page=100')
         if (!gh.ok) return { ok: false, error: gh.error || 'github api failed' }
         const items: any[] = Array.isArray(gh.data) ? gh.data : []
-        const mrs = items.map((p: any) => {
+        const mrsAll = items.map((p: any) => {
           const title = p.title || ''
+          const rawState = p.state || 'open'
           return {
             number: p.number,
             title,
-            state: p.state || 'open',
+            state: p.merged_at ? 'merged' : rawState,
             url: p.html_url || '',
             updatedAt: p.updated_at || '',
+            mergedAt: p.merged_at || null,
             mergeable: p.mergeable === undefined ? null : p.mergeable,
             taskIds: parseTaskIds(title),
           }
         })
+        const mrs = mrsAll
         const taskId = taskIdOf(card)
-        return { ok: true, repo: { owner: o, name: n }, open: mrs.length, mrs, matched: taskId ? mrs.filter((m) => m.taskIds.some((t: string) => normalizeTaskId(t) === normalizeTaskId(taskId))) : [] }
+        return { ok: true, repo: { owner: o, name: n }, open: mrsAll.filter((m) => m.state === 'open').length, total: mrsAll.length, mrs, matched: taskId ? mrs.filter((m) => m.taskIds.some((t: string) => normalizeTaskId(t) === normalizeTaskId(taskId))) : [] }
       }
 
       /* ── 同步：拉取 + [ID] 自动关联 + 写回 meta.sync.github 信封 ── */
@@ -270,7 +273,8 @@ function makePlugin() {
           if (cfg.repo && cfg.repo.owner && cfg.repo.name) { o = cfg.repo.owner; n = cfg.repo.name }
         }
         if (!o || !n) return { ok: false, error: 'no repo configured（git_configure 或先关联 github-repo）' }
-        const gh = await ghFetch(o, n, 'pulls?state=open&per_page=50')
+        // 拉全部状态（open+merged+closed），保证合并/关闭后状态正确反映
+        const gh = await ghFetch(o, n, 'pulls?state=all&per_page=100')
         const taskId = taskIdOf(card)
         const branch = branchFromCard(card)
         if (!gh.ok) {
@@ -279,22 +283,45 @@ function makePlugin() {
           return { ok: false, error: gh.error || 'github api failed', syncedAt: null }
         }
         const items: any[] = Array.isArray(gh.data) ? gh.data : []
-        const mrs = items.map((p: any) => ({
-          number: p.number,
-          title: p.title || '',
-          state: p.state || 'open',
-          url: p.html_url || '',
-          updatedAt: p.updated_at || '',
-          mergeable: p.mergeable === undefined ? null : p.mergeable,
-          taskIds: parseTaskIds(p.title || ''),
-        }))
-        // [ID] 自动关联：匹配本卡 taskId 的 MR → 补 github-mr refs（去重）
+        const mrsAll = items.map((p: any) => {
+          // 归一化：GitHub 合并的 PR state=closed 但 merged_at 非空 → merged（区分关闭）
+          const rawState = p.state || 'open'
+          const state = p.merged_at ? 'merged' : rawState
+          return {
+            number: p.number,
+            title: p.title || '',
+            state,
+            url: p.html_url || '',
+            updatedAt: p.updated_at || '',
+            mergedAt: p.merged_at || null,
+            mergeable: p.mergeable === undefined ? null : p.mergeable,
+            taskIds: parseTaskIds(p.title || ''),
+          }
+        })
+        // 快照：open 全部 + 最近 5 个非 open（避免快照膨胀，merged/closed 只留最近的）
+        const openMrs = mrsAll.filter((m) => m.state === 'open')
+        const recentClosed = mrsAll.filter((m) => m.state !== 'open').slice(0, 5)
+        const mrs = [...openMrs, ...recentClosed]
+        // [ID] 自动关联：匹配本卡 taskId 的 MR → 补 github-mr refs；已有 ref 更新 state（合并/关闭后状态同步）
         let linked = 0
+        let updated = 0
         const refs: any[] = Array.isArray(card.refs) ? card.refs.map((r: any) => ({ ...r })) : []
         if (taskId) {
           for (const m of mrs) {
             if (!m.taskIds.some((t: string) => normalizeTaskId(t) === normalizeTaskId(taskId))) continue
-            if (refs.some((r) => r.kind === 'github-mr' && r.externalId === String(m.number))) continue
+            const existing = refs.find((r) => r.kind === 'github-mr' && r.externalId === String(m.number))
+            if (existing) {
+              // 已有 ref：更新 state / title / url
+              const prevState = existing.meta && existing.meta.state
+              existing.meta = { state: m.state }
+              existing.display = m.title
+              existing.url = m.url
+              if (prevState && prevState !== m.state) {
+                updated++
+                existing.updatedAt = now()
+              }
+              continue
+            }
             refs.push({
               id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
               kind: 'github-mr',
@@ -314,15 +341,15 @@ function makePlugin() {
           error: null,
           snapshot: { repo: { owner: o, name: n, branch: branch || null }, mrs },
         }
-        const patch: any = { meta: { sync: { github: envelope } }, activity: '同步 GitHub MR（open ' + mrs.length + '）' }
-        if (linked > 0) patch.refs = refs
+        const patch: any = { meta: { sync: { github: envelope } }, activity: '同步 GitHub MR（open ' + openMrs.length + (updated > 0 ? '，状态变更 ' + updated + '）' : '）') }
+        if (linked > 0 || updated > 0) patch.refs = refs
         const res = await kanban.updateCard(cardId, patch)
         if (!res.ok) return { ok: false, error: res.error || 'updateCard failed' }
         // 通信协议：同步完成发布事件（动态=服务总线；部署=ctx.emit；监听方刷新 UI/联动）
         try {
-          comm.bus.publish('git/card-synced', { cardId, syncedAt: envelope.lastSyncAt, taskId: taskId || undefined, openMrs: mrs.length, linkedMrs: linked })
+          comm.bus.publish('git/card-synced', { cardId, syncedAt: envelope.lastSyncAt, taskId: taskId || undefined, openMrs: openMrs.length, linkedMrs: linked, updatedMrs: updated })
         } catch { /* 事件失败不影响结果 */ }
-        return { ok: true, card_id: cardId, syncedAt: envelope.lastSyncAt, taskId, open_mrs: mrs.length, linked_mrs: linked, matched_mrs: taskId ? mrs.filter((m) => m.taskIds.some((t: string) => normalizeTaskId(t) === normalizeTaskId(taskId))).map((m) => m.number) : [] }
+        return { ok: true, card_id: cardId, syncedAt: envelope.lastSyncAt, taskId, open_mrs: openMrs.length, linked_mrs: linked, updated_mrs: updated, matched_mrs: taskId ? mrs.filter((m) => m.taskIds.some((t: string) => normalizeTaskId(t) === normalizeTaskId(taskId))).map((m) => m.number) : [] }
       }
 
       /* ── 状态快照 ── */
@@ -441,6 +468,67 @@ function makePlugin() {
           parameters: P({ card_id: STR('卡片 id') }, ['card_id']),
           execute: async (args: any) => snapshot(String(args.card_id)),
           output: outputOf('同步状态'),
+        },
+        {
+          name: 'git_merge_pr',
+          description: '合并仓库的 GitHub MR（PR）：合并后自动触发该卡 git_sync 刷新状态（state → merged）。仓库来源：卡片 github-repo 关联 > git_configure 配置。',
+          parameters: P({
+            card_id: STR('卡片 id（可选；用于解析仓库并自动同步）'),
+            owner: STR('仓库 owner（可选，覆盖卡片/配置）'),
+            repo: STR('仓库名（可选，覆盖卡片/配置）'),
+            mr_number: STR('MR 号（必填）'),
+            squash: { type: 'boolean', description: '是否 squash 合并（默认 false）' },
+          }, ['mr_number']),
+          execute: async (args: any) => {
+            const number = String(args.mr_number).trim()
+            if (!number) return { ok: false, error: 'mr_number is required' }
+            let o = args.owner ? String(args.owner).trim() : undefined
+            let n = args.repo ? String(args.repo).trim() : undefined
+            let cardId = args.card_id ? String(args.card_id) : undefined
+            if (!o || !n) {
+              const kanban = kanbanSvc()
+              if (kanban && cardId) {
+                const card = await kanban.getCard(cardId)
+                const repo = repoFromCard(card)
+                if (repo) { o = o || repo.owner; n = n || repo.name }
+              }
+            }
+            if (!o || !n) {
+              const cfg = await readConfig()
+              if (cfg.repo && cfg.repo.owner && cfg.repo.name) { o = o || cfg.repo.owner; n = n || cfg.repo.name }
+            }
+            if (!o || !n) return { ok: false, error: 'no repo configured（git_configure 或卡片 github-repo 关联）' }
+            // PUT /pulls/{number}/merge —— 走 curl+token（同 ghFetch 机制）
+            const url = 'https://api.github.com/repos/' + encodeURIComponent(o) + '/' + encodeURIComponent(n) + '/pulls/' + encodeURIComponent(number) + '/merge'
+            let token: string | undefined
+            if (credentials) {
+              try {
+                const resolved = await credentials.resolve(TOKEN_REF)
+                if (resolved && resolved.value) token = resolved.value
+              } catch { token = undefined }
+            }
+            if (!token) return { ok: false, error: '合并需要 GitHub token（git_configure 配置）' }
+            if (!bash) return { ok: false, error: 'no bash capability for authenticated merge' }
+            const body = JSON.stringify({ merge_method: args.squash ? 'squash' : 'merge' })
+            // -d 传 JSON 字符串：单层 JSON.stringify 后嵌入命令（shell 引号由 bash.run 处理）
+            const cmd = 'curl -sS -X PUT -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -d ' + JSON.stringify(body) + ' -w "\n%{http_code}" ' + JSON.stringify(url)
+            const spec: any = { command: cmd, workdir: '/', timeoutMs: 30000, stdoutMaxBytes: 2000000, sandboxPolicy: WRITE_POLICY, env: { GITHUB_TOKEN: token } }
+            const res = await bash.run(spec)
+            const text = (res.stdout && res.stdout.text) || ''
+            const lines = text.split('\n')
+            const status = parseInt(lines[lines.length - 1], 10) || 0
+            const bodyText = lines.slice(0, -1).join('\n').trim()
+            let data: any = null
+            try { data = bodyText ? JSON.parse(bodyText) : null } catch { data = null }
+            if (status >= 200 && status < 300) {
+              // 合并成功 → 自动同步该卡刷新状态
+              let syncRes: any = null
+              if (cardId) syncRes = await syncCard(cardId)
+              return { ok: true, merged: true, mergedAt: (data && data.merged_at) || null, message: (data && data.message) || 'merged', autoSynced: !!syncRes, sync: syncRes || null }
+            }
+            return { ok: false, httpStatus: status, error: (data && (data.message || JSON.stringify(data))) || 'merge failed (HTTP ' + status + ')' }
+          },
+          output: outputOf('合并结果'),
         },
       ]
       for (const d of defs) {
