@@ -1,5 +1,7 @@
 # dsh-plugins — DSH 插件大仓
 
+> 开发前先加载 skill：（受限环境约束 + 踩坑 + TS 编译管线）
+
 DeepSeek Harness（DSH）的插件集合仓库。每个插件是一个遵循官方规范的 **bundle 包**（npm 包 + 配置层），可独立安装、发布、共享。
 
 > 官方开发文档：[deepseek-harness docs/user/develop](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs/user/develop)
@@ -107,3 +109,9 @@ pnpm --filter dsh-plugins-hello pack
 - [Build a tool（官方）](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/tool.md)
 - [Plugin configuration（官方）](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/config.md)
 - [Package and install a plugin（官方）](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)
+
+## Monorepo 结构（2025-08 起）
+
+- （@dsh-plugins/ui）—— 多插件共享：官方图标（ic_ds_*，提取自 vendor submodule）+ 工具函数 + 通用组件
+-  —— 各插件 TS 源码 + esbuild 编译管线（build.mjs → dist/client.js + host.js，供 cordis_define 加载）
+-  —— 官方仓库 submodule（sparse checkout，图标来源）；clone 后执行 
