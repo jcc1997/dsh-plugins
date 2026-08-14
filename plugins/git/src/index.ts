@@ -49,8 +49,9 @@ interface GitCtx {
   effect(cb: () => unknown): unknown
 }
 
-// 声明服务依赖：cordis 等待全部就绪后才激活 apply（宿主 include 并发 apply，webServer 可能晚于本插件）
-export const inject = ['fs', 'webServer', 'tools']
+// 声明服务依赖：cordis 等待全部就绪后才激活 apply（宿主 include 并发 apply，
+// webServer/credentials/bash 等宿主行可能晚于本插件；不 inject 会拿到 undefined）
+export const inject = ['fs', 'webServer', 'tools', 'credentials', 'shell']
 
 export function apply(ctx: GitCtx) {
       // 通信协议：部署形态（createComm env:'deployed-host' → bus 走 ctx.emit/on）
@@ -82,7 +83,7 @@ export function apply(ctx: GitCtx) {
         await fs.writeText(target, JSON.stringify(cfg, null, 2), undefined, undefined, WRITE_POLICY)
       }
 
-      /* ── GitHub API：bash(curl)+token 优先，退化 ctx.web 匿名 ── */
+      /* ── GitHub API：node 原生 fetch（正式形态 node 环境，可直接带 Authorization header） ── */
       async function ghFetch(owner: string, repo: string, apiPath: string): Promise<{ ok: boolean; data?: any; httpStatus?: number; error?: string }> {
         const url = 'https://api.github.com/repos/' + encodeURIComponent(owner) + '/' + encodeURIComponent(repo) + '/' + apiPath
         let token: string | undefined
@@ -92,41 +93,20 @@ export function apply(ctx: GitCtx) {
             if (resolved && resolved.value) token = resolved.value
           } catch { token = undefined }
         }
-        if (bash) {
-          try {
-            const auth = token ? ' -H "Authorization: Bearer $GITHUB_TOKEN"' : ''
-            const cmd = 'curl -sS -H "Accept: application/vnd.github+json"' + auth + ' -w "\n%{http_code}" ' + JSON.stringify(url)
-            const spec: any = { command: cmd, workdir: '/', timeoutMs: 20000, stdoutMaxBytes: 4000000, sandboxPolicy: WRITE_POLICY }
-            if (token) spec.env = { GITHUB_TOKEN: token }
-            const res = await bash.run(spec)
-            const text = (res.stdout && res.stdout.text) || ''
-            const lines = text.split('\n')
-            const status = parseInt(lines[lines.length - 1], 10) || 0
-            const body = lines.slice(0, -1).join('\n').trim()
-            if (!body) return { ok: false, error: 'empty response (status ' + status + ')' }
-            const data = JSON.parse(body)
-            if (status >= 200 && status < 300) return { ok: true, data, httpStatus: status }
-            return { ok: false, httpStatus: status, error: (data && (data.message || JSON.stringify(data))) || 'HTTP ' + status }
-          } catch (e) {
-            return { ok: false, error: 'api error: ' + String(e && (e as Error).message ? (e as Error).message : e) }
-          }
+        try {
+          const headers: Record<string, string> = { Accept: 'application/vnd.github+json' }
+          if (token) headers.Authorization = 'Bearer ' + token
+          const res = await fetch(url, { headers })
+          const bodyText = await res.text()
+          let data: any = null
+          try { data = bodyText ? JSON.parse(bodyText) : null } catch { data = null }
+          if (res.status >= 200 && res.status < 300) return { ok: true, data, httpStatus: res.status }
+          return { ok: false, httpStatus: res.status, error: (data && (data.message || JSON.stringify(data))) || 'HTTP ' + res.status }
+        } catch (e) {
+          const err = e as any
+          const detail = err && err.cause && err.cause.message ? ' (' + err.cause.message + ')' : ''
+          return { ok: false, error: 'api error: ' + String(err && err.message ? err.message : err) + detail }
         }
-        if (web) {
-          try {
-            const res = await web.fetch({ url })
-            const bodyText = res.body && res.body.content ? res.body.content : ''
-            if (res.statusCode >= 200 && res.statusCode < 300) {
-              let data: any = null
-              try { data = JSON.parse(bodyText) } catch { data = null }
-              if (data) return { ok: true, data, httpStatus: res.statusCode }
-              return { ok: false, error: 'web fallback returned non-JSON (status ' + res.statusCode + ')' }
-            }
-            return { ok: false, httpStatus: res.statusCode, error: 'HTTP ' + res.statusCode }
-          } catch (e) {
-            return { ok: false, error: 'web fetch failed: ' + String(e && (e as Error).message ? (e as Error).message : e) }
-          }
-        }
-        return { ok: false, error: 'no network capability (inject bash or web)' }
       }
 
       /* ── [ID] 解析 ── */
@@ -531,18 +511,21 @@ export function apply(ctx: GitCtx) {
               } catch { token = undefined }
             }
             if (!token) return { ok: false, error: '合并需要 GitHub token（git_configure 配置）' }
-            if (!bash) return { ok: false, error: 'no bash capability for authenticated merge' }
             const body = JSON.stringify({ merge_method: args.squash ? 'squash' : 'merge' })
-            // -d 传 JSON 字符串：单层 JSON.stringify 后嵌入命令（shell 引号由 bash.run 处理）
-            const cmd = 'curl -sS -X PUT -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -d ' + JSON.stringify(body) + ' -w "\n%{http_code}" ' + JSON.stringify(url)
-            const spec: any = { command: cmd, workdir: '/', timeoutMs: 30000, stdoutMaxBytes: 2000000, sandboxPolicy: WRITE_POLICY, env: { GITHUB_TOKEN: token } }
-            const res = await bash.run(spec)
-            const text = (res.stdout && res.stdout.text) || ''
-            const lines = text.split('\n')
-            const status = parseInt(lines[lines.length - 1], 10) || 0
-            const bodyText = lines.slice(0, -1).join('\n').trim()
             let data: any = null
-            try { data = bodyText ? JSON.parse(bodyText) : null } catch { data = null }
+            let status = 0
+            try {
+              const res = await fetch(url, {
+                method: 'PUT',
+                headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body,
+              })
+              status = res.status
+              const bodyText = await res.text()
+              try { data = bodyText ? JSON.parse(bodyText) : null } catch { data = null }
+            } catch (e) {
+              return { ok: false, error: 'merge request failed: ' + String(e && (e as Error).message ? (e as Error).message : e) }
+            }
             if (status >= 200 && status < 300) {
               // 合并成功 → 自动同步该卡刷新状态
               let syncRes: any = null

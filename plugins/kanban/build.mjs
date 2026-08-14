@@ -31,6 +31,7 @@ await build({
   entryPoints: [join(root, 'src', 'client', 'index.ts')],
   format: 'cjs',
   platform: 'browser',
+  jsx: 'automatic', // JSX 编译为 jsx-runtime 调用（不依赖 React 全局标识符；icons.tsx 等无 React import 的文件也安全）
   external: ['react', 'react/jsx-runtime', 'react-dom', '@deepseek-ai/*'],
   outfile: tmp,
   banner: { js: 'var module = { exports: {} }; var exports = module.exports; window.__ModuleLoader__.load({ id: ' + JSON.stringify(id) + ', factory: (require) => {' },
