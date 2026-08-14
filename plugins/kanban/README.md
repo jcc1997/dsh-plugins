@@ -44,6 +44,11 @@ node scripts/verify-dist.mjs   # 验证
 
 热更新：Code Mode 会话内 SDK 零粘贴（切块读入 submit.json → cordis_define → cordis_run update），详见根目录 skill。
 
+## 部署（当前未执行）
+
+- **当前运行形态**：动态插件（会话内 `cordis_define` 加载，重启即失）。正式 bundle 部署**尚未执行**。
+- 部署路径（源码级核实）：插件按 cordis 规范导出 → 目标 profile 的 `package.json` 的 `dependencies`（`link:` 或 registry）+ `dsh.profile.bundles` 追加包名 → 重启生效。详见 [git PLAN §8](plugins/git/PLAN.md)（受限来源、通信协议层 `packages/communication`、迁移表、建议顺序：先 git 试部署 → 再 kanban）。
+
 ## 数据模型
 
 ```json

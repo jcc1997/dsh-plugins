@@ -5,7 +5,7 @@ DSH git 插件：让 kanban task 关联 GitHub 仓库 / 本地仓库 / branch / 
 ## 状态
 
 - M0 调研 + M1 数据模型 v2（kanban 侧 refs/taskId/meta.sync 信封，已完成）→ **M2 骨架完成**（本插件：git 服务 + 6 个工具 + GitHub API + [ID] 自动关联，构建与受限环境端到端验证通过）→ **M3 sync 按钮完成**（client 向 kanban.card.actions 槽位注册「同步」按钮 + host 暴露 git/sync RPC + MR 状态展示）
-- **已在真实宿主热更新激活**（2026-08，Code Mode 会话 `cordis_define` + `cordis_run`），真实 GitHub 端到端验证通过：`git_configure`（repo + token）→ `git_claim_task_id`（`dsh-plugins-1`）→ `git_sync` 匹配远端 PR #1 标题 `[dsh-plugins-1]` → 自动补 `github-mr` ref + 写回 `meta.sync.github` 信封；M3 槽位链路验证：`kanban.card.actions` 声明可见、`git-sync` occupant active
+- **已在真实宿主热更新激活**（2026-08，Code Mode 会话 `cordis_define` + `cordis_run`）；`git_merge_pr` 已加（合并后自动同步，PR #2 真实验证）。真实 GitHub 端到端验证通过：`git_configure`（repo + token）→ `git_claim_task_id`（`dsh-plugins-1`）→ `git_sync` 匹配远端 PR #1 标题 `[dsh-plugins-1]` → 自动补 `github-mr` ref + 写回 `meta.sync.github` 信封；M3 槽位链路验证：`kanban.card.actions` 声明可见、`git-sync` occupant active
 - 详细需求与方案见 [PLAN.md](PLAN.md)
 
 ## 能力（agent 工具，前缀 `git_`）
@@ -18,6 +18,7 @@ DSH git 插件：让 kanban task 关联 GitHub 仓库 / 本地仓库 / branch / 
 | `git_list_mrs` | 列出仓库 open MR（GitHub PR），含标题解析出的 [taskId] |
 | `git_sync` | 拉取 open MR → 按 [ID] 自动关联本卡 taskId 的 MR（补 refs）→ 写回 `meta.sync.github` 信封 |
 | `git_status` | 查看卡片 taskId / refs / 同步信封（lastSyncAt / error / snapshot） |
+| `git_merge_pr` | 合并 MR（GitHub PR）→ 合并后自动同步状态（merged） |
 
 ## 跨插件服务与 UI（M3）
 
