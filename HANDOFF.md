@@ -11,6 +11,7 @@
 - **M2 修复**：git_claim_task_id 在卡片未关联 repo 且未配置远端仓库时**拒绝认领**（原实现编造 `task-N` 不合规 ID，已修 + verify 断言更新）。
 - **注意**：宿主进程里曾有旧会话激活的 kanban 工具注册（其他工作区会话残留）导致首次 `cordis_run` 报 `tool kanban_view is already registered`——停掉旧 Run 后重新激活即可，非源码问题。
 - **M3 sync 按钮完成并激活验证通过**：kanban client 声明子槽位 `kanban.card.actions`（sidebar 条目 children，list/root）+ 抽屉内渲染槽位宿主；git client 向该槽位注册 `git-sync` 按钮（onClick → host.call('git/sync') → owner onSynced 回调刷新看板）；host 半暴露 `harness.handle('git/sync')`；抽屉新增 MR state 徽标（open/merged/closed）+ 同步时间（G7）。实测：`Slots.listSubTree(root=kanban.card.actions)` 显示 declaredBy kbnb-3、occupants 含 git-sync（active）。**M3 验收达成：点击按钮 → 拉取 → 写回 → UI 刷新**。
+- **M3+ 抽屉 Git 卡片整合**：git 相关展示收敛为一张「Git 关联卡片」——仓库（github-repo ref）+ MR 列表（同步快照渲染 state 徽标/标题/更新时间）+ 同步状态行（lastSyncAt/error/分支）；「外部关联」卡片化，只展示非 git refs（github-branch/local-repo/jira-issue）+ 添加表单；同步按钮经槽位渲染在 Git 卡片头部。
 - **未做**：M4 本地 git 命令（ctx.shell）/MR 创建（G9）。
 
 ## 新会话起步清单（创造模式 + Code Mode）
