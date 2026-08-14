@@ -33,7 +33,7 @@ await build({
   platform: 'browser',
   external: ['react', 'react/jsx-runtime', 'react-dom', '@deepseek-ai/*'],
   outfile: tmp,
-  banner: { js: 'window.__ModuleLoader__.load({ id: ' + JSON.stringify(id) + ', factory: (require) => {' },
+  banner: { js: 'var module = { exports: {} }; var exports = module.exports; window.__ModuleLoader__.load({ id: ' + JSON.stringify(id) + ', factory: (require) => {' },
   footer: { js: 'return module.exports; } });' },
 })
 const cjs = readFileSync(tmp, 'utf8')

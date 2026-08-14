@@ -15,6 +15,10 @@ interface KanbanCtx {
 
 type WebRouteRegistrar = { register(r: { kind: 'exact' | 'prefix'; path: string; handler: (req: any, res: any) => void | Promise<void> }): () => void }
 
+// 声明服务依赖：cordis 等待全部就绪后才激活 apply（宿主 include 是并发 apply，
+// webServer 等 web-app 层服务可能晚于本插件；不 inject 会拿到 undefined 导致路由静默缺失）
+export const inject = ['fs', 'webServer', 'tools']
+
 export function apply(ctx: KanbanCtx) {
   // fs 是硬依赖：缺失直接不启动
   const fs = ctx.get('fs') as FsLike
@@ -46,14 +50,14 @@ export function apply(ctx: KanbanCtx) {
   }
 
   // 加载整板（含归档）与数据目录
-  route('/api/kanban/load', async () => {
+  route('/kanban-api/load', async () => {
     const dataDir = await resolveDataDir(fs)
     const board = await readBoard(fs, dataDir)
     if (board && !Array.isArray(board.archive)) board.archive = []
     return { board: board || defaultBoard(), dataDir }
   })
   // 整板保存（client 侧 mutate 后全量落盘；归档/富文本随板）
-  route('/api/kanban/save', async (args: any) => {
+  route('/kanban-api/save', async (args: any) => {
     const board = args && args.board
     if (!board || typeof board !== 'object') return { ok: false, error: 'missing board' }
     try {
@@ -66,7 +70,7 @@ export function apply(ctx: KanbanCtx) {
     }
   })
   // 设置页：迁移数据目录
-  route('/api/kanban/set-data-dir', async (args: any) => {
+  route('/kanban-api/set-data-dir', async (args: any) => {
     const dir = args && args.dir
     if (typeof dir !== 'string' || dir.trim().length === 0) return { ok: false, error: 'invalid dir' }
     const next = dir.trim()
@@ -87,7 +91,7 @@ export function apply(ctx: KanbanCtx) {
     }
   })
   // 会话「任务」tab 同步桥接：槽位渲染授权仅限 sidebar 条目，会话 tab 内走跨插件服务通道
-  route('/api/kanban/git-sync', async (args: any) => {
+  route('/kanban-api/git-sync', async (args: any) => {
     const a = (args || {}) as { cardId?: string }
     if (!a.cardId) return { ok: false, error: 'cardId required' }
     const git = ctx.get('git') as any

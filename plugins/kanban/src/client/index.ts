@@ -26,7 +26,7 @@ interface SessionsLike {
 function makeHostBridge(): { call(method: string, args?: unknown): Promise<any> } {
   return {
     call: async (method: string, args?: unknown) => {
-      const path = method.startsWith('kanban/') ? '/api/kanban/' + method.slice('kanban/'.length) : '/api/' + method
+      const path = method.startsWith('kanban/') ? '/kanban-api/' + method.slice('kanban/'.length) : '/' + method
       const res = await fetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

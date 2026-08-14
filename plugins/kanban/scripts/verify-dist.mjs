@@ -30,16 +30,33 @@ const ctx = {
 mod.apply(ctx)
 console.log('host: 工具', registered.length, '| 路由', routes.length, '| 服务', Object.keys(provided).join(','))
 if (registered.length !== 19) throw new Error('工具注册数错误: ' + registered.length)
-for (const p of ['/api/kanban/load', '/api/kanban/save', '/api/kanban/set-data-dir', '/api/kanban/git-sync']) {
+for (const p of ['/kanban-api/load', '/kanban-api/save', '/kanban-api/set-data-dir', '/kanban-api/git-sync']) {
   if (!routes.includes(p)) throw new Error('路由缺失: ' + p)
 }
 if (!provided['kanban'] || typeof provided['kanban'].getCard !== 'function') throw new Error('kanban 服务未提供')
 
-// ── client 半：bundle 格式（ModuleLoader banner） + 关键符号存在性 ──
+// ── client 半：真实执行测试（模拟 ModuleLoader 环境，防 "module is not defined" 类回归） ──
+import { createRequire } from 'node:module'
 const clientJs = readFileSync(join(root, 'lib/client.js'), 'utf8')
 if (!clientJs.includes('window.__ModuleLoader__.load')) throw new Error('client.js 缺少 ModuleLoader banner')
-for (const token of ['sidebar.footer.action', 'conversation.view', 'kanban.card.actions', '/api/kanban/', 'kbnb-rt-toolbar']) {
-  if (!clientJs.includes(token)) throw new Error('client.js 缺少关键符号: ' + token)
+// 捕获 factory
+let capturedFactory = null
+const prevWindow = globalThis.window
+globalThis.window = { __ModuleLoader__: { load: (spec) => { capturedFactory = spec.factory } } }
+try {
+  // 在隔离函数里执行 bundle（顶层引用 window/module/exports）
+  const fn = new Function(clientJs)
+  fn()
+} finally {
+  if (prevWindow === undefined) delete globalThis.window
+  else globalThis.window = prevWindow
 }
-console.log('client: ModuleLoader 格式 OK，关键符号齐全')
+if (typeof capturedFactory !== 'function') throw new Error('client.js 未注册 ModuleLoader factory')
+// 执行 factory：require 从插件 node_modules 解析（react 等 external）
+const req = createRequire(join(root, 'lib/client.js'))
+const exported = capturedFactory((m) => req(m))
+if (!exported || exported.name !== 'kanban') throw new Error('client factory 导出形状错误: ' + JSON.stringify(exported && exported.name))
+if (typeof exported.apply !== 'function') throw new Error('client 未导出 apply')
+if (!Array.isArray(exported.inject) || !exported.inject.includes('slots')) throw new Error('client inject 声明错误')
+console.log('client: ModuleLoader 真实执行 OK（name=' + exported.name + ', inject=' + exported.inject.join(',') + '）')
 console.log('ALL OK: kanban 正式形态产物验证通过')

@@ -28,6 +28,27 @@ const ctx = {
 mod.apply(ctx)
 console.log('工具注册数:', registered.length, '| 路由:', routes.join(', '), '| 服务:', Object.keys(provided).join(', '))
 if (registered.length < 7) throw new Error('工具注册不足: ' + registered.join(','))
-if (!routes.includes('/api/git/sync')) throw new Error('git/sync 路由未注册')
+if (!routes.includes('/git-api/sync')) throw new Error('git/sync 路由未注册')
 if (!provided['git'] || typeof provided['git'].sync !== 'function') throw new Error('git 服务未提供')
-console.log('ALL OK: lib/index.js 可在正式形态加载（工具/路由/服务齐备）')
+
+// ── client 半：真实执行测试（模拟 ModuleLoader 环境） ──
+import { createRequire } from 'node:module'
+import { readFileSync } from 'node:fs'
+const clientJs = readFileSync(join(root, 'lib/client.js'), 'utf8')
+if (!clientJs.includes('window.__ModuleLoader__.load')) throw new Error('client.js 缺少 ModuleLoader banner')
+let capturedFactory = null
+const prevWindow = globalThis.window
+globalThis.window = { __ModuleLoader__: { load: (spec) => { capturedFactory = spec.factory } } }
+try {
+  const fn = new Function(clientJs)
+  fn()
+} finally {
+  if (prevWindow === undefined) delete globalThis.window
+  else globalThis.window = prevWindow
+}
+if (typeof capturedFactory !== 'function') throw new Error('client.js 未注册 ModuleLoader factory')
+const req = createRequire(join(root, 'lib/client.js'))
+const exported = capturedFactory((m) => req(m))
+if (!exported || exported.name !== 'git' || typeof exported.apply !== 'function') throw new Error('client factory 导出形状错误')
+console.log('client: ModuleLoader 真实执行 OK（name=' + exported.name + '）')
+console.log('ALL OK: git 正式形态产物验证通过（工具/路由/服务/client 全链路）')

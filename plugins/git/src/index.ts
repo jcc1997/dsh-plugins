@@ -49,6 +49,9 @@ interface GitCtx {
   effect(cb: () => unknown): unknown
 }
 
+// 声明服务依赖：cordis 等待全部就绪后才激活 apply（宿主 include 并发 apply，webServer 可能晚于本插件）
+export const inject = ['fs', 'webServer', 'tools']
+
 export function apply(ctx: GitCtx) {
       // 通信协议：部署形态（createComm env:'deployed-host' → bus 走 ctx.emit/on）
       const comm = createComm({ env: 'deployed-host', ctx: ctx as any })
@@ -371,7 +374,7 @@ export function apply(ctx: GitCtx) {
       if (webServer && typeof webServer.register === 'function') {
         ctx.effect(() => webServer.register({
           kind: 'exact',
-          path: '/api/git/sync',
+          path: '/git-api/sync',
           handler: async (req: any, res: any) => {
             try {
               let body = ''
