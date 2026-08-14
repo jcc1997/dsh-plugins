@@ -1,6 +1,14 @@
 ## 文档结构更新（2026-08）
 
 - **skill 重组**：`.agents/skills/dsh-dynamic-plugin-dev/SKILL.md` 已切换为正式 bundle 形态知识（包结构/host+client 接入/构建/HMR/发布/踩坑清单 P-H-C-B）；动态插件专用知识（受限环境/模板/SDK 零粘贴/动态踩坑/运行模型）隔离到同目录 `legacy-dynamic-plugin.md`，cordis 工具（define/run/inspect）仍可用但正式功能不依赖。
+## 新增 pipeline 插件（dsh-pipeline，2026-08）
+
+- **位置**：`plugins/pipeline/`，正式 bundle 形态（host `lib/index.js` + client `lib/client.js` + cordis.patch.yml），与 kanban/git 同构。
+- **已全部验证通过**：`pnpm --filter dsh-pipeline check`（typecheck + build + verify-dist：10 工具 / 8 路由 / pipeline 服务 / client ModuleLoader 真实执行）+ `node scripts/smoke-engine.mjs`（端到端：建 atomic → 更新节点 → 发布 0.2.0 → combined 引用 @latest → 发布 0.1.1 → 跨插件服务同步运行 → 输出正确）。
+- **结构**：`src/host/models.ts`（类型+semver）、`store.ts`（~/.dsh/pipeline/pipeline.json CRUD+版本）、`engine.ts`（DAG 拓扑执行+节点 runner+RunQueue 队列）、`tools.ts`（10 个 pipeline_* 工具）、`index.ts`（路由 /pipeline-api/* + ctx.provide('pipeline')）；`src/client/`（入口+page+editor+styles）。
+- **待办**：① 尚未 `dsh plugin --profile web add` 挂载（用户侧操作）；② llm 节点为占位（沙箱子 agent 延后，引擎已留 runLlm 注入点）；③ exec 节点依赖宿主 shell 沙箱执行器。
+- **数据**：`~/.dsh/pipeline/pipeline.json`（pipelines+versions+runs+queue，runs 上限 200 自动裁剪）。
+
 ## 当前状态（正式形态挂载修复完成，2026-08）
 
 - **正式形态全链路已打通（probe 实测）**：

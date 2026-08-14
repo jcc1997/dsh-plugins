@@ -2,9 +2,13 @@
 
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）开发的插件集合。
 
-当前包含 **看板（kanban）插件**：一个嵌入 DSH 侧边栏的全功能看板，同时提供**给 Agent 调用的 19 个工具**（数据模型 v3：卡片外部关联 refs + 跨插件 `kanban` 服务 + 归档 + 分组 + 富文本内容），让人和 AI 在同一块板上协作。**git 插件**（task 关联 GitHub/本地仓库/branch/MR + 7 个 `git_*` 工具 + [ID] 自动关联 + MR 同步/合并，M3 已完成并真实端到端验证，方案见 [`plugins/git/PLAN.md`](plugins/git/PLAN.md)）。
+当前包含三个插件：
 
-> **运行形态**：两个插件当前均为**动态插件**（会话内 `cordis_define` 热更新加载，重启即失，需重新激活）。**正式部署（bundle 化）尚未执行**——迁移路径与前置改造见 [git PLAN §8](plugins/git/PLAN.md)（部署形态、通信协议层 `packages/communication`、建议顺序：先 git 后 kanban）。
+- **看板（kanban）插件**：嵌入 DSH 侧边栏的全功能看板，提供**给 Agent 调用的 19 个工具**（数据模型 v3：卡片外部关联 refs + 跨插件 `kanban` 服务 + 归档 + 分组 + 富文本内容），让人和 AI 在同一块板上协作。
+- **git 插件**：task 关联 GitHub/本地仓库/branch/MR + 7 个 `git_*` 工具 + [ID] 自动关联 + MR 同步/合并（方案见 [`plugins/git/PLAN.md`](plugins/git/PLAN.md)）。
+- **pipeline 插件**（新）：类 dify 的可复用 AI 流水线——atomic 基础单元（如「转 mp3」）+ combined 组合流水线（如「bilibili 视频总结」），npm 风格 semver 版本管理（v1.0.1）、节点图编辑、运行队列与进度监控、10 个 `pipeline_*` agent 工具、跨插件 `pipeline` 服务。
+
+> **运行形态**：三个插件均为**正式 bundle**（`dsh plugin --profile web add` 挂载，重启不丢）；动态插件通道（`cordis_define`）仅作会话内快速原型。
 
 ## 看板插件
 
@@ -53,6 +57,21 @@
 
 所有 Agent 操作自动写入变更记录（`actor: "agent"`），与 UI 手动操作（`actor: "手动调整"`）同源可追溯。
 
+## Pipeline 插件
+
+类似 dify 的可复用 AI 流水线。把「视频下载 → 转 mp3 → 语音转文字 → LLM 总结」这类流程拆成可复用的基本单元并组合：
+
+- **主界面**：侧边栏入口（同看板）打开全屏面板——流水线列表 / 运行与队列 / 说明。
+- **版本（npm 风格 semver）**：版本号形如 `v1.0.1`；发布后版本不可变（可作为子单元被引用）；最新版本是可编辑草稿；发布时按 patch/minor/major 升位。
+- **atomic 与 combined**：atomic = 无依赖基础单元（复用单元）；combined = 引用已发布 atomic 的组合流水线（`pipeline` 节点 ref 支持 `<pipelineId>@<version>` / `@latest`）。
+- **节点类型**：input / output / exec（shell 命令）/ fetch（HTTP）/ transform（JSON 转换）/ llm（大模型分析）/ pipeline（子流水线）；`{input.xxx}` / `{up.<nodeId>.<field>}` 占位符串联数据。
+- **运行与队列**：运行入队串行执行，「运行与队列」视图实时轮询进度（节点级 pending/running/success/failed）。
+- **面向 agent**：10 个 `pipeline_*` 工具（查/建/改/删/发布/运行/进度/队列/目录）。
+- **跨插件**：`ctx.get('pipeline')` 服务 `list / get / getPublished / run（同步）/ runAsync（入队）/ status / catalog`。
+- **LLM 节点（沙箱子 agent）延后实现**：引擎已留 `runLlm` 注入点，当前返回占位说明。
+
+数据：`~/.dsh/pipeline/pipeline.json`。详见 [`plugins/pipeline/README.md`](plugins/pipeline/README.md)。
+
 ## 设计规范
 
 插件 UI 与 DSH 宿主规范统一：直接引用宿主运行时注入的官方设计 tokens（`--dsw-*`，明暗主题自动适配），权威色板已抽取到 [`packages/ui/dsh/design-platform.css`](packages/ui/dsh/design-platform.css)，完整规范见 [`packages/ui/DESIGN.md`](packages/ui/DESIGN.md)。
@@ -62,8 +81,9 @@
 ```
 dsh-plugins/
 ├── plugins/
-│   ├── git/           # git 插件（M3 完成）：git 服务 + 7 工具 + [ID] 自动关联 + MR 同步/合并，方案见 PLAN.md
-│   └── kanban/        # 看板插件：TS 源码（模块化拆分）+ 编译管线 + 19 个 agent 工具 + kanban 服务（v3：归档/分组/富文本）
+│   ├── git/           # git 插件：git 服务 + 7 工具 + [ID] 自动关联 + MR 同步/合并，方案见 PLAN.md
+│   ├── kanban/        # 看板插件：TS 源码（模块化拆分）+ 编译管线 + 19 个 agent 工具 + kanban 服务（v3：归档/分组/富文本）
+│   └── pipeline/      # pipeline 插件：流水线引擎（DAG + 队列）+ 版本管理 + 10 个 agent 工具 + pipeline 跨插件服务
 ├── packages/
 │   ├── communication/ # 通信协议层（bus/rpc/services，开发/部署双形态工厂）
 │   └── ui/            # 共享包 @dsh-plugins/ui：设计 tokens + 图标 + 工具函数 + 组件
@@ -74,32 +94,21 @@ dsh-plugins/
 
 ## 安装
 
-### 方式一：动态插件（开发/试用，推荐）
+### 正式 bundle（推荐，重启不丢）
 
-会话需为 **创造模式 + Code Mode**（工具列表含 `cordis_define` / `cordis_run` / `run_code`）。步骤：
-
-```bash
-# 1. 重建产物（dist 为 gitignore，新会话必须重建）
-cd plugins/kanban && node build.mjs && node scripts/verify-dist.mjs
-# 2. 在会话内定义并激活（SDK 零粘贴流程，见 .agents/skills/dsh-dynamic-plugin-dev SKILL §五）
-#    cordis_define(kind: new) → cordis_run → Run 卡片批准
-# 3. 激活后：侧边栏出现「看板」入口；19 个 kanban_* 工具可供 agent 调用
-```
-
-注意：动态插件**随会话存在，重启进程即失**（需重新 `cordis_define`）；刷新页面后 Client 半需在 Run 卡片手动重新激活。
-
-### 方式二：发布版 bundle（npm 包，正式部署）
-
-插件按 cordis 规范打包发布为 npm 包（见下「发布」），然后：
+三插件均为正式 bundle 形态，构建产物 `lib/`（gitignore，新克隆后需重建）：
 
 ```bash
-# 安装到 web profile（官方 CLI，详见 DSH 插件教程）
-dsh plugin --profile web add dsh-kanban
-# 或本地目录：dsh plugin --profile web add /path/to/dsh-plugins/plugins/kanban
+# 重建产物并验证
+cd plugins/pipeline && pnpm run check   # 或 plugins/kanban / plugins/git
+# 挂载到 web profile（官方 CLI，自动应用 bundle 的 cordis.patch.yml）
+dsh plugin --profile web add /path/to/dsh-plugins/plugins/pipeline
 # 安装后重启 dsh 生效；重启不丢，无需 cordis_define
 ```
 
-**当前状态**：两插件均以动态形态运行，**正式 bundle 部署尚未执行**——迁移路径（受限来源、通信协议层 `packages/communication`、代码迁移表、建议顺序）见 [git PLAN §8](plugins/git/PLAN.md)。
+### 动态插件（会话内快速原型）
+
+会话需为 **创造模式 + Code Mode**（工具列表含 `cordis_define` / `cordis_run` / `run_code`）。动态插件随会话存在、重启即失；完整方法见 [`.agents/skills/dsh-dynamic-plugin-dev`](.agents/skills/dsh-dynamic-plugin-dev/SKILL.md)。
 
 ## 发布
 
@@ -109,9 +118,9 @@ dsh plugin --profile web add dsh-kanban
 - **发布**：`npm publish`（默认 latest）；或 `pnpm pack` 出 tarball 分发；git 安装需作者提供 `prepare` 构建脚本 + 用户在 profile 的 `pnpm-workspace.yaml` 配 `allowBuilds`。
 - **安装**：`dsh plugin --profile <name> add <npm 包名>`（等价 pnpm add + 按 `dsh.bundle` 声明自动挂 layer）。
 
-本仓库已配置：包名按官方示例规范 `dsh-<name>-plugin`（`dsh-kanban` / `dsh-git`，对齐教程的 `dsh-hello-plugin`；官方自带 bundle 用 `@deepseek-ai/dsh-*` scope）、`files` 白名单、`publishConfig.access=public`、`keywords` 含 dsh-plugin、`npm run publish:kanban|publish:git` = check + publish。
+本仓库已配置：包名按官方示例规范 `dsh-<name>`（`dsh-kanban` / `dsh-git` / `dsh-pipeline`，官方自带 bundle 用 `@deepseek-ai/dsh-*` scope）、`files` 白名单、`publishConfig.access=public`、`keywords` 含 dsh-plugin、`npm run publish:<name>` = check + publish。
 
-> **重要**：官方 bundle 机制靠 package.json 的 `dsh.bundle: { patch } ` 声明才能被 `dsh plugin add` 激活为插件层；当前两插件**尚未 bundle 化**（动态插件形态，无 `dsh.bundle` 声明），发布后会被装成普通依赖（CLI 会打 warning）。完成 [git PLAN §8](plugins/git/PLAN.md) 的部署迁移（标准模块导出 + `dsh.bundle` + cordis.patch.yml）后即为正式部署形态。
+> **bundle 机制**：三插件均已在 package.json 声明 `dsh.bundle: { patch } ` + `cordis.patch.yml`，`dsh plugin add` 会自动挂载为插件层（无需手动 insert）。
 
 ## 开发
 
