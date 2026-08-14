@@ -9,7 +9,9 @@ DSH 看板插件（动态插件开发版，热更新迭代中）。
 - **外部关联（数据模型 v2）**：卡片可关联 `github-repo` / `github-branch` / `github-mr` / `local-repo` / `jira-issue` 等引用（refs），UI 抽屉可增删，agent 经 `kanban_link` / `kanban_unlink` 编辑
 - **卡片操作槽位（M3）**：sidebar 条目声明子槽位 `kanban.card.actions`（list/root），Git 关联卡片头部渲染为操作区宿主；git 插件注册「同步」按钮 → owner props（cardId + onSynced 刷新回调）→ 同步完成后看板自动重载；git 未激活时槽位无条目，看板无感
 - **Git 关联卡片（M3+）**：抽屉内 git 相关整合为一张卡片——仓库（github-repo ref）、MR 列表（同步快照渲染 state 徽标 open/merged/closed + 标题 + 更新时间）、同步状态（最近同步时间 / 失败信息 / 分支）
-- **外部关联卡片**：非 git 的 refs（github-branch / local-repo / jira-issue …）卡片化展示 + 添加表单
+- **关联卡片（按类型管理）**：所有关联统一在「关联」卡片按类型展示 + 删除；「+ 新增」折叠表单按类型添加（GitHub 仓库 / 分支 / MR / 本地仓库 / 会话），jira 已移除
+- **会话关联**：ref kind `session`，点击跳转定位到对应会话（关闭看板）；会话「任务」tab 展示关联 task
+- **会话「任务」tab（conversation.view）**：当前会话关联的 task 列表，点击打开可编辑详情（复用 CardDrawer）
 - **跨插件服务**：host 提供 `ctx.provide('kanban', { getCard, updateCard, listCards })`，其他插件（如 git）经 `ctx.get('kanban')` 安全读写卡片，不直接碰 board.json
 - **设置**：settings.section 配置数据目录（默认 `~/.dsh/kanban/board.json`，可指向 git 仓库）
 

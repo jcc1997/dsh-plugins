@@ -42,7 +42,10 @@ async function loadClient() {
   if (!side.options.children || !side.options.children['kanban.card.actions']) {
     throw new Error('kanban.card.actions child slot not declared: ' + JSON.stringify(side.options.children))
   }
-  console.log('client.js: OK (plugin=' + plugin.name + ', apply exists, child slot kanban.card.actions declared)')
+  // M3+：会话「任务」tab 注册到 conversation.view
+  const convTab = registrations.find((r) => r.options && r.options.name === 'conversation.view' && r.options.id === 'kanban-task')
+  if (!convTab) throw new Error('conversation.view kanban-task entry missing: ' + JSON.stringify(registrations.map((r) => r.options && r.options.name + '/' + r.options.id)))
+  console.log('client.js: OK (plugin=' + plugin.name + ', apply exists, child slot kanban.card.actions declared, conversation.view/kanban-task registered)')
 }
 
 async function loadHost() {

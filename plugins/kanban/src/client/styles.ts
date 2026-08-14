@@ -215,6 +215,18 @@ export const kbnbCss = `
 .kbnb-ref-url{flex:1 1 200px;min-width:140px;padding:4px 8px;font-size:12px}
 .kbnb-ref-add .kbnb-btn{padding:4px 12px;font-size:12px;flex:none}
 
+/* ══ 会话 Task 面板（conversation.view tab） ══ */
+.kbnb-session-tasks{padding:16px 20px;display:flex;flex-direction:column;gap:12px;height:100%;overflow-y:auto;color:var(--dsw-alias-label-primary)}
+.kbnb-session-tasks-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kbnb-session-tasks-title{font-size:14px;font-weight:600}
+.kbnb-session-tasks-hint{font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.kbnb-session-tasks-empty{font-size:13px;color:var(--dsw-alias-label-tertiary);line-height:1.7;background:var(--dsw-static-neutral-bluish-50);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:14px 16px}
+.kbnb-session-tasks-list{display:flex;flex-direction:column;gap:8px}
+.kbnb-session-task{display:flex;align-items:center;gap:10px;text-align:left;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:10px 14px;cursor:pointer;font-family:inherit;color:var(--dsw-alias-label-primary);transition:all 150ms cubic-bezier(.4, 0, .2, 1)}
+.kbnb-session-task:hover{border-color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover)}
+.kbnb-session-task-title{flex:1;font-size:14px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kbnb-session-task-status{flex:none;font-size:11px;color:var(--dsw-alias-label-secondary);background:var(--dsw-static-neutral-bluish-50);border-radius:999px;padding:2px 10px}
+
 /* ══ 加载 ══ */
 .kbnb-loading{padding:60px;text-align:center;color:var(--dsw-alias-label-tertiary)}
 

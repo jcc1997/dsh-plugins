@@ -3,12 +3,17 @@ import React, { useState } from 'react'
 import { IconBoard } from '@dsh-plugins/ui'
 import { KanbanPage } from './page'
 import { KanbanSettings } from './settings'
+import { SessionTaskPanel } from './session-tasks'
 import { CtxLike } from '@dsh-plugins/ui'
 import { kbnbCss } from './styles'
 
 interface SlotsLike {
   inject(name: string, fn: () => unknown): void
   register(options: Record<string, unknown>, component: (props: any) => unknown): unknown
+}
+
+interface SessionsLike {
+  open(id: string): void
 }
 
 /** 受限环境注入的 host.call（构建后引用全局 host） */
@@ -27,6 +32,7 @@ function makePlugin() {
     apply(ctx: CtxLike) {
       styles.insert(kbnbCss)
       const slots = ctx.get('slots') as SlotsLike | undefined
+      const sessions = ctx.get('sessions') as SessionsLike | undefined
       if (!slots) return
 
       // 侧边栏入口：按钮 + 全屏看板（单一组件，无跨组件状态）
@@ -52,7 +58,7 @@ function makePlugin() {
                 <IconBoard />
               )}
             </button>
-            {open ? <KanbanPage host={host} onClose={() => setOpen(false)} renderSlot={props.renderSlot} /> : null}
+            {open ? <KanbanPage host={host} onClose={() => setOpen(false)} renderSlot={props.renderSlot} sessions={sessions} /> : null}
           </div>
         )
       }
@@ -77,6 +83,13 @@ function makePlugin() {
         slots.register(
           { name: 'settings.section', id: 'kanban', order: 30, label: () => '看板' },
           () => <KanbanSettings host={host} />,
+        ),
+      )
+      // 会话「任务」tab（M3+ 需求 6）：当前会话关联的 task 详情（可编辑）
+      slots.inject('conversation.view', () =>
+        slots.register(
+          { name: 'conversation.view', id: 'kanban-task', order: 20, label: () => '任务' },
+          (props: { sessionId?: string }) => <SessionTaskPanel sessionId={props.sessionId} host={host} sessions={sessions} />,
         ),
       )
     },

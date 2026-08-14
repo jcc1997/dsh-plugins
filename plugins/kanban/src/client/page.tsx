@@ -1,12 +1,12 @@
 // 看板页面：顶部栏 + 竖线分割列 + 拖拽 + 编辑抽屉 + 新建弹窗 + 列配置弹窗
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { IconChevronLeftOutline14 } from '@dsh-plugins/ui'
 import { Modal } from '@dsh-plugins/ui'
 import { CardDrawer } from './drawer'
 import { CreateCardModal } from './create'
 import { ColumnsPanel } from './columns'
-import { appendActivity, findCard, safeId, safeNow } from '@dsh-plugins/ui'
-import { KanbanBoard } from '@dsh-plugins/ui'
+import { safeId, safeNow, appendActivity } from '@dsh-plugins/ui'
+import { useKanbanBoard, HostLike } from './board-hook'
 
 export interface DrawerState {
   columnId: string
@@ -17,56 +17,57 @@ export interface RenderSlotLike {
   (key: string, owner: unknown, opts?: unknown): unknown
 }
 
+export interface SessionsLike {
+  open(id: string): void
+}
+
 export function KanbanPage(props: {
-  host: { call(method: string, args?: unknown): Promise<any> }
+  host: HostLike
   onClose: () => void
   renderSlot?: RenderSlotLike
+  sessions?: SessionsLike
 }) {
-  const [board, setBoard] = useState<KanbanBoard | null>(null)
-  const [error, setError] = useState('')
+  const kb = useKanbanBoard(props.host)
   const [drawer, setDrawer] = useState<DrawerState | null>(null)
-  const [creating, setCreating] = useState<string | null>(null) // 新建弹窗：目标列
+  const [creating, setCreating] = useState<string | null>(null)
   const [showColumns, setShowColumns] = useState(false)
   const [drag, setDrag] = useState<{ kind: 'card'; cardId: string; from: string } | { kind: 'column'; from: number } | null>(null)
   const [hint, setHint] = useState<{ columnId: string; index: number } | null>(null)
-  const [saving, setSaving] = useState(false)
 
-  function reload() {
-    props.host
-      .call('kanban/load', {})
-      .then((r) => setBoard(r.board))
-      .catch((e) => setError('加载失败: ' + String(e)))
+  const board = kb.board
+
+  function openCard(columnId: string, cardId: string) {
+    setDrawer({ columnId, cardId })
   }
-
-  useEffect(() => {
-    reload()
-  }, [props.host])
-
-  function save(next: KanbanBoard) {
-    setBoard(next)
-    setSaving(true)
-    props.host
-      .call('kanban/save', { board: next })
-      .then(() => setSaving(false))
-      .catch((e) => {
-        setSaving(false)
-        setError('保存失败: ' + String(e))
-      })
+  function saveCard(title: string, description: string) {
+    if (!drawer) return
+    kb.saveCard(drawer.cardId, title, description)
   }
-  function mutate<T>(fn: (b: KanbanBoard) => T): T | null {
-    if (!board) return null
-    const next = JSON.parse(JSON.stringify(board)) as KanbanBoard
-    const result = fn(next)
-    save(next)
-    return result
+  function moveCardToStatus(targetColId: string) {
+    if (!drawer) return
+    kb.moveCardToStatus(drawer.cardId, targetColId)
+    setDrawer({ columnId: targetColId, cardId: drawer.cardId })
   }
-
-  // ── 卡片操作 ──
-  function openNewCard(columnId: string) {
-    setCreating(columnId)
+  function deleteCard() {
+    if (!drawer) return
+    kb.deleteCard(drawer.cardId)
+    setDrawer(null)
+  }
+  function updateTags(cardId: string, add: string[], remove: string[]) {
+    kb.updateTags(cardId, add, remove)
+  }
+  function addComment(text: string) {
+    if (!drawer) return
+    kb.addComment(drawer.cardId, text)
+  }
+  function addRef(cardId: string, ref: { kind: string; externalId: string; url?: string; display?: string }) {
+    kb.addRef(cardId, ref)
+  }
+  function removeRef(cardId: string, refId: string) {
+    kb.removeRef(cardId, refId)
   }
   function createCard(columnId: string, title: string, description: string, tags: string[] = []) {
-    mutate((b) => {
+    kb.mutate((b) => {
       const col = b.columns.find((c) => c.id === columnId)
       if (!col) return
       const card = {
@@ -85,151 +86,18 @@ export function KanbanPage(props: {
       col.cards.push(card)
     })
   }
-  function openCard(columnId: string, cardId: string) {
-    setDrawer({ columnId, cardId })
-  }
-  function saveCard(title: string, description: string) {
-    if (!drawer) return
-    const colId = drawer.columnId
-    const cardId = drawer.cardId
-    mutate((b) => {
-      const col = b.columns.find((c) => c.id === colId)
-      const card = col && col.cards.find((k) => k.id === cardId)
-      if (!card) return
-      // 仅在内容实际变化时落库 + 记日志（自动保存防抖会重复触发）
-      if (card.title === title && (card.description || '') === description) return
-      card.title = title
-      card.description = description
-      card.updatedAt = safeNow()
-      appendActivity(card, '更新卡片')
-    })
-  }
-  function moveCardToStatus(targetColId: string) {
-    if (!drawer) return
-    const fromId = drawer.columnId
-    const cardId = drawer.cardId
-    mutate((b) => {
-      const fromCol = b.columns.find((c) => c.id === fromId)
-      const toCol = b.columns.find((c) => c.id === targetColId)
-      if (!fromCol || !toCol || fromId === targetColId) return
-      const idx = fromCol.cards.findIndex((k) => k.id === cardId)
-      if (idx < 0) return
-      const [card] = fromCol.cards.splice(idx, 1)
-      card.updatedAt = safeNow()
-      appendActivity(card, '状态变更：' + fromCol.title + ' → ' + toCol.title)
-      toCol.cards.push(card)
-    })
-    // drawer 跟随卡片移动后的新列
-    setDrawer({ columnId: targetColId, cardId })
-  }
-  function deleteCard() {
-    if (!drawer) return
-    const colId = drawer.columnId
-    const cardId = drawer.cardId
-    mutate((b) => {
-      const col = b.columns.find((c) => c.id === colId)
-      if (col) col.cards = col.cards.filter((k) => k.id !== cardId)
-    })
+  function openSession(sessionId: string) {
     setDrawer(null)
-  }
-  function updateTags(cardId: string, add: string[], remove: string[]) {
-    mutate((b) => {
-      let target: any = null
-      for (const col of b.columns) {
-        const k = col.cards.find((x) => x.id === cardId)
-        if (k) { target = k; break }
-      }
-      if (!target) return
-      if (!Array.isArray(target.tags)) target.tags = []
-      for (const tg of add) {
-        if (tg && !target.tags.includes(tg)) { target.tags.push(tg); appendActivity(target, '添加标签：' + tg) }
-      }
-      for (const tg of remove) {
-        const i = target.tags.indexOf(tg)
-        if (i >= 0) { target.tags.splice(i, 1); appendActivity(target, '移除标签：' + tg) }
-      }
-      if (add.length > 0 || remove.length > 0) target.updatedAt = safeNow()
-    })
-  }
-  function addComment(text: string) {
-    if (!drawer) return
-    const colId = drawer.columnId
-    const cardId = drawer.cardId
-    mutate((b) => {
-      const col = b.columns.find((c) => c.id === colId)
-      const card = col && col.cards.find((k) => k.id === cardId)
-      if (!card) return
-      if (!card.comments) card.comments = []
-      card.comments.push({ id: safeId('m'), text, createdAt: safeNow() })
-      appendActivity(card, '添加评论')
-    })
-  }
-  function addRef(cardId: string, ref: { kind: string; externalId: string; url?: string; display?: string }) {
-    mutate((b) => {
-      let target: any = null
-      for (const col of b.columns) {
-        const k = col.cards.find((x) => x.id === cardId)
-        if (k) { target = k; break }
-      }
-      if (!target) return
-      if (!Array.isArray(target.refs)) target.refs = []
-      if (target.refs.some((r: any) => r.kind === ref.kind && r.externalId === ref.externalId)) return
-      target.refs.push({
-        id: safeId('r'),
-        kind: ref.kind,
-        platform: ref.kind.split('-')[0],
-        externalId: ref.externalId,
-        url: ref.url || '',
-        display: ref.display || '',
-        meta: {},
-        createdAt: safeNow(),
-      })
-      target.updatedAt = safeNow()
-      appendActivity(target, '添加关联：' + ref.kind + ' ' + ref.externalId)
-    })
-  }
-  function removeRef(cardId: string, refId: string) {
-    mutate((b) => {
-      let target: any = null
-      for (const col of b.columns) {
-        const k = col.cards.find((x) => x.id === cardId)
-        if (k) { target = k; break }
-      }
-      if (!target || !Array.isArray(target.refs)) return
-      const idx = target.refs.findIndex((r: any) => r.id === refId)
-      if (idx < 0) return
-      const [removed] = target.refs.splice(idx, 1)
-      target.updatedAt = safeNow()
-      appendActivity(target, '移除关联：' + (removed.kind || '') + ' ' + (removed.externalId || ''))
-    })
+    if (props.sessions && typeof props.sessions.open === 'function') {
+      try { props.sessions.open(sessionId) } catch { /* 会话可能已不存在 */ }
+    }
+    props.onClose()
   }
 
-  // ── 列操作 ──
-  function addColumn(title: string) {
-    mutate((b) => b.columns.push({ id: safeId('c'), title, cards: [], meta: {} }))
-  }
-  function renameColumn(colId: string, title: string) {
-    mutate((b) => {
-      const col = b.columns.find((c) => c.id === colId)
-      if (col) col.title = title
-    })
-  }
-  function deleteColumn(colId: string) {
-    mutate((b) => {
-      b.columns = b.columns.filter((c) => c.id !== colId)
-    })
-  }
-  function moveColumn(colId: string, dir: number) {
-    mutate((b) => {
-      const idx = b.columns.findIndex((c) => c.id === colId)
-      const to = idx + dir
-      if (idx < 0 || to < 0 || to >= b.columns.length) return
-      const [col] = b.columns.splice(idx, 1)
-      b.columns.splice(to, 0, col)
-    })
-  }
-
-  // ── 拖拽 ──
+  function addColumn(title: string) { kb.addColumn(title) }
+  function renameColumn(colId: string, title: string) { kb.renameColumn(colId, title) }
+  function deleteColumn(colId: string) { kb.deleteColumn(colId) }
+  function moveColumn(colId: string, dir: number) { kb.moveColumn(colId, dir) }
   function computeCardIndex(evt: React.DragEvent) {
     const el = evt.currentTarget
     try {
@@ -255,7 +123,7 @@ export function KanbanPage(props: {
     if (!drag) return
     if (drag.kind === 'card') {
       const index = computeCardIndex(evt)
-      mutate((b) => {
+      kb.mutate((b) => {
         const fromCol = b.columns.find((c) => c.id === drag.from)
         const toCol = b.columns.find((c) => c.id === columnId)
         if (!fromCol || !toCol) return
@@ -275,7 +143,7 @@ export function KanbanPage(props: {
         }
       })
     } else if (drag.kind === 'column') {
-      mutate((b) => {
+      kb.mutate((b) => {
         const from = drag.from
         const to = b.columns.findIndex((c) => c.id === columnId)
         if (from < 0 || to < 0 || from === to) return
@@ -294,12 +162,13 @@ export function KanbanPage(props: {
   if (!board) {
     return (
       <div className="kbnb-page">
-        <div className="kbnb-loading">{error || '加载中…'}</div>
+        <div className="kbnb-loading">{kb.error || '加载中…'}</div>
       </div>
     )
   }
 
-  const drawerCard = drawer ? findCard(board, drawer.columnId, drawer.cardId) : null
+  const drawerHit = drawer ? kb.findCard(drawer.cardId) : null
+  const drawerCard = drawerHit ? drawerHit.card : null
 
   return (
     <div className="kbnb-page">
@@ -309,14 +178,14 @@ export function KanbanPage(props: {
         </button>
         <span className="kbnb-title">看板</span>
         <span className="kbnb-stats">{board.columns.length} 列 · {board.columns.reduce((n, col) => n + col.cards.length, 0)} 张卡</span>
-        <span className="kbnb-saving">{saving ? '保存中…' : ''}</span>
+        <span className="kbnb-saving">{kb.saving ? '保存中…' : ''}</span>
         <div className="kbnb-header-actions">
           <button className="kbnb-btn" type="button" onClick={() => setShowColumns(true)}>
             列配置
           </button>
         </div>
       </header>
-      {error ? <div className="kbnb-error">{error}</div> : null}
+      {kb.error ? <div className="kbnb-error">{kb.error}</div> : null}
       <main className="kbnb-board">
         {board.columns.length === 0 ? (
           <div className="kbnb-empty">空看板，点右上角「列配置」添加列</div>
@@ -369,15 +238,13 @@ export function KanbanPage(props: {
                       </div>
                     ) : null}
                     {card.description ? (
-                      <div className="kbnb-card-desc">
-                        {card.description.replace(/[#*`\[\]()\-]/g, '').split(/\n{2,}/)[0]}
-                      </div>
+                      <div className="kbnb-card-desc">{card.description.split(String.fromCharCode(10))[0]}</div>
                     ) : null}
                   </article>
                 ))}
                 {hint && hint.columnId === col.id ? <div className="kbnb-drop-line" /> : null}
               </div>
-              <button className="kbnb-add-card" type="button" onClick={() => openNewCard(col.id)}>
+              <button className="kbnb-add-card" type="button" onClick={() => setCreating(col.id)}>
                 + 添加卡片
               </button>
             </section>
@@ -397,9 +264,10 @@ export function KanbanPage(props: {
           onMoveStatus={moveCardToStatus}
           onAddRef={(ref) => addRef(drawer.cardId, ref)}
           onRemoveRef={(refId) => removeRef(drawer.cardId, refId)}
+          onOpenSession={openSession}
           actionHost={props.renderSlot ? () => (
             <div className="kbnb-card-actions">
-              {props.renderSlot!('kanban.card.actions', { cardId: drawer.cardId, onSynced: reload }, {})}
+              {props.renderSlot!('kanban.card.actions', { cardId: drawer.cardId, onSynced: kb.reload }, {})}
             </div>
           ) : null}
         />

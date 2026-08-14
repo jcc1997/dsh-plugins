@@ -1,10 +1,19 @@
-// 卡片抽屉：左右分栏布局（左：标题+描述+评论；右：状态+标签+关联卡片+变更记录）
+// 卡片抽屉：左右分栏布局（左：标题+描述+评论；右：状态+标签+关联+变更记录）
 // 蒙层点击自动关闭；改动自动保存
 import React, { useEffect, useRef, useState } from 'react'
 import { IconCloseOutline16 } from '@dsh-plugins/ui'
 import { mdToElements } from '@dsh-plugins/ui'
 import { fmtTime } from '@dsh-plugins/ui'
 import { KanbanCard, KanbanColumn } from '@dsh-plugins/ui'
+
+/** 关联类型定义（新增/展示按类型；git 关联 + 会话关联） */
+export const REF_KINDS: { kind: string; label: string }[] = [
+  { kind: 'github-repo', label: 'GitHub 仓库' },
+  { kind: 'github-branch', label: 'GitHub 分支' },
+  { kind: 'github-mr', label: 'GitHub MR' },
+  { kind: 'local-repo', label: '本地仓库' },
+  { kind: 'session', label: '会话' },
+]
 
 export function CardDrawer(props: {
   card: KanbanCard
@@ -17,16 +26,18 @@ export function CardDrawer(props: {
   onMoveStatus: (targetColId: string) => void
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
+  onOpenSession: (sessionId: string) => void
   actionHost?: (() => unknown) | null
 }) {
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
   const [title, setTitle] = useState(props.card.title)
   const [description, setDescription] = useState(props.card.description || '')
   const [comment, setComment] = useState('')
-  const [refKind, setRefKind] = useState('github-branch')
+  const [refKind, setRefKind] = useState('github-repo')
   const [refExt, setRefExt] = useState('')
   const [refDisplay, setRefDisplay] = useState('')
   const [refUrl, setRefUrl] = useState('')
+  const [addingRef, setAddingRef] = useState(false)
   const first = useRef(true)
 
   // 切换卡片时同步本地状态
@@ -48,6 +59,23 @@ export function CardDrawer(props: {
   const comments = props.card.comments || []
   const activity = props.card.activity || []
   const currentCol = props.columns.find((c) => c.cards.some((k) => k.id === props.card.id))
+  const refs: any[] = props.card.refs || []
+  const meta: any = props.card.meta || {}
+  const syncEnv = meta.sync && meta.sync.github ? meta.sync.github : null
+
+  function submitRef() {
+    if (!refExt.trim()) return
+    props.onAddRef({
+      kind: refKind,
+      externalId: refExt.trim(),
+      display: refDisplay.trim() || undefined,
+      url: refUrl.trim() || undefined,
+    })
+    setRefExt('')
+    setRefDisplay('')
+    setRefUrl('')
+    setAddingRef(false)
+  }
 
   return (
     <div
@@ -185,20 +213,84 @@ export function CardDrawer(props: {
               actionHost={props.actionHost ? () => props.actionHost!() : null}
             />
 
-            {/* 外部关联卡片（数据模型 v2）：非 git 的 refs + 添加表单 */}
-            <RefsCard
-              refs={props.card.refs || []}
-              refKind={refKind}
-              refExt={refExt}
-              refDisplay={refDisplay}
-              refUrl={refUrl}
-              onRefKind={setRefKind}
-              onRefExt={setRefExt}
-              onRefDisplay={setRefDisplay}
-              onRefUrl={setRefUrl}
-              onAddRef={props.onAddRef}
-              onRemoveRef={props.onRemoveRef}
-            />
+            {/* 关联卡片（按类型管理）：git 分支/本地仓库/会话 + 新增折叠表单 + 删除 */}
+            <section className="kbnb-card kbnb-refs-card">
+              <header className="kbnb-card-sec-head">
+                <span className="kbnb-card-sec-title">关联 {refs.length}</span>
+                <button
+                  className="kbnb-btn kbnb-ref-add-btn"
+                  type="button"
+                  onClick={() => setAddingRef(!addingRef)}
+                >
+                  {addingRef ? '收起' : '+ 新增'}
+                </button>
+              </header>
+
+              {refs.length === 0 ? <div className="kbnb-refs-empty">暂无关联</div> : null}
+              {refs.map((r) => (
+                <div key={r.id} className="kbnb-ref-row">
+                  <span className="kbnb-ref-kind">{r.kind}</span>
+                  {r.kind === 'session' ? (
+                    <button
+                      className="kbnb-ref-link kbnb-ref-session"
+                      type="button"
+                      title={'打开会话 ' + r.externalId}
+                      onClick={() => props.onOpenSession(String(r.externalId))}
+                    >
+                      {r.display || r.externalId}
+                    </button>
+                  ) : r.url ? (
+                    <a className="kbnb-ref-link" href={r.url} target="_blank" rel="noreferrer">
+                      {r.display || r.externalId}
+                    </a>
+                  ) : (
+                    <span className="kbnb-ref-text">{r.display || r.externalId}</span>
+                  )}
+                  <span className="kbnb-ref-x" title="移除关联" onClick={() => props.onRemoveRef(r.id)}>
+                    ×
+                  </span>
+                </div>
+              ))}
+
+              {addingRef ? (
+                <div className="kbnb-ref-add">
+                  <select
+                    className="kbnb-input kbnb-ref-kind-select"
+                    value={refKind}
+                    onChange={(evt) => setRefKind(evt.target.value)}
+                  >
+                    {REF_KINDS.map((k) => (
+                      <option key={k.kind} value={k.kind}>
+                        {k.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="kbnb-input kbnb-ref-ext"
+                    value={refExt}
+                    onChange={(evt) => setRefExt(evt.target.value)}
+                    placeholder={refKind === 'session' ? '会话 id（打开会话后可从会话页复制）' : 'external id（owner/repo、MR 号、路径…）'}
+                  />
+                  <input
+                    className="kbnb-input kbnb-ref-display"
+                    value={refDisplay}
+                    onChange={(evt) => setRefDisplay(evt.target.value)}
+                    placeholder={refKind === 'session' ? '展示文本（会话标题，可选）' : '展示文本（可选）'}
+                  />
+                  {refKind !== 'session' ? (
+                    <input
+                      className="kbnb-input kbnb-ref-url"
+                      value={refUrl}
+                      onChange={(evt) => setRefUrl(evt.target.value)}
+                      placeholder="链接（可选）"
+                    />
+                  ) : null}
+                  <button className="kbnb-btn kbnb-primary" type="button" disabled={!refExt.trim()} onClick={submitRef}>
+                    添加
+                  </button>
+                </div>
+              ) : null}
+            </section>
 
             {/* 变更记录 */}
             <section className="kbnb-section">
@@ -318,93 +410,6 @@ function GitCard(props: {
         {syncEnv && syncEnv.snapshot && syncEnv.snapshot.repo && syncEnv.snapshot.repo.branch ? (
           <span className="kbnb-git-status-branch">分支 {syncEnv.snapshot.repo.branch}</span>
         ) : null}
-      </div>
-    </section>
-  )
-}
-
-/** 外部关联卡片：非 git 的 refs（github-branch / local-repo / jira-issue …）+ 添加表单 */
-function RefsCard(props: {
-  refs: any[]
-  refKind: string
-  refExt: string
-  refDisplay: string
-  refUrl: string
-  onRefKind: (v: string) => void
-  onRefExt: (v: string) => void
-  onRefDisplay: (v: string) => void
-  onRefUrl: (v: string) => void
-  onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
-  onRemoveRef: (refId: string) => void
-}) {
-  const otherRefs = props.refs.filter((r) => r.kind !== 'github-repo' && r.kind !== 'github-mr')
-  const KINDS = ['github-branch', 'local-repo', 'jira-issue']
-  return (
-    <section className="kbnb-card kbnb-refs-card">
-      <header className="kbnb-card-sec-head">
-        <span className="kbnb-card-sec-title">外部关联 {otherRefs.length}</span>
-      </header>
-      {otherRefs.length === 0 ? <div className="kbnb-refs-empty">暂无其他关联</div> : null}
-      {otherRefs.map((r) => (
-        <div key={r.id} className="kbnb-ref-row">
-          {r.kind ? <span className="kbnb-ref-kind">{r.kind}</span> : null}
-          {r.url ? (
-            <a className="kbnb-ref-link" href={r.url} target="_blank" rel="noreferrer">
-              {r.display || r.externalId}
-            </a>
-          ) : (
-            <span className="kbnb-ref-text">{r.display || r.externalId}</span>
-          )}
-          <span className="kbnb-ref-x" title="移除关联" onClick={() => props.onRemoveRef(r.id)}>
-            ×
-          </span>
-        </div>
-      ))}
-      <div className="kbnb-ref-add">
-        <select className="kbnb-input kbnb-ref-kind-select" value={props.refKind} onChange={(evt) => props.onRefKind(evt.target.value)}>
-          {KINDS.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
-        <input
-          className="kbnb-input kbnb-ref-ext"
-          value={props.refExt}
-          onChange={(evt) => props.onRefExt(evt.target.value)}
-          placeholder="external id（branch 名、路径、jira key…）"
-        />
-        <input
-          className="kbnb-input kbnb-ref-display"
-          value={props.refDisplay}
-          onChange={(evt) => props.onRefDisplay(evt.target.value)}
-          placeholder="展示文本（可选）"
-        />
-        <input
-          className="kbnb-input kbnb-ref-url"
-          value={props.refUrl}
-          onChange={(evt) => props.onRefUrl(evt.target.value)}
-          placeholder="链接（可选）"
-        />
-        <button
-          className="kbnb-btn kbnb-primary"
-          type="button"
-          disabled={!props.refExt.trim()}
-          onClick={() => {
-            if (!props.refExt.trim()) return
-            props.onAddRef({
-              kind: props.refKind,
-              externalId: props.refExt.trim(),
-              display: props.refDisplay.trim() || undefined,
-              url: props.refUrl.trim() || undefined,
-            })
-            props.onRefExt('')
-            props.onRefDisplay('')
-            props.onRefUrl('')
-          }}
-        >
-          添加
-        </button>
       </div>
     </section>
   )
