@@ -65,7 +65,8 @@ plugins/kanban/
 - 验证：`node scripts/verify-dist.mjs`（vm context 提供 React/host/fs mock，模拟受限环境加载）
 - 产物格式：`var __KB__ = (() => {...})(); return __KB__.default;` —— 无 import、无 require
 - 上线：把 `dist/client.js`/`dist/host.js` 内容作为 `cordis_define` 的 `code.client`/`code.host`（JSON 转义）
-- **省 token 流程**：`build.mjs` 自动生成 `dist/submit.json` + 切段（/tmp/kanban-segs/）。提交时**一次 `cat seg-*.txt`**（31KB 实测单次输出不截断）→ 一次粘贴。不要逐段读取。小改动可攒批（多次改动一次 define）减少粘贴次数
+- **省 token 流程（Code Mode SDK，首选）**：以 `DSH_TOOLS_MODE=code` 启动后，在 `run_code` 程序里用 `tools.bash`（python json.dumps + fold 折行）从磁盘无损读取 dist 产物 → `tools.cordis_define` → `tools.cordis_run`。产物完全不经过模型上下文。模板：`scripts/sdk-define-template.mjs`
+- 注意：SDK 的 `tools.read` 有 2000 字符/行截断，读大文件必须用 bash+python+fold 方案；重启进程后旧动态插件丢失，需 `kind: new` 重新定义
 
 **共享包**：`packages/ui`（`@dsh-plugins/ui`）——官方图标（ic_ds_*）+ 工具函数 + 通用组件。新插件直接 import，构建时 esbuild 引用 workspace 源码 tree-shake。图标来源：`vendor/deepseek-harness`（submodule，`git submodule update --init` 拉取）。
 
