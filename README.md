@@ -1,124 +1,91 @@
 # dsh-plugins — DSH 插件大仓
 
-> 开发前先加载 skill：`.agents/skills/dsh-dynamic-plugin-dev`（受限环境约束 + 踩坑记录 + TS 编译管线用法）
+DeepSeek Harness（DSH）插件开发仓库，双形态并存：
 
-DeepSeek Harness（DSH）的插件集合仓库。每个插件是一个遵循官方规范的 **bundle 包**（npm 包 + 配置层），可独立安装、发布、共享。
+| 形态 | 用途 | 发布 | 开发方式 |
+|---|---|---|---|
+| **发布版 bundle**（`plugins/hello` 模板） | 正式安装分发 | npm / tarball，`dsh plugin add` | 官方规范：ESM 模块 + cordis.patch.yml，无需编译 |
+| **动态插件**（`plugins/kanban` 管线） | 会话内热更新迭代 | 不进 npm，`cordis_define` 即时加载 | TS/TSX 源码 + esbuild 管线 + Code Mode SDK 零粘贴 |
 
-> 官方开发文档：[deepseek-harness docs/user/develop](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs/user/develop)
+> 开发前先加载 skill：`.agents/skills/dsh-dynamic-plugin-dev`（受限环境约束 + 代码模板 + 踩坑清单 + 编译管线）。
 
 ## 仓库结构
 
 ```
 dsh-plugins/
-├── package.json            # workspace 根（pnpm）
-├── pnpm-workspace.yaml     # 聚合 plugins/*
-└── plugins/
-    └── hello/              # hello world 示例插件（第一个插件，可直接发布）
-        ├── package.json      # 声明 dsh.bundle（本包是一个配置层）
-        ├── cordis.patch.yml  # 配置层：插入 hello 插件行
-        └── src/index.js      # 插件本体：Config schema + hello 工具
+├── package.json + pnpm-workspace.yaml   # workspace 根
+├── plugins/
+│   ├── hello/         # 发布版示例插件（官方规范：Config schema + 工具）
+│   └── kanban/        # 动态插件：TS 源码 + esbuild 管线 + 10 个 agent 工具
+├── packages/ui/       # 共享包 @dsh-plugins/ui：design tokens + 图标 + 工具函数 + 组件
+│   └── DESIGN.md      # UI 设计规范（原则 + tokens + 组件契约 + 间距契约）
+├── vendor/deepseek-harness/   # 官方仓库 submodule（sparse checkout，图标源码来源）
+└── .agents/skills/dsh-dynamic-plugin-dev/  # 动态插件开发 skill
 ```
 
-## 什么是 DSH 插件（官方概念）
+## kanban 动态插件能力总览
 
-| 概念 | 说明 |
+### UI（`sidebar.footer.action` 入口，全屏看板页）
+- 看板：竖线分隔列、拖拽排序/跨列移动、当前卡高亮、空状态引导
+- 卡片：新建弹窗（Notion 风格大标题）、编辑抽屉（720px，自动保存）、标签 chips、评论｜变更记录双栏
+- 日志：创建/更新/状态变更/标签/评论全记录，含时间与操作者（`手动调整` / `agent`）
+- 设置：`settings.section` 配置数据目录（`~/.dsh/kanban/board.json`，可指向 git 仓库同步）
+
+### Agent 工具（host 注册，模型可直接调用）
+
+**查询**
+| 工具 | 说明 |
 |---|---|
-| **bundle** | 一个 npm 包，`package.json` 里声明 `dsh.bundle.patch` 指向一个 `cordis.patch.yml`，即"这个包贡献一层配置" |
-| **profile** | `$DSH_HOME/profiles/<name>` 下的一个可运行组合，`dsh.profile.bundles` 按顺序叠加各 bundle 的层 |
-| **插件行** | `cordis.patch.yml` 里 `- insert:` 的 `{ id, name, config }`，`name` 是包名，`config` 经插件导出的 `Config` schema 校验 |
+| `kanban_view` | 看板全览：所有列 + 卡片概要 |
+| `kanban_get_card` | 单卡完整详情（含评论、变更记录） |
+| `kanban_search` | 条件查询：keyword + status（列名/id）+ tags 组合 |
+| `kanban_recent` | 最近改动（updatedAt 倒序，默认 10） |
 
-组合顺序：bundle 列表顺序 → profile 自己的 `cordis.patch.yml` → `$DSH_HOME/cordis.patch.yml` → `--patch` 覆盖。
+**操作**
+| 工具 | 说明 |
+|---|---|
+| `kanban_create` | 新建卡片（title 必填，可带 status/description/tags） |
+| `kanban_move` | 移动状态（列名或列 id） |
+| `kanban_update` | 更新标题/描述（实际变化才记日志） |
+| `kanban_tags` | 增减标签（add/remove 数组） |
+| `kanban_comment` | 添加评论 |
+| `kanban_delete` | 删除卡片（不可恢复） |
 
-## 开发一个插件
+所有操作自动写入变更记录（`actor: "agent"`），与 UI 手动操作（`actor: "手动调整"`）同源可追溯。
 
-以 `plugins/hello` 为模板复制新目录：
+## 开发动态插件（快速开始）
 
-```bash
-mkdir -p plugins/my-plugin/src
-cp plugins/hello/{cordis.patch.yml,package.json} plugins/my-plugin/
-# 修改 package.json 的 name/version，写 src/index.js
+``bash
+# 1. 初始化 submodule（图标源）
+git submodule update --init
+# 2. 安装依赖
+pnpm install
+# 3. 改源码（plugins/kanban/src/client/*.tsx、src/host/entry.ts）
+# 4. 构建 + 验证
+cd plugins/kanban && node build.mjs && node scripts/verify-dist.mjs
+# 5. 热更新（Code Mode 会话内）
+#    run_code 程序里 SDK 零粘贴：切块读入 submit.json → cordis_define → cordis_run update
 ```
 
-插件入口是一个 ESM 模块，导出：
+**Code Mode 硬性规则**：未以 `DSH_TOOLS_MODE=code` 启动时，拒绝 cordis_define 热更新（产物每次全量进上下文 ≈ 50KB+/次）。详见 skill 第零节。
 
-```js
-export const name = 'my-plugin'                 // 插件名
-export const Config = Schema.object({ ... })    // 配置 schema（Standard Schema，可省略）
-export const inject = ['tools']                 // 硬依赖（可选）
-export function apply(ctx, config) { ... }      // 注册能力，ctx 生命周期内自动清理
+## 发布版 bundle 插件（官方形态）
+
+以 `plugins/hello` 为模板：`cp plugins/hello/{cordis.patch.yml,package.json} plugins/my-plugin/`，入口导出 `name` / `Config`(可省) / `apply(ctx, config)`。
+
+``bash
+dsh plugin --profile web add ./plugins/hello        # 本地目录
+pnpm --filter dsh-plugins-hello pack               # tarball 分发
+dsh plugin --profile web add dsh-plugins-hello     # npm 发布后
+dsh --profile web --dump-config                    # 验证组合层
 ```
 
-- 纯 JS 即可，无需编译（官方规范）。
-- 注册模型工具用 `defineTool`（见 `plugins/hello/src/index.js`）。
-- 更多形态（Service 定义/提供者/消费者三层拆分）见官方 [practice 教程](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/practice/index.md)。
-
-## 安装到本机
-
-用官方 CLI（`dsh plugin` 本质是把包装进 profile 目录并登记 bundle 层）：
-
-```bash
-# 方式一：本地目录（开发时）
-dsh plugin --profile web add ./plugins/hello
-
-# 方式二：本地打包的 tarball（分发）
-pnpm --filter dsh-plugins-hello pack
-dsh plugin --profile web add ./dsh-plugins-hello-0.1.0.tgz
-
-# 方式三：从 npm registry（发布后）
-dsh plugin --profile web add dsh-plugins-hello
-
-# 卸载
-dsh plugin --profile web remove dsh-plugins-hello
-```
-
-> 注意：`--profile web` 就是当前 Web GUI 用的 profile（`~/.dsh/profiles/web`，设备级）。安装后**重启 dsh web 进程**生效。每个机器/用户各自安装——插件不随仓库自动分发。
-
-验证组合是否包含新层（无需重启）：
-
-```bash
-dsh --profile web --dump-config    # 末尾应出现 "# == dsh-plugins-hello" 层
-```
-
-## 发布
-
-发布渠道自选，包结构本身（`files` 只含 `src/index.js` + `cordis.patch.yml`）与渠道无关：
-
-```bash
-# npm 公开发布（先把包名改成全局唯一）
-cd plugins/hello
-npm publish --access public
-
-# 私有 registry（公司 npm / GitHub Packages / GitLab Packages）
-# 在 plugins/hello/package.json 加：
-#   "publishConfig": { "registry": "https://your-registry" }
-npm publish
-
-# 只打 tarball 走内部分发
-pnpm --filter dsh-plugins-hello pack
-```
-
-安装方只需 `dsh plugin --profile <name> add <包名>`（公开）或配置 `.npmrc` 指向私有 registry 后同样安装。
-
-## 验证脚本（可选）
-
-仓库根安装验证依赖后，`node scripts/verify-hello.mjs` 可不启动 dsh 直接验证插件模块可被 Cordis 加载。
+> 安装后重启 dsh web 进程生效；插件不随仓库自动分发。
 
 ## 参考
 
-- [Your first plugin（官方）](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/index.md)
-- [Build a tool（官方）](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/tool.md)
-- [Plugin configuration（官方）](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/config.md)
-- [Package and install a plugin（官方）](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)
-
-## Monorepo 结构（2025-08 起）
-
-- （@dsh-plugins/ui）—— 多插件共享：官方图标（ic_ds_*，提取自 vendor submodule）+ 工具函数 + 通用组件
--  —— 各插件 TS 源码 + esbuild 编译管线（build.mjs → dist/client.js + host.js，供 cordis_define 加载）
--  —— 官方仓库 submodule（sparse checkout，图标来源）；clone 后执行 
-
-## Monorepo 结构（多插件共享）
-
-- `packages/ui`（`@dsh-plugins/ui`）—— **多插件共享包**：官方图标（ic_ds_* 集，提取自 vendor submodule）+ 工具函数（safeId/fmtTime/markdown 渲染）+ 通用组件（Modal）。新插件直接 import，构建时 esbuild 引用 workspace 源码并 tree-shake
-- `plugins/<name>` —— 各插件：TS/TSX 源码（`src/`）+ esbuild 编译管线（`build.mjs` → `dist/client.js` + `dist/host.js`，受限环境可加载的函数体产物）
-- `vendor/deepseek-harness` —— 官方仓库 submodule（sparse checkout `packages/client/ui-primitives`，图标源码来源）；clone 后执行 `git submodule update --init`
-- `.agents/skills/dsh-dynamic-plugin-dev` —— 动态插件开发 skill（受限环境铁律、踩坑记录、管线用法）
+- [官方开发文档](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs/user/develop)
+- [Your first plugin](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/index.md)
+- [Build a tool](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/tool.md)
+- [Package and install](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)
+- [UI 设计规范（packages/ui/DESIGN.md）](packages/ui/DESIGN.md)
