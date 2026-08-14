@@ -17,8 +17,8 @@ DSH 动态插件（`cordis_define` / `cordis_run`）开发技能：受限环境�
 
 | | Host | Client |
 |---|---|---|
-| 可用 | `ctx`(get/on/provide/effect)、`harness`(handle/defineTool/registerTool)、`console`、btoa/atob、TextEncoder | `React`(createElement + hooks)、`host.call`、`styles.insert`、`ctx`、`console` |
-| 禁用 | import/require、process、fs、os | import/require、window、document、localStorage、fetch、JSX |
+| 可用 | `ctx`(get/on/once/provide/effect)、`harness`(handle/defineTool/registerTool)、`console`、btoa/atob、TextEncoder | `React`(createElement + hooks)、`host.call`、`styles.insert`、`ctx`、`console` |
+| 禁用 | import/require、process、fs、os；**ctx.emit**（发事件） | import/require、window、document、localStorage、fetch、JSX；**ctx.emit**（发事件） |
 
 关键约束：
 - **无 JSX**：用 `React.createElement` 或 TSX 编译管线（§四）
@@ -27,6 +27,12 @@ DSH 动态插件（`cordis_define` / `cordis_run`）开发技能：受限环境�
 - **无 document/window**：拖拽定位用 `evt.currentTarget.getBoundingClientRect()`；Esc 关闭等用显式按钮
 - **Date/Math/JSON 可用**，仍建议 try/catch 兜底
 - **动态插件产物必须导出插件对象**（模块加载时 `export default makePlugin()`），导出函数会报 `Invalid effect`
+
+### 事件 / timer 白名单（2026-08 源码级实测，通信方式根本约束）
+
+- **ctx 动词白名单**（host/client 两半同款）：`effect / on / once / provide` + timer 系（timeout/interval/setTimeout/setInterval/throttle/debounce，需 inject `timer` 后可用）。
+- **`ctx.emit` 不在白名单 —— 动态插件不能发事件**。跨插件"事件推送"物理不可行：只能 `ctx.on/once` 监听宿主事件（50 个：credentials/updated、tools/change、session/*、slots/changed…），不能 emit 给别的插件。跨插件通知 = 服务（provide/get）+ 私有 RPC（harness.handle/host.call）+ 槽位 owner props 回调。**别再尝试突破**（白名单逐字核对 + ctx.remote 桥不可达）。
+- **`setTimeout` 等 timer 全局在动态 client 半不可用**：在组件 effect 里直接用 → 渲染时崩溃（`setTimeout is not available in a dynamic client half`）。要防抖/定时 → 组件外（apply 内）用 `ctx.timer.debounce/throttle`，或干脆去掉防抖（变更即存 + 首帧跳过）。
 
 ## 二、标准模板（直接抄）
 
@@ -135,6 +141,13 @@ const toolDef = {
 14. **render 返回字符串** → 必须 `[{ type: 'text', text }]` 内容块数组
 15. **操作日志 actor**：UI 手动 = "手动调整"，agent 工具 = "agent"（host 内联 appendActivity，不依赖 ui 包）
 
+### 通信方式（2026-08 实测，根本性）
+16. **`ctx.emit` 被白名单禁用（不能发事件）**：动态插件只能 `ctx.on/once` 监听宿主事件；跨插件通知走服务/私有 RPC/回调（PLAN §2.3 + §一白名单）。不要为"形式上用事件"加复杂度——服务调用已是实时。
+17. **动态 client 半无 timer 全局**：组件 effect 里用 `setTimeout` → 渲染槽位时崩溃（会话 tab 实测 `conversation.view` 渲染崩溃）。自动保存防抖改为"变更即存 + 卡片切换首帧跳过"；需要真定时 → apply 内 `ctx.timer.debounce`。
+18. **子槽位声明独占渲染授权（Declaring is claiming）**：`children: { 'kanban.card.actions': { kind:'list', scope:'root' } }` 声明后，只有该条目（sidebar）组件 props 有 `renderSlot`，其他条目（如会话 tab 的 conversation.view）**不能**渲染此槽位（再声明报 already declared）。跨条目渲染槽位内容 → 改走服务桥接：kanban host 加 `harness.handle('kanban/git-sync')` → `ctx.get('git').sync(cardId)`。
+19. **工具名全局唯一冲突**：宿主进程残留旧会话注册的 `kanban_view` 等 → 新 run 报 `tool "kanban_view" is already registered`。停掉旧 Run（UI/cordis_stop）再激活即可，非源码问题。
+20. **切块读 submit.json 前必须 `mkdir -p` 段目录**：段文件缺失 → 读回空串 → cordis_define 传空代码 → `Host half returned undefined`（看似产物问题实为脚本问题）。
+
 ## 四、TS 编译管线
 
 ```
@@ -174,7 +187,7 @@ node scripts/verify-dist.mjs   # 验证产物可加载（含工具注册数断�
 - 共享包：`packages/ui` —— 官方图标提取 + 工具函数 + Modal + 官方规范 css（`dsh/design-platform.css`）
 - 设计规范：`packages/ui/DESIGN.md`。**样式直接引用宿主 `--dsw-*` tokens**（明暗主题自动适配，禁止自建别名层、禁止硬编码）
 
-## 七、宿主源码与跨插件联动速查（2025-08 源码实测，省 token）
+## 七、宿主源码与跨插件联动速查（2025-08 + 2026-08 源码实测，省 token）
 
 **不要再重复发现以下事实**；需要宿主机制细节时先看本节，运行时签名用 cordis_inspect_query。
 
@@ -208,9 +221,10 @@ node scripts/verify-dist.mjs   # 验证产物可加载（含工具注册数断�
 ### 7.4 跨插件联动：刻意受限
 
 - **工具调用**：`ctx.tools` 是只读门面（schemas/get 只返回元数据），**禁止**插件代码直接调用其他插件的工具 execute（防绕过 ToolRuntime 守卫链：身份保护、策略、monotonic 守卫、结果规范化）→ 插件间协作走服务，不走工具。
-- **`ctx.emit` 不在白名单**：动态插件不能主动发事件 → 发布-订阅用自定义服务方法（provider 暴露 `subscribe/notify`）或服务返回值 + UI await 刷新。
+- **`ctx.emit` 不在白名单**（源码逐字确认）：动态插件不能主动发事件 → 发布-订阅用自定义服务方法（provider 暴露 `subscribe/notify`）或服务返回值 + UI await 刷新。宿主事件仅监听（50 个）。
 - **`harness.handle` / `host.call` 每插件私有**（client↔host 配对），跨插件 RPC 也要走服务。
 - **工具名/服务名全局唯一**：`kanban_` / `git_` 前缀惯例。
+- **子槽位声明独占渲染授权（Declaring is claiming，2026-08 实测）**：某条目 `children` 声明子槽位后，仅该条目组件 props 有 `renderSlot`；另一条目（如会话 tab）引用同一子槽位 → `already declared`。跨条目渲染槽位内容 → 服务桥接：kanban host 加 `harness.handle('kanban/git-sync')` 内部 `ctx.get('git').sync(cardId)`，会话 tab 按钮走 `host.call('kanban/git-sync')`。
 
 ### 7.5 宿主服务目录（常用）
 
@@ -228,3 +242,10 @@ node scripts/verify-dist.mjs   # 验证产物可加载（含工具注册数断�
 
 - 需要宿主服务/事件/槽位/工具的**准确签名**时，运行时优先 `cordis_inspect_list` + `cordis_inspect_query`，不要 grep 编译产物。
 - 本节的完整论证与 git 插件联动方案见 `plugins/git/PLAN.md` §2（调研结论）与 §5（服务/槽位契约）。
+
+### 7.8 会话联动（2026-08 实测，conversation.view / sessions）
+
+- **client 侧 `sessions` 服务**：`open(id)` 切换当前会话（会话关联跳转用）；另有 openSubagent/fork/search 等。host 侧 `sessions.list()/get(id)` 可列会话。
+- **`conversation.view` 槽位**：list / **scope: session**（组件 props 收 `sessionId`）——注册 `{ name:'conversation.view', id:'kanban-task', order, label }` 即在会话视图环加 tab（chat/trajectory 旁）。
+- **会话关联数据模型**：ref kind `session`（platform: dsh，externalId = sessionId）；client 过滤 `cardsBySession` 按 refs 匹配当前 sessionId。
+- **注意**：conversation.view 等 session-scope 槽位渲染的是常驻组件，内部别用 timer 全局（§一/坑 17）；数据读写走 `kanban/load` / `kanban/save` RPC（跨会话共享 board.json）。
