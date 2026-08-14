@@ -6,7 +6,14 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: ^4.0.1
+        version: 4.0.1
+      dsh-plugins-hello:
+        specifier: workspace:*
+        version: link:plugins/hello
 
   plugins/hello:
     dependencies:

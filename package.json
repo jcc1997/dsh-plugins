@@ -13,5 +13,9 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@10.20.0"
+  "packageManager": "pnpm@10.20.0",
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "dsh-plugins-hello": "workspace:*"
+  }
 }
