@@ -114,26 +114,20 @@ export function CardDetail(props: {
           ) : null}
         </div>
 
-        {/* 描述：一句话纯文本（单行，不支持预览） */}
+        {/* 描述：一句话纯文本（单行，无小标题，placeholder 即提示） */}
         <div className="kbnb-field">
-          <div className="kbnb-field-row">
-            <span className="kbnb-field-label">描述</span>
-          </div>
           <EditableLine
             className="kbnb-input-desc-editable"
             value={description}
-            placeholder="一句话描述（纯文本）"
+            placeholder="描述（一句话）"
             singleLine
             onInput={setDescription}
           />
         </div>
 
-        {/* 内容：块富文本（Notion 式，支持图片粘贴/上传） */}
+        {/* 内容：块富文本（Notion 式无边框，支持图片粘贴/上传；placeholder 即提示） */}
         <div className="kbnb-field">
-          <div className="kbnb-field-row">
-            <span className="kbnb-field-label">内容</span>
-          </div>
-          <RichTextEditor value={content} onChange={setContent} placeholder="输入内容或粘贴图片…" />
+          <RichTextEditor value={content} onChange={setContent} placeholder="内容…" />
         </div>
 
         {/* 评论 */}

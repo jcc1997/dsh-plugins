@@ -98,7 +98,7 @@ export function DrawerSide(props: {
       {/* 关联卡片（按类型管理）：git 分支/本地仓库/会话 + 新增折叠表单 + 删除 */}
       <section className="kbnb-card kbnb-refs-card">
         <header className="kbnb-card-sec-head">
-          <span className="kbnb-card-sec-title">关联 {refs.length}</span>
+          <span className="kbnb-card-sec-title">{refsTitle(refs)}</span>
           <button className="kbnb-btn kbnb-ref-add-btn" type="button" onClick={() => setAddingRef(!addingRef)}>
             {addingRef ? '收起' : '+ 新增'}
           </button>
@@ -306,4 +306,15 @@ function TagInput(props: { onAdd: (tag: string) => void }) {
       onBlur={commit}
     />
   )
+}
+
+/** 关联卡片标题：全 session → 「session 关联」；全 git 系（github 前缀/local-repo）→ 「Git 关联」；混合/空 → 「关联」（不显示数量） */
+function refsTitle(refs: { kind: string }[]): string {
+  if (refs.length === 0) return '关联'
+  const kinds = refs.map((r) => r.kind)
+  const allSession = kinds.every((k) => k === 'session')
+  const allGit = kinds.every((k) => k.startsWith('github-') || k === 'local-repo')
+  if (allSession) return 'session 关联'
+  if (allGit) return 'Git 关联'
+  return '关联'
 }

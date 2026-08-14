@@ -22,7 +22,6 @@ export function BoardView(props: {
   board: KanbanBoard
   groupBy: GroupBy
   onGroupByChange: (v: GroupBy) => void
-  onShowColumns: () => void
   onOpenCard: (columnId: string, cardId: string) => void
   onStartCreate: (columnId: string) => void
   activeCardId: string | null
@@ -212,13 +211,9 @@ export function BoardView(props: {
             <option value="repo">Git 仓库</option>
           </select>
         </label>
-        <span className="kbnb-spacer" />
-        <button className="kbnb-btn" type="button" onClick={props.onShowColumns}>
-          列配置
-        </button>
       </div>
       {props.board.columns.length === 0 ? (
-        <div className="kbnb-empty">空看板，点右上角「列配置」添加列</div>
+        <div className="kbnb-empty">空看板，去左侧「设置」添加列</div>
       ) : (
         <main className={'kbnb-board' + (props.groupBy === 'repo' ? ' kbnb-board-groups' : '')}>
           {groups.map((g) => (

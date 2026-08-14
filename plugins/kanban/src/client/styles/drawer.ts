@@ -16,8 +16,7 @@ export const drawerCss = `
 .kbnb-title-row{display:flex;align-items:flex-start;gap:8px;margin-bottom:16px}
 .kbnb-title-row .kbnb-icon-btn{flex:none;margin-top:4px}
 .kbnb-input-title-editable{display:block;width:100%;box-sizing:border-box;border:none;background:none;font-size:26px;font-weight:700;line-height:1.35;padding:0;outline:none;color:var(--dsw-alias-label-primary);font-family:inherit;word-break:break-word;min-height:36px}
-.kbnb-input-desc-editable{display:block;width:100%;box-sizing:border-box;border:none;border-bottom:1px dashed var(--dsw-alias-border-l2);background:none;font-size:14px;line-height:1.6;padding:4px 0;outline:none;color:var(--dsw-alias-label-secondary);font-family:inherit;min-height:26px;transition:border-color 150ms cubic-bezier(.4, 0, .2, 1)}
-.kbnb-input-desc-editable:focus{border-bottom-color:var(--dsw-alias-state-business-primary)}
+.kbnb-input-desc-editable{display:block;width:100%;box-sizing:border-box;border:none;background:none;font-size:14px;line-height:1.6;padding:2px 0;outline:none;color:var(--dsw-alias-label-secondary);font-family:inherit;min-height:24px}
 /* contentEditable 占位符（空态类由 onInput 切换，比 :empty 更稳） */
 .kbnb-editable-empty::before{content:attr(data-placeholder);color:var(--dsw-static-neutral-bluish-400);pointer-events:none;font-weight:400}
 
@@ -56,6 +55,8 @@ export const drawerCss = `
 .kbnb-columns-add .kbnb-input{flex:1}
 
 /* ══ 外部关联（refs） ══ */
+/* 按钮形态的关联链接（session）：去浏览器默认按钮样式 */
+button.kbnb-ref-link{background:none;border:none;padding:0;font:inherit;cursor:pointer;text-align:left}
 .kbnb-refs-row{gap:6px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--dsw-alias-border-l2)}
 .kbnb-refs-row .kbnb-field-label{flex:none}
 .kbnb-refs-empty{font-size:12px;color:var(--dsw-alias-label-tertiary)}

@@ -1,8 +1,9 @@
 // styles/editor.ts — 块富文本编辑器样式（工具栏/块类型/图片/待办）
 export const editorCss = `
-.kbnb-rt{border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:8px 12px 12px;background:var(--dsw-alias-bg-base);transition:border-color 150ms cubic-bezier(.4, 0, .2, 1),box-shadow 150ms cubic-bezier(.4, 0, .2, 1)}
-.kbnb-rt:focus-within{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px rgba(65, 118, 230, .18)}
-.kbnb-rt-toolbar{display:flex;align-items:center;gap:3px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid var(--dsw-alias-border-l2);margin-bottom:6px}
+.kbnb-rt{padding:4px 0 8px}
+/* Notion 式：编辑器无边框无背景（设计规范：禁 input 框式 UI） */
+.kbnb-rt:focus-within{}
+.kbnb-rt-toolbar{display:flex;align-items:center;gap:3px;flex-wrap:wrap;padding-bottom:6px;border-bottom:1px dashed var(--dsw-alias-border-l2);margin-bottom:4px}
 .kbnb-rt-btn{background:none;border:none;cursor:pointer;font-size:12px;color:var(--dsw-alias-label-secondary);border-radius:6px;padding:4px 7px;font-family:inherit;line-height:1.4;transition:all 150ms cubic-bezier(.4, 0, .2, 1)}
 .kbnb-rt-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .kbnb-rt-btn:disabled{opacity:.35;cursor:default;pointer-events:none}
@@ -14,6 +15,7 @@ export const editorCss = `
 .kbnb-rt-hint{margin-left:auto;font-size:11px;color:var(--dsw-alias-label-tertiary);padding-right:2px}
 .kbnb-rt-empty{color:var(--dsw-alias-label-tertiary);font-size:13px;padding:10px 4px;cursor:text}
 .kbnb-rt-block{display:flex;align-items:flex-start;gap:6px;padding:2px 4px;border-radius:6px;position:relative}
+/* 悬浮行高亮（Notion 式）：默认无背景，hover/active 才显 */
 .kbnb-rt-block:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .kbnb-rt-on{background:var(--dsw-alias-interactive-bg-hover)}
 .kbnb-rt-editable{flex:1;min-width:0;outline:none;font-size:14px;line-height:1.7;word-break:break-word;padding:2px 0;color:var(--dsw-alias-label-primary)}

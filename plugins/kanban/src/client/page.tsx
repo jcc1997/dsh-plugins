@@ -3,7 +3,6 @@
 // 抽屉/新建/列配置弹窗在此装配；数据操作全部走 useKanbanBoard。
 import React, { useState } from 'react'
 import { IconChevronLeftOutline14, IconSettingsOutline16 } from '@dsh-plugins/ui'
-import { Modal } from '@dsh-plugins/ui'
 import { CardDrawer } from './drawer'
 import { CreateCardModal } from './create'
 import { ColumnsPanel } from './columns'
@@ -40,7 +39,6 @@ export function KanbanPage(props: {
   const [groupBy, setGroupBy] = useState<GroupBy>('none')
   const [drawer, setDrawer] = useState<DrawerState | null>(null)
   const [creating, setCreating] = useState<string | null>(null)
-  const [showColumns, setShowColumns] = useState(false)
 
   const board = kb.board
 
@@ -136,7 +134,6 @@ export function KanbanPage(props: {
           <IconChevronLeftOutline14 />
         </button>
         <span className="kbnb-title">看板</span>
-        <span className="kbnb-stats">{board.columns.length} 列 · {activeCount} 张卡 · 归档 {archived.length}</span>
         <span className="kbnb-saving">{kb.saving ? '保存中…' : ''}</span>
       </header>
       {kb.error ? <div className="kbnb-error">{kb.error}</div> : null}
@@ -178,7 +175,6 @@ export function KanbanPage(props: {
               board={board}
               groupBy={groupBy}
               onGroupByChange={setGroupBy}
-              onShowColumns={() => setShowColumns(true)}
               onOpenCard={openCard}
               onStartCreate={setCreating}
               activeCardId={drawer ? drawer.cardId : null}
@@ -189,6 +185,16 @@ export function KanbanPage(props: {
           {view === 'settings' ? (
             <div className="kbnb-archive">
               <KanbanSettings host={props.host} />
+              <section className="kbnb-settings kbnb-settings-cols">
+                <h3 className="kbnb-settings-title">列配置</h3>
+                <ColumnsPanel
+                  columns={board.columns}
+                  onAdd={addColumn}
+                  onRename={renameColumn}
+                  onDelete={deleteColumn}
+                  onMove={moveColumn}
+                />
+              </section>
             </div>
           ) : null}
         </main>
@@ -222,17 +228,6 @@ export function KanbanPage(props: {
           onCreate={(title, description, tags, content) => createCard(creating, title, description, tags, content)}
           onClose={() => setCreating(null)}
         />
-      ) : null}
-      {showColumns ? (
-        <Modal title="列配置" width={420} onClose={() => setShowColumns(false)}>
-          <ColumnsPanel
-            columns={board.columns}
-            onAdd={addColumn}
-            onRename={renameColumn}
-            onDelete={deleteColumn}
-            onMove={moveColumn}
-          />
-        </Modal>
       ) : null}
     </div>
   )

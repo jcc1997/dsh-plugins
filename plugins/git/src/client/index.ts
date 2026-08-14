@@ -7,7 +7,12 @@ export const name = 'git'
 export const inject = ['slots']
 
 const gitCss = `.git-sync-btn-wrap{display:inline-flex;align-items:center;gap:8px}
-.git-sync-done{font-size:12px;color:var(--dsw-alias-state-success-primary)}
+.git-sync-icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:6px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-l2);color:var(--dsw-alias-label-primary);cursor:pointer;padding:0;transition:border-color 150ms cubic-bezier(.4, 0, .2, 1),color 150ms cubic-bezier(.4, 0, .2, 1)}
+.git-sync-icon-btn:hover{border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary)}
+.git-sync-icon-btn:disabled{cursor:default;opacity:.75}
+.git-sync-spin{animation:gitSyncSpin 0.9s linear infinite}
+@keyframes gitSyncSpin{to{transform:rotate(360deg)}}
+.git-sync-done{color:var(--dsw-alias-state-success-primary)}
 .git-sync-error{font-size:12px;color:var(--dsw-alias-state-error-primary)}`
 
 /** 与 kanban 声明的 owner props 对齐（见 plugins/kanban/src/client/entry.tsx） */
@@ -34,15 +39,15 @@ export function apply(ctx: { get(name: string): unknown }) {
   } | undefined
   if (!slots) return
 
-  // 同步按钮：单卡同步。kanban 未激活/未声明槽位 → inject 等待声明出现后执行（天然降级）
+  // 同步按钮：图标按钮（refresh → spin → check）。无文字、无 emoji；hover 可再次同步；done 状态移出鼠标即复原
   function SyncButton(props: CardActionsOwner) {
-    const [busy, setBusy] = useState(false)
+    const [phase, setPhase] = useState<'idle' | 'busy' | 'done'>('idle')
+    const [hoverAgain, setHoverAgain] = useState(false)
     const [error, setError] = useState('')
-    const [done, setDone] = useState(false)
     function run() {
-      setBusy(true)
+      if (phase === 'busy') return
+      setPhase('busy')
       setError('')
-      setDone(false)
       fetch('/git-api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -50,28 +55,40 @@ export function apply(ctx: { get(name: string): unknown }) {
       })
         .then((r) => r.json())
         .then((res) => {
-          setBusy(false)
           if (res && res.ok) {
-            setDone(true)
+            setPhase('done')
             if (typeof props.onSynced === 'function') props.onSynced()
           } else {
+            setPhase('idle')
             setError((res && res.error) || '同步失败')
           }
         })
         .catch((e) => {
-          setBusy(false)
+          setPhase('idle')
           setError('同步失败: ' + String(e))
         })
     }
+    // done 时悬浮切回 refresh 图标，允许再次同步；移出复原 check
+    const showRefresh = phase === 'idle' || (phase === 'done' && hoverAgain)
     return React.createElement('div', { className: 'git-sync-btn-wrap' },
       React.createElement('button', {
-        className: 'kbnb-btn kbnb-primary git-sync-btn',
+        className: 'git-sync-icon-btn' + (phase === 'busy' ? ' git-sync-spin' : '') + (phase === 'done' && !hoverAgain ? ' git-sync-done' : ''),
         type: 'button',
-        disabled: busy,
+        disabled: phase === 'busy',
         onClick: run,
-        title: '拉取该卡片关联仓库的 open MR 并刷新状态',
-      }, busy ? '同步中…' : '同步'),
-      done ? React.createElement('span', { className: 'git-sync-done' }, '已同步') : null,
+        title: phase === 'done' && !hoverAgain ? '同步完成，悬浮可再次同步' : '拉取该卡片关联仓库的 open MR 并刷新状态',
+        onMouseEnter: () => setHoverAgain(true),
+        onMouseLeave: () => setHoverAgain(false),
+      },
+        phase === 'done' && !hoverAgain
+          ? React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' },
+              React.createElement('path', { d: 'M2.5 8.5l3.5 3.5 7.5-8', stroke: 'currentColor', strokeWidth: '1.8', strokeLinecap: 'round', strokeLinejoin: 'round' }),
+            )
+          : React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 16 16', fill: 'none', xmlns: 'http://www.w3.org/2000/svg' },
+              React.createElement('path', { d: 'M13.5 8a5.5 5.5 0 1 1-1.6-3.9', stroke: 'currentColor', strokeWidth: '1.6', strokeLinecap: 'round' }),
+              React.createElement('path', { d: 'M13.5 1.5v3h-3', stroke: 'currentColor', strokeWidth: '1.6', strokeLinecap: 'round', strokeLinejoin: 'round' }),
+            ),
+      ),
       error ? React.createElement('span', { className: 'git-sync-error' }, error) : null,
     )
   }
