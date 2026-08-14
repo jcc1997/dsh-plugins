@@ -9,7 +9,7 @@
     "watch": "node build.mjs --watch",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit && node build.mjs && node scripts/verify-dist.mjs",
-    "publish:kanban": "npm run check && npm publish --tag dsh-plugin"
+    "publish:kanban": "npm run check && npm publish"
   },
   "devDependencies": {
     "@deepseek-ai/dsh-client-ui-primitives": "^0.1.0-rc.6",
@@ -29,8 +29,7 @@
     "tsconfig.json"
   ],
   "publishConfig": {
-    "access": "public",
-    "tag": "dsh-plugin"
+    "access": "public"
   },
   "keywords": [
     "dsh",

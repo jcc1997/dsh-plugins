@@ -103,16 +103,15 @@ dsh plugin --profile web add dsh-plugins-kanban
 
 ## 发布
 
-插件包发布到 npm（registry），**统一使用 dist-tag `dsh-plugin`**：
+发布方式对齐 [官方 publish 教程](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/basic/publish.md)：
 
-```bash
-# 每个插件一个发布脚本：check（类型+构建+验证）→ publish（--tag dsh-plugin）
-cd plugins/kanban && npm run publish:kanban
-cd plugins/git   && npm run publish:git
-# 已配置：files 白名单（dist/src/scripts…）、publishConfig.tag=dsh-plugin、keywords 含 dsh-plugin
-```
+- **dist-tag**：官方与生态惯例是**默认 `latest`**（rc 版用 `--tag next`，官方 @deepseek-ai/dsh 即如此），**无自定义 tag 约定**。
+- **发布**：`npm publish`（默认 latest）；或 `pnpm pack` 出 tarball 分发；git 安装需作者提供 `prepare` 构建脚本 + 用户在 profile 的 `pnpm-workspace.yaml` 配 `allowBuilds`。
+- **安装**：`dsh plugin --profile <name> add <npm 包名>`（等价 pnpm add + 按 `dsh.bundle` 声明自动挂 layer）。
 
-发布物为**源码包 + 构建产物**（当前是动态插件形态产物）；正式 bundle 化（cordis 规范导出）后再发布即为部署形态，见 [git PLAN §8](plugins/git/PLAN.md)。
+本仓库已配置：`files` 白名单、`publishConfig.access=public`、`keywords` 含 dsh-plugin、`npm run publish:kanban|publish:git` = check + publish。
+
+> **重要**：官方 bundle 机制靠 package.json 的 `dsh.bundle: { patch } ` 声明才能被 `dsh plugin add` 激活为插件层；当前两插件**尚未 bundle 化**（动态插件形态，无 `dsh.bundle` 声明），发布后会被装成普通依赖（CLI 会打 warning）。完成 [git PLAN §8](plugins/git/PLAN.md) 的部署迁移（标准模块导出 + `dsh.bundle` + cordis.patch.yml）后即为正式部署形态。
 
 ## 开发
 
