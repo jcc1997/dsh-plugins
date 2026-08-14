@@ -4,11 +4,12 @@ DSH 动态插件（`cordis_define` / `cordis_run`）开发技能：受限环境�
 
 ## 零、硬性规则（违反 = 烧 token）
 
-**Code Mode 未启用时，拒绝 cordis_define 热更新开发。**
+**两个模式缺一即拒绝 cordis_define 热更新开发。**
 
-判定：模型能否直接调用 `run_code`？
-- 能 → Code Mode 已启用，走 SDK 零粘贴流程（§五）
-- 不能 → 拒绝热更新；让用户以 `DSH_TOOLS_MODE=code` 重启 dsh，或改用组合插件文件引用（cordis.yml 引用产物，零上下文但要重启进程）
+判定（看会话工具列表）：
+- ① **创造模式（creation mode）**：工具列表里有 `cordis_define` / `cordis_run` / `cordis_inspect_*` → 满足
+- ② **Code Mode**：工具列表里有 `run_code`（`DSH_TOOLS_MODE=code` 启动）→ 满足，走 SDK 零粘贴流程（§五）
+- 缺任一 → 拒绝热更新；让用户重开"创造模式 + Code Mode"的会话，或改用组合插件文件引用（cordis.yml 引用产物，零上下文但要重启进程）
 
 原因（雷霆大坑）：cordis_define 的 code 参数必须内联进模型工具调用，产物 ~30KB **每次 define 全量进上下文**；手工切段/拼接/read 截断（2000 字符/行）进一步放大消耗，一次迭代 ≈ 50KB+。Code Mode SDK 下产物从磁盘读入程序，模型只写路径，几十 KB 零进上下文（实测 kbnb-1/pkg-1 跑通）。
 

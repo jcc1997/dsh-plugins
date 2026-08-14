@@ -12,10 +12,11 @@
 | packages/ui/DESIGN.md | 写 UI 的 agent | 设计规范：与 DSH 宿主统一、tokens、组件契约、间距契约 |
 | packages/ui/dsh/design-platform.css | 写 UI 的 agent | DSH 官方设计 tokens 权威色板（抽取自 dsh-client-ui-theme） |
 | plugins/<name>/README.md | 该插件的使用者/维护者 | 该插件当前状态：能力、目录、数据模型、已知问题。**不是开发过程流水账** |
+| HANDOFF.md（仓库根） | 跨会话接手的 agent | 当前分支/未合并 commit、重建与激活步骤、宿主签名速查、下一步要点。**会话接手先读** |
 
 ## 动态插件开发流程（热更新）
 
-1. **Code Mode 门槛**：未以 `DSH_TOOLS_MODE=code` 启动时，**拒绝 cordis_define 热更新**（产物每次全量进上下文 ≈50KB+，见 skill 第零节）。要么要求用户重启开 Code Mode，要么改走组合插件文件引用
+1. **工具门槛（两条件都满足才热更新）**：① 会话需为**创造模式**（creation mode）——`cordis_define` / `cordis_run` / `cordis_inspect_*` 是创造模式才提供的工具；② 需 **Code Mode**（`DSH_TOOLS_MODE=code`，开启 `run_code`，SDK 零粘贴切块读 submit.json 用）。缺一即拒绝热更新：产物每次全量进上下文 ≈50KB+（见 skill 第零节）。要么要求用户重开合适模式的会话，要么改走组合插件文件引用
 2. 改源码 `plugins/<name>/src/` → `node build.mjs` → `node scripts/verify-dist.mjs`
 3. SDK 零粘贴：run_code 内切块读入 `dist/submit.json` → `tools.cordis_define` → `tools.cordis_run`（产物不进上下文）
 4. 激活成功（`cordis_inspect_self` 确认 currentPackageId）后提交 git
