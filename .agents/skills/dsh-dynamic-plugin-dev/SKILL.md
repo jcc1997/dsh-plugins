@@ -96,3 +96,33 @@ plugins/kanban/
 - 数据目录：`settings.section` 设置页（id 'kanban'），读写走 host RPC（动态插件无 schemastery schema，无法注册真 settings namespace；发布版 bundle 用真 schema）
 - 数据：`~/.dsh/kanban/board.json` + config.json(dataDir)；卡片结构含 `links[]`/`meta{}`/`comments[]`/`activity[]` 扩展位
 - 图标：官方 ic_ds_* 集（提取）+ 自绘补齐（IconBoard）
+## 六、动态模型工具（agent 可调用）— harness.defineTool 正确形状（实测 kbnb-1/pkg-11）
+
+Host 用 `harness.defineTool` + `harness.registerTool(ctx, tool)` 注册模型工具；注册放进 `ctx.effect(() => harness.registerTool(...))` 保证 stop/update 自动移除。
+
+**options 各字段顶层平级**（不是嵌套！盲试 5 次踩坑）：
+
+```js
+harness.defineTool({
+  name: 'kanban_view',            // 顶层
+  description: '...',
+  parameters: {                    // 顶层：JSON-Schema 包装 {type:'object', properties, required}
+    type: 'object', properties: { ... }, required: [...],
+  },
+  execute: async (args, exec) => ({ ok: true, ... }),  // 业务执行，返回必须 JSON 兼容
+  output: {                        // 顶层：输出定义
+    schema: { type: 'object', additionalProperties: true },  // ★ object 必须显式 additionalProperties！缺省报 unsupported JSON schema
+    render: (args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],  // 必须返回内容块数组 [{type:'text',text}]
+    presentationMeta: (args, value) => ({...}),  // 可选
+  },
+})
+```
+
+雷区（已实测）：
+1. 字段**嵌套错误**（parameters 放进 schema 里）→ `parameters must be a ParameterSchemaSpec object`
+2. `output.schema` 为 `{type:'object'}` 缺 `additionalProperties` → `unsupported JSON schema: additionalProperties must be explicitly true or false`
+3. render 必须返回**内容块数组**，不是字符串（`assertRenderedContent`）
+4. 参数 properties 值用 `{type:'string', description}` 即可；数组用 `{type:'array', items:{type:'string'}}`
+5. `ctx.effect(cb)` 在宿主真实环境存在，但 verify-dist 的 mock ctx 要自己补 effect 方法
+6. 工具名全局注册，用 `kanban_` 前缀防冲突；注册后 `Tool.listTools` 立即可见（含当前会话）
+7. 操作日志 actor 字段：UI 手动 = "手动调整"，agent 工具 = "agent"（host 端 appendActivity 内联实现，不依赖 ui 包）
