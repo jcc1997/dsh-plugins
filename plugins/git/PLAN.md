@@ -77,6 +77,7 @@
   ],
 
   "meta": {
+    "taskId": "dsh-plugins-42",      // 自动关联 ID（§5.5）：<repo-name>-<int>，MR 标题须携带 [taskId]
     "sync": {
       "github": {                    // 键 = platform（provider 命名空间）
         "version": 1,                // 信封版本
@@ -100,6 +101,7 @@
 - **refs 由谁写**：kanban（UI 链接编辑 + 工具 `kanban_link` / `kanban_unlink`）负责增删改；git 插件同步时**只读 refs、只写 meta.sync**，两者经 cardId 关联。
 - **同一任务可多个 refs**：1 个 repo + N 个 branch + N 个 MR，天然支持。
 - **provider 键即隔离域**：`meta.sync.<provider>` 互不覆盖；同 provider 内由插件自管并发（串行写，见 5.4）。
+- **taskId 自动关联锚点**：卡片 `meta.taskId`（`<repo-name>-<int>`，§5.5）是 MR 自动关联的锚点；由 kanban 生成或 git 插件认领时写入，同 repo 内唯一即可。
 - **平台无关性验证**：接 jira 时只需要——新 provider 键 `jira` + 新 ref kind `jira-issue` + 一个提供 `jira` 服务的插件，kanban / git 全部零改动。这就是"平台无关的工具"的含义。
 
 ## 5. git 插件需求与技术方案
@@ -118,10 +120,11 @@
 | G8 | 凭证管理 | GitHub token 走宿主 `credentials` 服务（不落卡片、不进代码） | P0 |
 | G9 | MR 创建（可选） | 从卡片/分支发起 MR | P2 |
 | G10 | GitLab 等 provider | 数据格式与契约已支持，仅实现层扩展 | P2 |
+| G11 | **MR 自动关联（[ID] 约定）** | task 带 `meta.taskId`（`<repo-name>-<int>`），MR 标题携带 `[taskId]`，sync 时自动建 refs/状态，无需手工 link（见 §5.5） | P0 |
 
 ### 5.2 Agent 工具（git 插件注册，前缀 `git_`，草案）
 
-`git_configure`（远端 repo / token 引用 / 本地仓库路径）、`git_link`（给卡片建 refs，G1-G4）、`git_list_mrs`（G5）、`git_sync`（G6 的无 UI 等价物，供 agent 直接调用）、`git_status`（某卡片当前同步快照与上次同步时间）。
+已实现 6 个：`git_configure`（远端 repo / 本地路径 / token）、`git_claim_task_id`（[ID] 认领）、`git_link`（带验证建 refs，G1-G4）、`git_list_mrs`（G5）、`git_sync`（G6/G11：拉取 + [ID] 自动关联 + 信封写回）、`git_status`（同步快照）。
 
 ### 5.3 服务契约（跨插件联动核心）
 
@@ -169,23 +172,33 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 - 同步完成后的 UI 刷新：优先走槽位 props 回调（若动态槽位支持传递）；否则 kanban 在同步后重新 `kanban/load`（实现最简单，先做这个，M3 验证槽位 props 能力，用 `cordis_inspect_query` → `Slots.listSubTree` 确认）。
 - 并发写：git 写回走 kanban 服务的 `updateCard`（内部沿用现有 `mutateBoard` 读-改-写原子语义），两个插件不并发写文件。
 
-### 5.5 里程碑
+### 5.5 自动关联规范（[ID] 约定）
+
+- **Task ID**：每个 task 必须携带稳定 ID，格式 `<repo-name>-<int>`（如 `dsh-plugins-1`；repo-name = 任务所属项目仓库名，int 同 repo 内递增/时间戳，保证唯一即可）。存储于卡片 `meta.taskId`（M1 数据模型 v2 增加），由 kanban 创建时生成，或 git 插件认领时写入。
+- **MR 规范**：MR 标题（或描述首行）必须携带 `[<task-id>]`，如 `[dsh-plugins-1] docs(git): 新增自动关联规范`。允许一个 MR 带多个 `[ID]`（关联多 task）。
+- **自动关联**：git 插件 sync 时解析该 repo MR 列表标题/描述中的 `[...]` → 匹配卡片 `meta.taskId` → 自动写入该卡 refs（github-mr）+ `meta.sync.github.snapshot.mrs`，无需手工 link（G4 退化为可选操作）。
+- **反向（未来）**：出现未匹配的合法 `[ID]` 且无对应 task 时，可自动建卡（需确认，防垃圾卡）。
+- **匹配规则**：大小写不敏感；格式校验 `<repo-name>-<int>`，不合法忽略并记入同步日志。
+- **实测**：2025-08 已用 `gh` 在本仓（jcc1997/dsh-plugins）创建测试 PR `[dsh-plugins-1] …`，验证标题携带 [ID] 的约定可被 gh 完整支持（`gh pr create --title '[dsh-plugins-1] …'`）；插件实现后 sync 即可按此解析。
+
+### 5.6 里程碑
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| M0 | 本调研与方案（本文档） | 评审通过 |
-| M1 | 数据模型 v2：kanban 增加 `refs` / `meta.sync` 信封 + `kanban` 服务 + 工具 `kanban_link`/`kanban_unlink` + 卡片 refs 展示；**先做最小跨插件验证**（kanban 提供服务，探测端 ctx.get 可读到） | 旧数据无损；跨插件服务读写跑通 |
-| M2 | git 插件骨架：`git` 服务 + G1-G5 工具 + 凭证（credentials） | agent 可对卡片关联 repo/MR 并列出 MR 状态 |
+| M0 | 本调研与方案（本文档） | ✅ 评审通过 |
+| M1 | 数据模型 v2：kanban 增加 `refs` / `meta.sync` 信封 + `kanban` 服务 + 工具 `kanban_link`/`kanban_unlink` + 卡片 refs 展示；**先做最小跨插件验证**（kanban 提供服务，探测端 ctx.get 可读到） | ✅ 完成（构建 + verify-dist 通过；跨插件服务经 cordis 全局 store 机制成立，待真实宿主激活复核） |
+| M2 | git 插件骨架：`git` 服务 + G1-G5 工具 + 凭证（credentials）+ **自动关联解析（G11，[ID] 约定）** | ✅ 完成（6 工具 + 服务 + 端到端逻辑测试通过：claim/sync/自动补 ref/信封写回） |
 | M3 | sync 按钮端到端（槽位契约 v1 + G6 + G7 状态展示） | 点击按钮 → 拉取 → 写回 → UI 刷新 |
 | M4 | 增强：本地仓库 git 命令（ctx.shell）、MR 创建（G9）、错误/重试 UI、订阅式通知 | 按需 |
 
-### 5.6 开发注意（踩坑预判，来自 skill 与本次调研）
+### 5.7 开发注意（踩坑预判，来自 skill 与本次调研）
 
 - 热更新必须 **Code Mode**（`cordis_define` 产物每次全量进上下文 ≈50KB+）。
 - 写代码前用 `cordis_inspect_query` 查询 `fs` / `web` / `credentials` / `shell` 的准确方法签名；沙箱内 `require`/`fetch` 被拒，HTTP 走 `ctx.web`，进程走 `ctx.shell`。
 - 工具参数 schema 顶层平铺（parameters 不在 schema 内）、`output.schema` 需显式 `additionalProperties`、render 返回内容块数组（skill §2.3）。
 - 动态插件导出对象而非函数；`registerTool` 放 `ctx.effect()`。
 - 服务名/工具名全局唯一（`git_` / `kanban_` 前缀）；provider 服务键（`git`、`kanban`）也要短且唯一。
+- **实测签名（2025-08，源码级确认）**：`credentials` = resolve/describe/set/unset，ref 就是普通字符串（`GITHUB_TOKEN` 即可，运行时仅校验 `^[A-Za-z_][A-Za-z0-9_]*$`）；`web.fetch({url})` **不能带请求头**（GitHub API 鉴权须走 bash curl，token 放 spec.env 不进命令行）；`bash.run(spec)` 的 spec 含 command/workdir/timeoutMs/stdoutMaxBytes/sandboxPolicy/env；cordis 服务是全局 store（root isolate 键），任意 fiber `ctx.get` 可见，重复 provide 抛错。
 
 ## 6. 风险与开放问题
 
@@ -198,8 +211,56 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 | 凭证安全 | GitHub token 只进 `credentials`，不进卡片、不进 git 历史 |
 | 槽位 props 能力 | 动态槽位能否收 owner props 需 `Slots.listSubTree` 确认；不行则走"同步后重新 load" |
 | refs 管理权 | 倾向 kanban 管 refs 增删、git 管 sync 内容；若 git 工具直接建 refs，需同步更新 kanban 侧展示（服务 API 已覆盖） |
+| taskId 分配 | int 需同 repo 唯一：本地生成或远端最大号+1；冲突时 sync 报错，不静默覆盖 |
 
 ## 7. 下一步
 
 1. 评审本文档（重点：4.2 数据格式、5.3 服务契约、5.4 槽位契约）。
 2. 通过后按 M1 → M2 → M3 实施；每个里程碑单独 commit，文档同步更新。
+
+## 8. 动态 → 部署迁移路径（2026-08 源码级核实）
+
+> 目的：动态插件（`cordis_define`/hot-update）是**迭代手段**，最终以**正式 bundle 插件**部署。
+> 本节回答：受限来自哪、部署形态是什么、代码要改什么。来源：cordis 核心 + cordis-plugin-loader + dsh README（bundles 机制）+ dsh-cordis-*-runner（白名单）源码。
+
+### 8.1 受限来源（重要结论）
+
+**所有受限（ctx.emit 禁用、timer 全局禁用、ctx.tools 只读、无 import/require、harness.handle 私有）都是 `dsh-cordis-host-runner / dsh-cordis-client-runner` 给"模型挂载、随时热更新"代码套的安全边界，不是平台能力缺失。**
+
+- Cordis 核心：`ctx.emit(...)` 完整实现（lib/index.js:280）—— emit 平台支持
+- cordis-plugin-loader：无 VM、无沙箱，正常模块加载
+- dsh 部署机制：profile `package.json` 的 `dsh.profile.bundles` 挂树外插件（README 明确；demo profile 曾 `link:` 本地 `dsh-plugins-hello`）—— 这就是部署路径
+- 动态 runner 包描述自证："sandboxed host half" + 白名单门面（effect/on/once/provide，无 emit）
+
+### 8.2 部署形态
+
+1. 每个插件一个正式包（`plugins/kanban` / `plugins/git` 已具备 package.json），按 cordis 插件规范导出（host/client 两半标准入口，非 iife/受限函数体）。
+2. 目标 profile 的 `package.json`：`dependencies` 加 `link:` 或 registry 引用 + `dsh.profile.bundles` 数组追加包名。
+3. 启动 profile（如 web）即生效；无需 `cordis_define`，重启不丢。
+
+### 8.3 迁移改动点（代码层面）—— 已由通信协议抹平
+
+**2026-08 已落地 `packages/communication`（@dsh-plugins/communication）**：业务代码只依赖 `createComm({ env })`（bus 事件 + rpc + services），开发/部署两形态工厂切换，部署时仅改 env 参数。已接入：git host sync 完成 `bus.publish('git/card-synced')`（verify 断言）。迁移表：
+
+| 受限项（动态） | 部署后 | 协议层处理 |
+|---|---|---|
+| `ctx.emit` 禁用 | ✅ 可 emit（cordis 原生） | `bus.publish/subscribe`：动态=全局服务总线 comm.bus（provide/get）；部署=ctx.emit/on |
+| `setTimeout` 等无 | ✅ Node/浏览器原生 | 协议不含 timer（业务自行处理）；自动保存可恢复防抖 |
+| `ctx.tools` 只读 | ✅ 可调工具 execute | 插件间协作仍走服务（`services.get`，契约不变） |
+| 无 import/require | ✅ 正常模块 | 可引第三方库（axios 等替代 curl） |
+| `harness.handle/host.call` 私有 RPC | ✅ 标准机制 | `rpc.call/handle`：动态=harness/host.call 封装；部署=官方通道（接入点预留，未实现前 throw） |
+| `slots.register` 受限调用 | ✅ 标准注册 | UI 挂载方式不变（slots 是常规服务） |
+
+**原则**：业务代码禁止直接 import 受限机制（harness/host.call/ctx.emit）；一律经协议。部署时仅改 `createComm` 的 env（或环境探测），业务逻辑零改动。
+
+### 8.4 不变的部分（契约层，部署零改动）
+
+- 数据模型 v2：refs / meta.taskId / meta.sync.<provider> 信封
+- [ID] 约定（§5.5）与自动关联逻辑
+- `kanban` / `git` 跨插件服务接口（getCard/updateCard/listCards / isConfigured/claimTaskId/link/listMrs/sync/snapshot）
+- 槽位契约（kanban.card.actions / conversation.view）与降级策略
+- GitHub API 逻辑（curl 可保留或换 fetch/axios）
+
+### 8.5 建议顺序
+
+M3 验收通过 → 先按 §8.2 做**一个插件的试部署**（建议 git，依赖少）→ 验证部署形态的 emit/事件链路 → 再迁移 kanban（UI 复杂，最后做）→ 动态版本降级为"预览/调试通道"，文档标注。

@@ -3,16 +3,28 @@ import React, { useState } from 'react'
 import { IconBoard } from '@dsh-plugins/ui'
 import { KanbanPage } from './page'
 import { KanbanSettings } from './settings'
+import { SessionTaskPanel } from './session-tasks'
 import { CtxLike } from '@dsh-plugins/ui'
 import { kbnbCss } from './styles'
 
 interface SlotsLike {
   inject(name: string, fn: () => unknown): void
+  register(options: Record<string, unknown>, component: (props: any) => unknown): unknown
+}
+
+interface SessionsLike {
+  open(id: string): void
 }
 
 /** 受限环境注入的 host.call（构建后引用全局 host） */
 declare const host: { call(method: string, args?: unknown): Promise<any> }
 declare const styles: { insert(css: string): unknown }
+
+/** kanban.card.actions 槽位的 owner props：卡片 id + 刷新回调（git 插件注册的按钮消费） */
+export interface CardActionsOwner {
+  cardId: string
+  onSynced: () => void
+}
 
 function makePlugin() {
   return {
@@ -20,10 +32,13 @@ function makePlugin() {
     apply(ctx: CtxLike) {
       styles.insert(kbnbCss)
       const slots = ctx.get('slots') as SlotsLike | undefined
+      const sessions = ctx.get('sessions') as SessionsLike | undefined
       if (!slots) return
 
       // 侧边栏入口：按钮 + 全屏看板（单一组件，无跨组件状态）
-      function KanbanEntry(props: { wide: boolean }) {
+      // 声明子槽位 kanban.card.actions（list）：git 等插件向其中注册「同步」按钮；
+      // 声明方（本条目）独占渲染授权，经 renderSlot 渲染到卡片抽屉。
+      function KanbanEntry(props: { wide: boolean; renderSlot?: (key: string, owner: unknown, opts?: unknown) => unknown }) {
         const [open, setOpen] = useState(false)
         return (
           <div>
@@ -43,21 +58,38 @@ function makePlugin() {
                 <IconBoard />
               )}
             </button>
-            {open ? <KanbanPage host={host} onClose={() => setOpen(false)} /> : null}
+            {open ? <KanbanPage host={host} onClose={() => setOpen(false)} renderSlot={props.renderSlot} sessions={sessions} /> : null}
           </div>
         )
       }
 
       slots.inject('sidebar.footer.action', () =>
         slots.register(
-          { name: 'sidebar.footer.action', id: 'kanban', order: 10, label: () => '看板' },
-          (props: { wide: boolean }) => <KanbanEntry wide={props.wide} />,
+          {
+            name: 'sidebar.footer.action',
+            id: 'kanban',
+            order: 10,
+            label: () => '看板',
+            children: {
+              'kanban.card.actions': { kind: 'list', scope: 'root' },
+            },
+          },
+          (props: { wide: boolean; renderSlot?: (key: string, owner: unknown, opts?: unknown) => unknown }) => (
+            <KanbanEntry wide={props.wide} renderSlot={props.renderSlot} />
+          ),
         ),
       )
       slots.inject('settings.section', () =>
         slots.register(
           { name: 'settings.section', id: 'kanban', order: 30, label: () => '看板' },
           () => <KanbanSettings host={host} />,
+        ),
+      )
+      // 会话「任务」tab（M3+ 需求 6）：当前会话关联的 task 详情（可编辑）
+      slots.inject('conversation.view', () =>
+        slots.register(
+          { name: 'conversation.view', id: 'kanban-task', order: 20, label: () => '任务' },
+          (props: { sessionId?: string }) => <SessionTaskPanel sessionId={props.sessionId} host={host} sessions={sessions} />,
         ),
       )
     },

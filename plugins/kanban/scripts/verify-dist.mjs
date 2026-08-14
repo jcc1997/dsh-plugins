@@ -11,6 +11,11 @@ async function loadClient() {
   const src = await readFile(join(root, 'dist', 'client.js'), 'utf8')
   const React = await import('react')
   const calls = []
+  const registrations = []
+  const slotsMock = {
+    inject: (name, fn) => { fn() },
+    register: (options, component) => { registrations.push({ options, component }); return () => {} },
+  }
   const sandbox = {
     React,
     console,
@@ -22,17 +27,25 @@ async function loadClient() {
         return { ok: true }
       },
     },
-    ctx: { get: () => undefined },
+    ctx: { get: (name) => (name === 'slots' ? slotsMock : undefined) },
   }
   const ctx = vm.createContext(sandbox)
   const result = await vm.runInContext('(async () => {' + src + '\n})()', ctx)
   const plugin = await result
   if (!plugin || plugin.name !== 'kanban') throw new Error('client plugin shape wrong: ' + JSON.stringify(plugin && plugin.name))
   if (typeof plugin.apply !== 'function') throw new Error('client apply missing')
-  // 模拟 apply（slots 未提供 → 直接返回）
-  const ret = plugin.apply({ get: () => undefined })
-  if (ret !== undefined) throw new Error('apply with no slots should return undefined, got ' + ret)
-  console.log('client.js: OK (plugin=' + plugin.name + ', apply exists)')
+  const ret = plugin.apply(sandbox.ctx)
+  if (ret !== undefined) throw new Error('apply should return undefined, got ' + ret)
+  // M3：sidebar 条目必须声明 kanban.card.actions 子槽位
+  const side = registrations.find((r) => r.options && r.options.name === 'sidebar.footer.action' && r.options.id === 'kanban')
+  if (!side) throw new Error('sidebar.footer.action kanban entry missing')
+  if (!side.options.children || !side.options.children['kanban.card.actions']) {
+    throw new Error('kanban.card.actions child slot not declared: ' + JSON.stringify(side.options.children))
+  }
+  // M3+：会话「任务」tab 注册到 conversation.view
+  const convTab = registrations.find((r) => r.options && r.options.name === 'conversation.view' && r.options.id === 'kanban-task')
+  if (!convTab) throw new Error('conversation.view kanban-task entry missing: ' + JSON.stringify(registrations.map((r) => r.options && r.options.name + '/' + r.options.id)))
+  console.log('client.js: OK (plugin=' + plugin.name + ', apply exists, child slot kanban.card.actions declared, conversation.view/kanban-task registered)')
 }
 
 async function loadHost() {
@@ -57,18 +70,32 @@ async function loadHost() {
   const result = await vm.runInContext('(async () => {' + src + '\n})()', ctx)
   const plugin = await result
   if (!plugin || plugin.name !== 'kanban') throw new Error('host plugin shape wrong')
-  const mockCtx = { get: (name) => (name === 'fs' ? fsMock : undefined), effect: (cb) => cb() || (() => {}) }
+  const provided = {}
+  const mockCtx = {
+    get: (name) => (name === 'fs' ? fsMock : undefined),
+    effect: (cb) => cb() || (() => {}),
+    provide: (name, value) => { provided[name] = value },
+  }
   plugin.apply(mockCtx)
   const keys = Object.keys(handlers)
   if (!keys.includes('kanban/load') || !keys.includes('kanban/save') || !keys.includes('kanban/set-data-dir')) {
     throw new Error('host handlers missing: ' + keys.join(','))
   }
+  // M3+：会话 tab 同步桥接 RPC；git 服务未激活 → 报错而不是崩溃
+  if (typeof handlers['kanban/git-sync'] !== 'function') throw new Error('kanban/git-sync bridge missing')
+  const rBridge = await handlers['kanban/git-sync']({ cardId: 'k1' })
+  if (!rBridge || rBridge.ok !== false || !/git/.test(rBridge.error || '')) {
+    throw new Error('kanban/git-sync bridge should fail without git service: ' + JSON.stringify(rBridge))
+  }
   const loaded = await handlers['kanban/load']()
   if (!loaded.board || loaded.board.columns.length !== 3) throw new Error('load default board wrong')
-  const expectTools = ['kanban_view','kanban_get_card','kanban_search','kanban_recent','kanban_create','kanban_move','kanban_update','kanban_tags','kanban_comment','kanban_delete','kanban_add_column','kanban_rename_column','kanban_delete_column','kanban_move_column']
+  const expectTools = ['kanban_view','kanban_get_card','kanban_search','kanban_recent','kanban_create','kanban_move','kanban_update','kanban_tags','kanban_comment','kanban_delete','kanban_add_column','kanban_rename_column','kanban_delete_column','kanban_move_column','kanban_link','kanban_unlink']
   const missing = expectTools.filter((t) => !registered.includes(t))
   if (missing.length > 0) throw new Error('tools missing: ' + missing.join(','))
-  console.log('host.js: OK (handlers=' + keys.join(',') + ', tools=' + registered.length + ', default board 3 columns)')
+  if (!provided['kanban'] || typeof provided['kanban'].getCard !== 'function' || typeof provided['kanban'].updateCard !== 'function' || typeof provided['kanban'].listCards !== 'function') {
+    throw new Error('kanban service not provided correctly')
+  }
+  console.log('host.js: OK (handlers=' + keys.join(',') + ', tools=' + registered.length + ', service=kanban, default board 3 columns)')
 }
 
 await loadClient()
