@@ -33,7 +33,8 @@ Host/Client 代码都是**纯 JS 函数体**，在受限执行环境运行：
 6. **esbuild iife + external react 生成 `require("react")`**：受限环境无 require → 运行报错。解法：`alias: { 'react': shims/react.js, 'react/jsx-runtime': shims/jsx-runtime.js }`，shim 引用自由变量 `React`（受限环境 closure 注入）。
 7. **primitives 整包打包 3.3MB**：katex/shiki 等依赖全进来。解法：不要 import primitives 包，把图标源码提取到本地共享包。
 8. **产物必须直接导出插件对象（不是 factory 函数）**：runner 期望执行结果就是 `{ name, apply }` 对象。entry 写 `export default makePlugin()`（模块加载时调用），不能写 `export default makePlugin`（导出函数）——否则 `__KB__.default` 是函数，host 激活报 `Invalid effect`。
-9. **插件状态在会话内存**：`cordis_inspect_self` 可读源码；重启进程即失。代码要同步到大仓 `plugins/<name>/src/`。
+9. **TS 重写时别丢 styles.insert**：从手写 JS 迁移到 TS 时，CSS 必须放进 `styles.ts` 并在 apply 里 `styles.insert(kbnbCss)` 调用——漏掉则整个插件无样式（按钮不可见/布局乱）。编译产物要 grep 校验 CSS 字符串存在。
+10. **插件状态在会话内存**：`cordis_inspect_self` 可读源码；重启进程即失。代码要同步到大仓 `plugins/<name>/src/`。
 
 ## 三、TS 编译管线（推荐开发方式）
 

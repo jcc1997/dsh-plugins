@@ -4,6 +4,7 @@ import { IconBoard } from '@dsh-plugins/ui'
 import { KanbanPage } from './page'
 import { KanbanSettings } from './settings'
 import { CtxLike } from '@dsh-plugins/ui'
+import { kbnbCss } from './styles'
 
 interface SlotsLike {
   inject(name: string, fn: () => unknown): void
@@ -11,11 +12,13 @@ interface SlotsLike {
 
 /** 受限环境注入的 host.call（构建后引用全局 host） */
 declare const host: { call(method: string, args?: unknown): Promise<any> }
+declare const styles: { insert(css: string): unknown }
 
 function makePlugin() {
   return {
     name: 'kanban',
     apply(ctx: CtxLike) {
+      styles.insert(kbnbCss)
       const slots = ctx.get('slots') as SlotsLike | undefined
       if (!slots) return
 
