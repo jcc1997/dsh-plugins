@@ -390,9 +390,14 @@ return {
       { name: 'sidebar.footer.action', id: 'kanban', order: 10, label: () => '看板' },
       (props) => React.createElement(SidebarButton, { wide: props.wide }),
     ))
+    function OverlayHost() {
+      const o = useStore()
+      console.log('[kanban] overlay render, open=', o)
+      return o ? React.createElement(KanbanPage) : null
+    }
     slots.inject('shell.overlay', () => slots.register(
       { name: 'shell.overlay', id: 'kanban-overlay', order: 0, label: () => '看板' },
-      () => { const o = useStore(); console.log('[kanban] overlay render, open=', o); return o ? React.createElement(KanbanPage) : null },
+      () => React.createElement(OverlayHost),
     ))
     slots.inject('tool.view.cordis', () => slots.register(
       { name: 'tool.view.cordis', key: 'self' },
