@@ -77,6 +77,7 @@
   ],
 
   "meta": {
+    "taskId": "dsh-plugins-42",      // 自动关联 ID（§5.5）：<repo-name>-<int>，MR 标题须携带 [taskId]
     "sync": {
       "github": {                    // 键 = platform（provider 命名空间）
         "version": 1,                // 信封版本
@@ -100,6 +101,7 @@
 - **refs 由谁写**：kanban（UI 链接编辑 + 工具 `kanban_link` / `kanban_unlink`）负责增删改；git 插件同步时**只读 refs、只写 meta.sync**，两者经 cardId 关联。
 - **同一任务可多个 refs**：1 个 repo + N 个 branch + N 个 MR，天然支持。
 - **provider 键即隔离域**：`meta.sync.<provider>` 互不覆盖；同 provider 内由插件自管并发（串行写，见 5.4）。
+- **taskId 自动关联锚点**：卡片 `meta.taskId`（`<repo-name>-<int>`，§5.5）是 MR 自动关联的锚点；由 kanban 生成或 git 插件认领时写入，同 repo 内唯一即可。
 - **平台无关性验证**：接 jira 时只需要——新 provider 键 `jira` + 新 ref kind `jira-issue` + 一个提供 `jira` 服务的插件，kanban / git 全部零改动。这就是"平台无关的工具"的含义。
 
 ## 5. git 插件需求与技术方案
@@ -118,6 +120,7 @@
 | G8 | 凭证管理 | GitHub token 走宿主 `credentials` 服务（不落卡片、不进代码） | P0 |
 | G9 | MR 创建（可选） | 从卡片/分支发起 MR | P2 |
 | G10 | GitLab 等 provider | 数据格式与契约已支持，仅实现层扩展 | P2 |
+| G11 | **MR 自动关联（[ID] 约定）** | task 带 `meta.taskId`（`<repo-name>-<int>`），MR 标题携带 `[taskId]`，sync 时自动建 refs/状态，无需手工 link（见 §5.5） | P0 |
 
 ### 5.2 Agent 工具（git 插件注册，前缀 `git_`，草案）
 
@@ -169,17 +172,26 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 - 同步完成后的 UI 刷新：优先走槽位 props 回调（若动态槽位支持传递）；否则 kanban 在同步后重新 `kanban/load`（实现最简单，先做这个，M3 验证槽位 props 能力，用 `cordis_inspect_query` → `Slots.listSubTree` 确认）。
 - 并发写：git 写回走 kanban 服务的 `updateCard`（内部沿用现有 `mutateBoard` 读-改-写原子语义），两个插件不并发写文件。
 
-### 5.5 里程碑
+### 5.5 自动关联规范（[ID] 约定）
+
+- **Task ID**：每个 task 必须携带稳定 ID，格式 `<repo-name>-<int>`（如 `dsh-plugins-1`；repo-name = 任务所属项目仓库名，int 同 repo 内递增/时间戳，保证唯一即可）。存储于卡片 `meta.taskId`（M1 数据模型 v2 增加），由 kanban 创建时生成，或 git 插件认领时写入。
+- **MR 规范**：MR 标题（或描述首行）必须携带 `[<task-id>]`，如 `[dsh-plugins-1] docs(git): 新增自动关联规范`。允许一个 MR 带多个 `[ID]`（关联多 task）。
+- **自动关联**：git 插件 sync 时解析该 repo MR 列表标题/描述中的 `[...]` → 匹配卡片 `meta.taskId` → 自动写入该卡 refs（github-mr）+ `meta.sync.github.snapshot.mrs`，无需手工 link（G4 退化为可选操作）。
+- **反向（未来）**：出现未匹配的合法 `[ID]` 且无对应 task 时，可自动建卡（需确认，防垃圾卡）。
+- **匹配规则**：大小写不敏感；格式校验 `<repo-name>-<int>`，不合法忽略并记入同步日志。
+- **实测**：2025-08 已用 `gh` 在本仓（jcc1997/dsh-plugins）创建测试 PR `[dsh-plugins-1] …`，验证标题携带 [ID] 的约定可被 gh 完整支持（`gh pr create --title '[dsh-plugins-1] …'`）；插件实现后 sync 即可按此解析。
+
+### 5.6 里程碑
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
 | M0 | 本调研与方案（本文档） | 评审通过 |
 | M1 | 数据模型 v2：kanban 增加 `refs` / `meta.sync` 信封 + `kanban` 服务 + 工具 `kanban_link`/`kanban_unlink` + 卡片 refs 展示；**先做最小跨插件验证**（kanban 提供服务，探测端 ctx.get 可读到） | 旧数据无损；跨插件服务读写跑通 |
-| M2 | git 插件骨架：`git` 服务 + G1-G5 工具 + 凭证（credentials） | agent 可对卡片关联 repo/MR 并列出 MR 状态 |
+| M2 | git 插件骨架：`git` 服务 + G1-G5 工具 + 凭证（credentials）+ **自动关联解析（G11，[ID] 约定）** | agent 可对卡片关联 repo/MR 并列出 MR 状态；按 [ID] 自动关联跑通 |
 | M3 | sync 按钮端到端（槽位契约 v1 + G6 + G7 状态展示） | 点击按钮 → 拉取 → 写回 → UI 刷新 |
 | M4 | 增强：本地仓库 git 命令（ctx.shell）、MR 创建（G9）、错误/重试 UI、订阅式通知 | 按需 |
 
-### 5.6 开发注意（踩坑预判，来自 skill 与本次调研）
+### 5.7 开发注意（踩坑预判，来自 skill 与本次调研）
 
 - 热更新必须 **Code Mode**（`cordis_define` 产物每次全量进上下文 ≈50KB+）。
 - 写代码前用 `cordis_inspect_query` 查询 `fs` / `web` / `credentials` / `shell` 的准确方法签名；沙箱内 `require`/`fetch` 被拒，HTTP 走 `ctx.web`，进程走 `ctx.shell`。
@@ -198,6 +210,7 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 | 凭证安全 | GitHub token 只进 `credentials`，不进卡片、不进 git 历史 |
 | 槽位 props 能力 | 动态槽位能否收 owner props 需 `Slots.listSubTree` 确认；不行则走"同步后重新 load" |
 | refs 管理权 | 倾向 kanban 管 refs 增删、git 管 sync 内容；若 git 工具直接建 refs，需同步更新 kanban 侧展示（服务 API 已覆盖） |
+| taskId 分配 | int 需同 repo 唯一：本地生成或远端最大号+1；冲突时 sync 报错，不静默覆盖 |
 
 ## 7. 下一步
 

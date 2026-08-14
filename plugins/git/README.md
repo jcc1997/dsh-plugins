@@ -18,4 +18,4 @@ plugins/git/
 
 ## 里程碑
 
-M1 数据模型 v2（kanban refs/meta.sync 信封 + kanban 服务）→ M2 git 插件骨架（git 服务 + 工具）→ M3 sync 按钮端到端 → M4 增强。详见 PLAN.md §5.5。
+M1 数据模型 v2（kanban refs/meta.sync 信封 + kanban 服务）→ M2 git 插件骨架（git 服务 + 工具 + [ID] 自动关联）→ M3 sync 按钮端到端 → M4 增强。详见 PLAN.md §5.6。
