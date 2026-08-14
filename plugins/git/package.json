@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@dsh-plugins/ui": "workspace:*",
+    "@dsh-plugins/communication": "workspace:*",
     "@types/react": "^18.3.0",
     "esbuild": "^0.24.0",
     "react": "^18.3.1",

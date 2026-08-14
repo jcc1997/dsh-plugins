@@ -12,6 +12,8 @@ importers:
         specifier: ^4.0.1
         version: 4.0.1
 
+  packages/communication: {}
+
   packages/ui:
     dependencies:
       react:
@@ -20,6 +22,9 @@ importers:
 
   plugins/git:
     devDependencies:
+      '@dsh-plugins/communication':
+        specifier: workspace:*
+        version: link:../../packages/communication
       '@dsh-plugins/ui':
         specifier: workspace:*
         version: link:../../packages/ui

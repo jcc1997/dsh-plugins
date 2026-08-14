@@ -42,7 +42,8 @@
 
 - **受限是动态插件专属**：`ctx.emit` 禁用 / timer 全局禁用 / 无 import / ctx.tools 只读 / harness RPC 私有 —— 全部来自 `dsh-cordis-*-runner` 的沙箱白名单（防热更新代码绕过守卫链），**不是平台不支持**（cordis 核心 lib/index.js:280 有完整 emit；loader 无沙箱）。
 - **部署路径**：目标 profile 的 package.json → `dependencies`（`link:` 本地或 registry）+ `dsh.profile.bundles` 追加包名 → 启动即生效，重启不丢。先例：demo profile 曾挂 `dsh-plugins-hello`。
-- **迁移改动**：通信胶水（RPC→服务/事件）、恢复 timer/import；**契约层（数据模型/服务接口/槽位/[ID]）零改动**。建议顺序：先部署 git（依赖少）→ 再 kanban（UI 复杂）。
+- **通信协议已落地（2026-08）**：`packages/communication`（@dsh-plugins/communication）—— `createComm({ env })` 工厂（bus 事件 + rpc + services），开发（动态受限：bus=全局服务 comm.bus / rpc=harness+host.call）与部署（bus=ctx.emit/on / rpc=官方通道预留）两形态统一；业务代码禁止直接 import harness/host.call/ctx.emit。已接入 git host（sync 完成 publish `git/card-synced`，verify 断言）。部署时仅改 env 参数，业务逻辑零改动。
+- **迁移改动**：恢复 timer/import；**契约层（数据模型/服务接口/槽位/[ID]）零改动**。建议顺序：先部署 git（依赖少）→ 再 kanban（UI 复杂）。
 
 ## M3 实现要点（已完成，2026-08-14 实测）
 

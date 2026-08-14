@@ -1,0 +1,10 @@
+{
+  "name": "@dsh-plugins/communication",
+  "version": "0.1.0",
+  "description": "DSH 插件通信协议：事件发布/订阅 + RPC + 服务调用统一接口。开发（动态插件受限环境）与部署（bundle 插件）两形态由工厂切换，业务代码只依赖本协议。",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "license": "MIT"
+}

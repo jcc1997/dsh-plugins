@@ -3,6 +3,9 @@
 //       git_link（带验证关联）、git_list_mrs / git_sync（GitHub API + [ID] 自动关联）、git_status
 // 数据：~/.dsh/git/config.json；凭证走宿主 credentials（ref 名 GITHUB_TOKEN）；
 //       GitHub API 优先 bash(curl)+token，退化 ctx.web 匿名抓取；卡片读写走跨插件 kanban 服务
+// 通信：createComm（@dsh-plugins/communication）—— 开发（动态受限）与部署（bundle）两形态统一
+import { createComm } from '@dsh-plugins/communication'
+
 interface FsLike {
   resolve(path: string, opts?: { cwd?: string; signal?: unknown }): Promise<{ targetKey: string; displayPath?: string }>
   readText(target: { targetKey: string }, signal?: unknown): Promise<string>
@@ -44,6 +47,8 @@ function makePlugin() {
   return {
     name: 'git',
     apply(ctx: { get(name: string): unknown; provide(name: string, value: unknown): unknown; effect(cb: () => unknown): unknown }) {
+      // 通信协议：开发/部署两形态统一（createComm 按 env 选实现；这里仅用 bus 发事件）
+      const comm = createComm({ env: 'dynamic-host', ctx: ctx as any, harness: harness as any })
       const fs = ctx.get('fs') as FsLike | undefined
       const credentials = ctx.get('credentials') as CredLike | undefined
       const bash = (ctx.get('bash') as BashLike | undefined) || (ctx.get('shell') as BashLike | undefined)
@@ -313,6 +318,10 @@ function makePlugin() {
         if (linked > 0) patch.refs = refs
         const res = await kanban.updateCard(cardId, patch)
         if (!res.ok) return { ok: false, error: res.error || 'updateCard failed' }
+        // 通信协议：同步完成发布事件（动态=服务总线；部署=ctx.emit；监听方刷新 UI/联动）
+        try {
+          comm.bus.publish('git/card-synced', { cardId, syncedAt: envelope.lastSyncAt, taskId: taskId || undefined, openMrs: mrs.length, linkedMrs: linked })
+        } catch { /* 事件失败不影响结果 */ }
         return { ok: true, card_id: cardId, syncedAt: envelope.lastSyncAt, taskId, open_mrs: mrs.length, linked_mrs: linked, matched_mrs: taskId ? mrs.filter((m) => m.taskIds.some((t: string) => normalizeTaskId(t) === normalizeTaskId(taskId))).map((m) => m.number) : [] }
       }
 

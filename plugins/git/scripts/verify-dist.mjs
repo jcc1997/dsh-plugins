@@ -115,9 +115,9 @@ async function loadHost() {
         if (name === 'bash' || name === 'shell') return bashMock
         if (name === 'web') return webMock
         if (name === 'kanban') return kanbanSvc
-        return undefined
+        return provided[name]
       },
-      provide: (name, value) => { provided[name] = value },
+      provide: (name, value) => { provided[name] = value; return () => { delete provided[name] } },
       effect: (cb) => cb() || (() => {}),
     },
   }
@@ -167,6 +167,15 @@ async function loadHost() {
   // 6) M3：git/sync RPC（client sync 按钮 → host.call）
   const rRpc = await handlers['git/sync']({ cardId: 'k1' })
   if (!rRpc.ok || rRpc.open_mrs !== 2) throw new Error('git/sync RPC failed: ' + JSON.stringify(rRpc))
+  // 7) 通信协议：sync 成功发布 git/card-synced 事件（comm.bus 服务总线）
+  const bus = provided['comm.bus']
+  if (!bus || typeof bus.subscribe !== 'function') throw new Error('comm.bus service missing (通信协议)')
+  let received = null
+  const off = bus.subscribe('git/card-synced', (payload) => { received = payload })
+  const rSync2 = await findTool('git_sync', registered).execute({ card_id: 'k1' })
+  if (!rSync2.ok) throw new Error('sync2 failed: ' + JSON.stringify(rSync2))
+  if (!received || received.cardId !== 'k1' || received.openMrs !== 2) throw new Error('sync event not published: ' + JSON.stringify(received))
+  off()
   console.log('logic: OK (claim-reject=' + (rClaim.error ? 'yes' : 'no') + ', claim=' + rClaim2.taskId + ', sync matched=' + rSync.matched_mrs.join(',') + ', auto-linked=' + mrRef.externalId + ', envelope.version=' + syncEnv.version + ')')
 }
 

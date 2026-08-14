@@ -238,16 +238,20 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 2. 目标 profile 的 `package.json`：`dependencies` 加 `link:` 或 registry 引用 + `dsh.profile.bundles` 数组追加包名。
 3. 启动 profile（如 web）即生效；无需 `cordis_define`，重启不丢。
 
-### 8.3 迁移改动点（代码层面）
+### 8.3 迁移改动点（代码层面）—— 已由通信协议抹平
 
-| 受限项（动态） | 部署后 | 改动 |
+**2026-08 已落地 `packages/communication`（@dsh-plugins/communication）**：业务代码只依赖 `createComm({ env })`（bus 事件 + rpc + services），开发/部署两形态工厂切换，部署时仅改 env 参数。已接入：git host sync 完成 `bus.publish('git/card-synced')`（verify 断言）。迁移表：
+
+| 受限项（动态） | 部署后 | 协议层处理 |
 |---|---|---|
-| `ctx.emit` 禁用 | ✅ 可 emit（cordis 原生） | 跨插件通知可改为**真事件**：git sync 完成 → `ctx.emit('kanban/card-synced')` → kanban `ctx.on` 监听刷新（替代回调/重 load） |
-| `setTimeout` 等无 | ✅ Node/浏览器原生 | 自动保存可恢复防抖 |
-| `ctx.tools` 只读 | ✅ 可调工具 execute | 插件间协作仍建议走服务（契约不变） |
+| `ctx.emit` 禁用 | ✅ 可 emit（cordis 原生） | `bus.publish/subscribe`：动态=全局服务总线 comm.bus（provide/get）；部署=ctx.emit/on |
+| `setTimeout` 等无 | ✅ Node/浏览器原生 | 协议不含 timer（业务自行处理）；自动保存可恢复防抖 |
+| `ctx.tools` 只读 | ✅ 可调工具 execute | 插件间协作仍走服务（`services.get`，契约不变） |
 | 无 import/require | ✅ 正常模块 | 可引第三方库（axios 等替代 curl） |
-| `harness.handle/host.call` 私有 RPC | ✅ 标准机制 | client↔host 通信改标准 cordis 通道（服务/事件/官方 UI 桥） |
+| `harness.handle/host.call` 私有 RPC | ✅ 标准机制 | `rpc.call/handle`：动态=harness/host.call 封装；部署=官方通道（接入点预留，未实现前 throw） |
 | `slots.register` 受限调用 | ✅ 标准注册 | UI 挂载方式不变（slots 是常规服务） |
+
+**原则**：业务代码禁止直接 import 受限机制（harness/host.call/ctx.emit）；一律经协议。部署时仅改 `createComm` 的 env（或环境探测），业务逻辑零改动。
 
 ### 8.4 不变的部分（契约层，部署零改动）
 
