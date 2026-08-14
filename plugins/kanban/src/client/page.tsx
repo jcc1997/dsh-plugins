@@ -237,6 +237,7 @@ export function KanbanPage(props: { host: { call(method: string, args?: unknown)
           <IconChevronLeftOutline14 />
         </button>
         <span className="kbnb-title">看板</span>
+        <span className="kbnb-stats">{board.columns.length} 列 · {board.columns.reduce((n, col) => n + col.cards.length, 0)} 张卡</span>
         <span className="kbnb-saving">{saving ? '保存中…' : ''}</span>
         <div className="kbnb-header-actions">
           <button className="kbnb-btn" type="button" onClick={() => setShowColumns(true)}>
