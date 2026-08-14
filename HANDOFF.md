@@ -5,7 +5,7 @@
 
 ## 当前状态（2026-08）
 
-- **分支**：`feat/mr-autolink`（PR #1 载体，含 4 个未合并 commit：71aaef4 自动关联规范文档、b889fe8 kanban v2、5395b4a git M2、4bac7bb lock）；`main` = 9bcd7dd。合并 PR #1 后建议把实现 rebase/合回 main。
+- **分支**：`feat/mr-autolink` 已合并入 main（PR #1 squash，merge commit d35dafe，2026-08-14）；本地/远端该分支已删，当前在 **main**（= d35dafe）。后续开发直接基于 main 开新分支。
 - **M1 kanban v2 完成**（构建 + verify-dist 通过）：数据模型 v2（卡片 refs / meta.taskId / meta.sync.<provider> 信封）、`kanban` 跨插件服务（getCard/updateCard/listCards）、工具 16 个（新增 kanban_link / kanban_unlink）、抽屉 refs UI。
 - **M2 git 骨架完成并已在真实宿主热更新激活**：6 工具、`git` 服务、GitHub API（bash curl + credentials token → ctx.web 匿名退化）、[ID] 自动关联。**真实端到端验证通过**（2026-08-14）：git_configure（jcc1997/dsh-plugins + token）→ claim `dsh-plugins-1` → git_sync 匹配 PR #1 标题 `[dsh-plugins-1]` → 自动补 github-mr ref + 写 meta.sync.github 信封落盘。
 - **M2 修复**：git_claim_task_id 在卡片未关联 repo 且未配置远端仓库时**拒绝认领**（原实现编造 `task-N` 不合规 ID，已修 + verify 断言更新）。
@@ -18,7 +18,7 @@
 ## 新会话起步清单（创造模式 + Code Mode）
 
 1. 确认会话工具列表含 `cordis_define` / `cordis_run` / `cordis_inspect_*`（创造模式）与 `run_code`（Code Mode）。
-2. `git fetch && git checkout feat/mr-autolink`（或先合并 PR #1）。
+2. `git fetch && git checkout main`（PR #1 已合并，直接基于 main）。
 3. `pnpm install`（新依赖时）。
 4. **重建产物**（dist 是 gitignore，新会话必须重建）：
    - `cd plugins/kanban && node build.mjs && node scripts/verify-dist.mjs`
