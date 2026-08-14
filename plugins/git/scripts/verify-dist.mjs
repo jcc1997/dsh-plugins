@@ -1,0 +1,155 @@
+// git 插件受限环境验证 + 端到端逻辑测试（mock 宿主服务）
+// 用法：node scripts/verify-dist.mjs
+import { readFile } from 'node:fs/promises'
+import vm from 'node:vm'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+
+const root = dirname(fileURLToPath(import.meta.url)) + '/..'
+
+async function loadClient() {
+  const src = await readFile(join(root, 'dist', 'client.js'), 'utf8')
+  const React = await import('react')
+  const sandbox = { React, console, styles: { insert: () => () => {} }, host: { call: async () => ({ ok: true }) }, ctx: { get: () => undefined } }
+  const ctx = vm.createContext(sandbox)
+  const result = await vm.runInContext('(async () => {' + src + '\n})()', ctx)
+  const plugin = await result
+  if (!plugin || plugin.name !== 'git') throw new Error('client plugin shape wrong: ' + JSON.stringify(plugin && plugin.name))
+  if (typeof plugin.apply !== 'function') throw new Error('client apply missing')
+  const ret = plugin.apply({})
+  if (ret !== undefined) throw new Error('apply should return undefined')
+  console.log('client.js: OK (plugin=git)')
+}
+
+async function loadHost() {
+  const src = await readFile(join(root, 'dist', 'host.js'), 'utf8')
+  const handlers = {}
+  const registered = []
+  const provided = {}
+
+  // ── mock：内存看板（kanban 服务） ──
+  const board = {
+    version: 1,
+    columns: [{ id: 'c1', title: '待办', cards: [
+      { id: 'k1', title: '测试卡', refs: [{ id: 'r1', kind: 'github-repo', platform: 'github', externalId: 'jcc1997/dsh-plugins', createdAt: '' }], meta: { taskId: 'dsh-plugins-1' }, comments: [], activity: [], tags: [], createdAt: '', updatedAt: '' },
+      { id: 'k2', title: '无 ID 卡', refs: [], meta: {}, comments: [], activity: [], tags: [], createdAt: '', updatedAt: '' },
+    ], meta: {} }],
+    meta: {},
+  }
+  const kanbanSvc = {
+    getCard: async (id) => {
+      for (const col of board.columns) for (const c of col.cards) if (c.id === id) return c
+      return null
+    },
+    updateCard: async (id, patch) => {
+      for (const col of board.columns) for (const c of col.cards) {
+        if (c.id !== id) continue
+        if (Array.isArray(patch.refs)) c.refs = patch.refs
+        if (patch.meta && typeof patch.meta === 'object') {
+          if (!c.meta || typeof c.meta !== 'object') c.meta = {}
+          for (const k of Object.keys(patch.meta)) c.meta[k] = patch.meta[k]
+        }
+        if (patch.activity) { if (!c.activity) c.activity = []; c.activity.push({ id: 'a', text: patch.activity, at: '', actor: 'agent' }) }
+        c.updatedAt = ''
+        return { ok: true }
+      }
+      return { ok: false, error: 'not found' }
+    },
+    listCards: async () => board.columns.flatMap((col) => col.cards.map((c) => ({ id: c.id, title: c.title, taskId: (c.meta && c.meta.taskId) || null }))),
+  }
+
+  // ── mock：fs / credentials / bash（curl 返回 canned PR JSON） ──
+  const files = {}
+  const fsMock = {
+    resolve: async (p) => ({ targetKey: p }),
+    readText: async (t) => { if (files[t.targetKey] === undefined) throw new Error('ENOENT'); return files[t.targetKey] },
+    writeText: async (t, content) => { files[t.targetKey] = content },
+  }
+  const secrets = {}
+  const credMock = {
+    resolve: async (ref) => (secrets[ref] ? { value: secrets[ref], source: 'mock' } : undefined),
+    describe: async (ref) => ({ configured: !!secrets[ref], writable: true }),
+    set: async (ref, value) => { secrets[ref] = value },
+    unset: async (ref) => { delete secrets[ref] },
+  }
+  const cannedPulls = JSON.stringify([
+    { number: 1, title: '[dsh-plugins-1] docs(git): MR 自动关联规范', state: 'open', html_url: 'https://github.com/jcc1997/dsh-plugins/pull/1', updated_at: '2025-08-14T00:00:00Z', mergeable: true },
+    { number: 2, title: 'feat: 无 ID 的 MR', state: 'open', html_url: 'https://github.com/jcc1997/dsh-plugins/pull/2', updated_at: '2025-08-14T00:00:00Z', mergeable: true },
+  ])
+  let bashCalls = 0
+  const bashMock = {
+    run: async (spec) => {
+      bashCalls++
+      if (spec.command.includes('GITHUB_TOKEN')) throw new Error('token should go through env, not command')
+      return { exitCode: 0, stdout: { text: cannedPulls + '\n200', truncated: false } }
+    },
+  }
+  const webMock = { fetch: async () => ({ statusCode: 200, body: { kind: 'text', content: cannedPulls }, truncated: false }) }
+
+  const sandbox = {
+    console,
+    harness: {
+      handle: (m, fn) => { handlers[m] = fn },
+      defineTool: (def) => def,
+      registerTool: (_ctx, def) => { registered.push(def); return () => {} },
+    },
+    ctx: {
+      get: (name) => {
+        if (name === 'fs') return fsMock
+        if (name === 'credentials') return credMock
+        if (name === 'bash' || name === 'shell') return bashMock
+        if (name === 'web') return webMock
+        if (name === 'kanban') return kanbanSvc
+        return undefined
+      },
+      provide: (name, value) => { provided[name] = value },
+      effect: (cb) => cb() || (() => {}),
+    },
+  }
+  const ctx = vm.createContext(sandbox)
+  const result = await vm.runInContext('(async () => {' + src + '\n})()', ctx)
+  const plugin = await result
+  if (!plugin || plugin.name !== 'git') throw new Error('host plugin shape wrong')
+  plugin.apply(sandbox.ctx)
+
+  const expectTools = ['git_configure', 'git_claim_task_id', 'git_link', 'git_list_mrs', 'git_sync', 'git_status']
+  const missing = expectTools.filter((t) => !registered.map((d) => d && d.name).includes(t))
+  if (missing.length > 0) throw new Error('tools missing: ' + missing.join(','))
+  if (!provided['git'] || typeof provided['git'].sync !== 'function' || typeof provided['git'].isConfigured !== 'function') {
+    throw new Error('git service not provided correctly')
+  }
+  console.log('tools=' + registered.length + ', service=git, handlers=' + (Object.keys(handlers).join(',') || 'none'))
+
+  // ── 端到端逻辑测试 ──
+  // 1) git_claim_task_id：k2 无 ID → 无 repo 关联 → fallback 'task' → task-1
+  const claim1 = findTool('git_claim_task_id', registered)
+  const rClaim = await claim1.execute({ card_id: 'k2' })
+  if (!rClaim.ok || rClaim.taskId !== 'task-1') throw new Error('claim failed: ' + JSON.stringify(rClaim))
+  // 2) git_sync：k1（taskId dsh-plugins-1）→ 匹配 PR #1，自动补 github-mr ref，写 meta.sync.github
+  const rSync = await findTool('git_sync', registered).execute({ card_id: 'k1' })
+  if (!rSync.ok) throw new Error('sync failed: ' + JSON.stringify(rSync))
+  if (rSync.open_mrs !== 2 || rSync.matched_mrs.length !== 1 || rSync.matched_mrs[0] !== 1) throw new Error('sync match wrong: ' + JSON.stringify(rSync))
+  const k1 = await kanbanSvc.getCard('k1')
+  const syncEnv = k1.meta && k1.meta.sync && k1.meta.sync.github
+  if (!syncEnv || syncEnv.version !== 1 || !syncEnv.lastSyncAt || syncEnv.error !== null) throw new Error('envelope wrong: ' + JSON.stringify(syncEnv))
+  if (syncEnv.snapshot.mrs.length !== 2) throw new Error('snapshot mrs wrong')
+  const mrRef = (k1.refs || []).find((r) => r.kind === 'github-mr' && r.externalId === '1')
+  if (!mrRef || mrRef.url !== 'https://github.com/jcc1997/dsh-plugins/pull/1') throw new Error('auto-link ref missing: ' + JSON.stringify(k1.refs))
+  // 3) git_status 读回信封
+  const rStatus = await findTool('git_status', registered).execute({ card_id: 'k1' })
+  if (!rStatus.ok || !rStatus.sync || rStatus.taskId !== 'dsh-plugins-1') throw new Error('status wrong: ' + JSON.stringify(rStatus))
+  // 4) git_link local-repo 校验
+  const rLink = await findTool('git_link', registered).execute({ card_id: 'k1', kind: 'github-branch', external_id: 'feat/sync', display: 'feat/sync' })
+  if (!rLink.ok) throw new Error('link failed: ' + JSON.stringify(rLink))
+  // 5) token 经 env 传递（bash 调用断言在 mock 内）
+  if (bashCalls < 1) throw new Error('bash not used')
+  console.log('logic: OK (claim=' + rClaim.taskId + ', sync matched=' + rSync.matched_mrs.join(',') + ', auto-linked=' + mrRef.externalId + ', envelope.version=' + syncEnv.version + ')')
+}
+
+function findTool(name, registered) {
+  return registered.find((d) => d && d.name === name)
+}
+
+await loadClient()
+await loadHost()
+console.log('ALL OK: git 插件产物可在受限环境加载，端到端逻辑通过')

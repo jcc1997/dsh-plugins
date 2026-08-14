@@ -2,7 +2,7 @@
 
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（DSH）开发的插件集合。
 
-当前包含 **看板（kanban）插件**：一个嵌入 DSH 侧边栏的全功能看板，同时提供**给 Agent 调用的 14 个工具**，让人和 AI 在同一块板上协作。规划中：**git 插件**（task 关联 GitHub/本地仓库/branch/MR + 注册进看板的同步按钮，需求与方案见 [`plugins/git/PLAN.md`](plugins/git/PLAN.md)）。
+当前包含 **看板（kanban）插件**：一个嵌入 DSH 侧边栏的全功能看板，同时提供**给 Agent 调用的 16 个工具**（含数据模型 v2：卡片外部关联 refs + 跨插件 `kanban` 服务），让人和 AI 在同一块板上协作。开发中：**git 插件**（task 关联 GitHub/本地仓库/branch/MR + 6 个 `git_*` 工具 + [ID] 自动关联，M2 骨架完成，方案见 [`plugins/git/PLAN.md`](plugins/git/PLAN.md)）。
 
 ## 看板插件
 
@@ -54,8 +54,8 @@
 ```
 dsh-plugins/
 ├── plugins/
-│   ├── git/           # git 插件（规划中）：关联仓库/branch/MR + 跨插件同步，方案见 PLAN.md
-│   └── kanban/        # 看板插件：TS 源码 + 编译管线 + 14 个 agent 工具
+│   ├── git/           # git 插件（M2 骨架）：git 服务 + 6 工具 + [ID] 自动关联，方案见 PLAN.md
+│   └── kanban/        # 看板插件：TS 源码 + 编译管线 + 16 个 agent 工具 + kanban 服务
 ├── packages/ui/       # 共享包 @dsh-plugins/ui：设计 tokens + 图标 + 工具函数 + 组件
 │   ├── DESIGN.md      # UI 设计规范（与 DSH 宿主统一）
 │   └── dsh/design-platform.css   # DSH 官方设计 tokens（抽取自 dsh-client-ui-theme）

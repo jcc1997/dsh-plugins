@@ -124,7 +124,7 @@
 
 ### 5.2 Agent 工具（git 插件注册，前缀 `git_`，草案）
 
-`git_configure`（远端 repo / token 引用 / 本地仓库路径）、`git_link`（给卡片建 refs，G1-G4）、`git_list_mrs`（G5）、`git_sync`（G6 的无 UI 等价物，供 agent 直接调用）、`git_status`（某卡片当前同步快照与上次同步时间）。
+已实现 6 个：`git_configure`（远端 repo / 本地路径 / token）、`git_claim_task_id`（[ID] 认领）、`git_link`（带验证建 refs，G1-G4）、`git_list_mrs`（G5）、`git_sync`（G6/G11：拉取 + [ID] 自动关联 + 信封写回）、`git_status`（同步快照）。
 
 ### 5.3 服务契约（跨插件联动核心）
 
@@ -185,9 +185,9 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
-| M0 | 本调研与方案（本文档） | 评审通过 |
-| M1 | 数据模型 v2：kanban 增加 `refs` / `meta.sync` 信封 + `kanban` 服务 + 工具 `kanban_link`/`kanban_unlink` + 卡片 refs 展示；**先做最小跨插件验证**（kanban 提供服务，探测端 ctx.get 可读到） | 旧数据无损；跨插件服务读写跑通 |
-| M2 | git 插件骨架：`git` 服务 + G1-G5 工具 + 凭证（credentials）+ **自动关联解析（G11，[ID] 约定）** | agent 可对卡片关联 repo/MR 并列出 MR 状态；按 [ID] 自动关联跑通 |
+| M0 | 本调研与方案（本文档） | ✅ 评审通过 |
+| M1 | 数据模型 v2：kanban 增加 `refs` / `meta.sync` 信封 + `kanban` 服务 + 工具 `kanban_link`/`kanban_unlink` + 卡片 refs 展示；**先做最小跨插件验证**（kanban 提供服务，探测端 ctx.get 可读到） | ✅ 完成（构建 + verify-dist 通过；跨插件服务经 cordis 全局 store 机制成立，待真实宿主激活复核） |
+| M2 | git 插件骨架：`git` 服务 + G1-G5 工具 + 凭证（credentials）+ **自动关联解析（G11，[ID] 约定）** | ✅ 完成（6 工具 + 服务 + 端到端逻辑测试通过：claim/sync/自动补 ref/信封写回） |
 | M3 | sync 按钮端到端（槽位契约 v1 + G6 + G7 状态展示） | 点击按钮 → 拉取 → 写回 → UI 刷新 |
 | M4 | 增强：本地仓库 git 命令（ctx.shell）、MR 创建（G9）、错误/重试 UI、订阅式通知 | 按需 |
 
@@ -198,6 +198,7 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 - 工具参数 schema 顶层平铺（parameters 不在 schema 内）、`output.schema` 需显式 `additionalProperties`、render 返回内容块数组（skill §2.3）。
 - 动态插件导出对象而非函数；`registerTool` 放 `ctx.effect()`。
 - 服务名/工具名全局唯一（`git_` / `kanban_` 前缀）；provider 服务键（`git`、`kanban`）也要短且唯一。
+- **实测签名（2025-08，源码级确认）**：`credentials` = resolve/describe/set/unset，ref 就是普通字符串（`GITHUB_TOKEN` 即可，运行时仅校验 `^[A-Za-z_][A-Za-z0-9_]*$`）；`web.fetch({url})` **不能带请求头**（GitHub API 鉴权须走 bash curl，token 放 spec.env 不进命令行）；`bash.run(spec)` 的 spec 含 command/workdir/timeoutMs/stdoutMaxBytes/sandboxPolicy/env；cordis 服务是全局 store（root isolate 键），任意 fiber `ctx.get` 可见，重复 provide 抛错。
 
 ## 6. 风险与开放问题
 
