@@ -147,6 +147,14 @@ const toolDef = {
 17. **动态 client 半无 timer 全局**：组件 effect 里用 `setTimeout` → 渲染槽位时崩溃（会话 tab 实测 `conversation.view` 渲染崩溃）。自动保存防抖改为"变更即存 + 卡片切换首帧跳过"；需要真定时 → apply 内 `ctx.timer.debounce`。
 18. **子槽位声明独占渲染授权（Declaring is claiming）**：`children: { 'kanban.card.actions': { kind:'list', scope:'root' } }` 声明后，只有该条目（sidebar）组件 props 有 `renderSlot`，其他条目（如会话 tab 的 conversation.view）**不能**渲染此槽位（再声明报 already declared）。跨条目渲染槽位内容 → 改走服务桥接：kanban host 加 `harness.handle('kanban/git-sync')` → `ctx.get('git').sync(cardId)`。
 19. **工具名全局唯一冲突**：宿主进程残留旧会话注册的 `kanban_view` 等 → 新 run 报 `tool "kanban_view" is already registered`。停掉旧 Run（UI/cordis_stop）再激活即可，非源码问题。
+
+### 会话残留 / 重复注册（2026-08 实测，排查路径要背）
+21. **`service "kanban" has been registered at <kanban>`（host-half-failed）**：与其他会话的动态插件撞**服务名**（cordis 服务是全局 store，root isolate 键）。同一根因的另一种表现是坑 19 的工具名冲突（apply 先 provide 后注册工具 → 先报服务错）。排查路径：① `cordis_inspect_query` → host `Tool.listTools` 看旧工具名是否还在（在 = 残留插件仍活着，Service 目录查不到动态服务，别指望 listService）；② **别猜插件 id**——`cordis_stop` 报 `no dynamic plugin "kbnb-4" in this process` 是**会话隔离**的，其他会话的 id 查不到（kbnb-1~4 全查不到 ≠ 残留不存在）；③ 处理：UI 停掉旧 Run / 等旧会话清理 / 用户 undefine 后注册表自动清空 → 重新 `kind: new` 定义 + run 即可，**不是源码问题**。
+22. **`awaiting-approval` ≠ host 半已成功**：host-half-failed 在用户批准后才上报（run-35 实测：先 awaiting-approval → 批准 → 收到 host-half-failed）。看到 awaiting-approval 不要下"已启动"结论，等最终结果；失败后按坑 21 排查。
+
+### 编码事故（2026-08 实测，白白烧 token）
+23. **`read({limit: N})` 后基于截断内容 `write` 回写 = 文件被截断**：三个文件被截成 9 行后被迫全量重写。规则：**整文件 write 的输入必须是完整内容**；定点修改一律用 `edit` 工具；拿不准文件长度先 `wc -l`。
+24. **外层模板字符串嵌套反引号 → 语法错误**：把含反引号的文本（markdown 代码块、JS 模板串）塞进 `const src = \`...\`` 会炸。用行数组 `const L: string[] = []; L.push(...); write({content: L.join("\n")})` 规避。
 20. **切块读 submit.json 前必须 `mkdir -p` 段目录**：段文件缺失 → 读回空串 → cordis_define 传空代码 → `Host half returned undefined`（看似产物问题实为脚本问题）。
 
 ## 四、TS 编译管线
@@ -180,6 +188,7 @@ node scripts/verify-dist.mjs   # 验证产物可加载（含工具注册数断�
    - 更新：`tools.cordis_run({ pluginId, packageId, mode:'update' })`
 3. 注意：SDK 的 `tools.read` 2000 字符/行截断，读大文件必须用 bash+python+fold
 4. **读段文件两个坑（2026-08 实测）**：① bash 结果取 `r.stdout.text`（不是 `r.stdout`，对象拼接会变 "[object Object]"）；② 段文件末尾带换行，拼接后先 `.replace(/\n/g, "")` 再 JSON.parse（JSON.stringify 不会产生裸换行，剔除安全）
+5. **激活后跑一轮端到端冒烟再收工**（实测 5 分钟内完成）：create（带新字段）→ 新工具逐个调用 → 数据落盘核对 → delete 清理测试卡；能立刻暴露 host 侧 schema/序列化问题，不用等 UI
 
 ## 六、架构决策记录
 
