@@ -7,9 +7,19 @@ export const drawerCss = `
 .kbnb-settings-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .kbnb-settings-empty{padding:24px 0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.8}
 .kbnb-tpl-row{display:flex;align-items:center;gap:12px;justify-content:space-between}
-.kbnb-tpl-main{min-width:0}
+.kbnb-tpl-main{min-width:0;flex:1}
 .kbnb-tpl-name{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}
 .kbnb-tpl-desc{display:block;font-size:12px;color:var(--dsw-alias-label-secondary);margin-top:2px}
+
+/* ══ 模板卡片（v6）：卡片展示 + 点击展开编辑 ══ */
+.kbnb-tpl-card{display:flex;flex-direction:column;gap:8px}
+.kbnb-tpl-card-head{display:flex;align-items:flex-start;gap:12px;justify-content:space-between;cursor:pointer;border-radius:8px;padding:6px;margin:0 -6px;transition:background 150ms cubic-bezier(.4,0,.2,1)}
+.kbnb-tpl-card-head:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.kbnb-tpl-card-btns{flex:none;display:flex;gap:6px}
+.kbnb-tpl-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.kbnb-tag-gate{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
+.kbnb-tpl-edit{display:flex;flex-direction:column;gap:10px;border-top:1px dashed var(--dsw-alias-border-l2);padding-top:10px;margin-top:2px}
+.kbnb-tpl-edit-btns{display:flex;gap:8px}
 
 /* ══ 门禁详情(点击行展开) ══ */
 .kbnb-gate-row-click{cursor:pointer;border-radius:6px;padding:4px 6px;margin:0 -6px}

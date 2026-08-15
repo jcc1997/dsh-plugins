@@ -319,6 +319,18 @@ export function useKanbanBoard(host: HostLike) {
       tpl.updatedAt = safeNow()
     })
   }
+  /** 更新模板（名称/描述/标签/门禁勾选，字段局部覆盖） */
+  function updateTemplate(templateId: string, patch: { name?: string; description?: string; tags?: string[]; gateIds?: string[] }) {
+    mutate((b) => {
+      const tpl = (b.templates || []).find((t: any) => t.id === templateId)
+      if (!tpl) return
+      if (patch.name !== undefined && String(patch.name).trim() !== '') tpl.name = String(patch.name).trim()
+      if (patch.description !== undefined) tpl.description = String(patch.description)
+      if (patch.tags !== undefined) tpl.tags = patch.tags.slice()
+      if (patch.gateIds !== undefined) tpl.gateIds = patch.gateIds.slice()
+      tpl.updatedAt = safeNow()
+    })
+  }
   /** 新建模板（预置描述/标签/门禁勾选） */
   function createTemplate(name: string, description: string, tags: string[], gateIds: string[]) {
     mutate((b) => {
@@ -401,6 +413,7 @@ export function useKanbanBoard(host: HostLike) {
     deleteGate,
     setTemplateGates,
     createTemplate,
+    updateTemplate,
     deleteTemplate,
     gateCheck,
     addColumn,

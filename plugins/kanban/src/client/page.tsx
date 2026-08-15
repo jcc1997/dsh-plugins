@@ -9,7 +9,7 @@ import { ColumnsPanel } from './columns'
 import { KanbanSettings } from './settings'
 import { safeId, safeNow, appendActivity } from '@dsh-plugins/ui'
 import { useKanbanBoard, HostLike } from './board-hook'
-import { KanbanBlock, CardTemplate, KanbanBoard } from '@dsh-plugins/ui'
+import { KanbanBlock, CardGate, CardTemplate, KanbanBoard } from '@dsh-plugins/ui'
 import { BoardView, GroupBy } from './board-view'
 import { ArchiveView } from './archive-view'
 
@@ -432,7 +432,7 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
   )
 }
 
-/* ── 模板视图（v6）：列表 + 新建 + 删除；门禁从门禁库勾选 ── */
+/* ── 模板视图（v6）：模板卡片展示 + 点击卡片展开编辑；门禁从门禁库勾选 ── */
 function TemplatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanBoard> }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
@@ -449,13 +449,6 @@ function TemplatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKan
     const tags = tagsText.split(/[,，\s]+/).map((x) => x.trim()).filter(Boolean)
     props.kb.createTemplate(name.trim(), desc.trim(), tags, selGateIds)
     setName(''); setDesc(''); setTagsText(''); setSelGateIds([]); setAdding(false)
-  }
-  function toggleTemplateGate(tplId: string, gateId: string) {
-    const t = templates.find((x) => x.id === tplId)
-    if (!t) return
-    const ids = Array.isArray(t.gateIds) ? t.gateIds.slice() : []
-    const next = ids.includes(gateId) ? ids.filter((x) => x !== gateId) : [...ids, gateId]
-    props.kb.setTemplateGates(tplId, next)
   }
   return (
     <div className="kbnb-archive">
@@ -497,29 +490,110 @@ function TemplatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKan
         </section>
       ) : null}
       {templates.length === 0 && !adding ? <div className="kbnb-settings-empty">暂无模板。模板预置描述/标签/内容/门禁，新建卡片时引用免重复输入（agent: kanban_template_create）。</div> : null}
-      {templates.map((t: CardTemplate) => {
-        const ids = Array.isArray(t.gateIds) ? t.gateIds : []
-        return (
-          <section key={t.id} className="kbnb-settings kbnb-tpl-row">
-            <div className="kbnb-tpl-main">
-              <span className="kbnb-tpl-name">{t.name}</span>
-              <span className="kbnb-tpl-desc">{t.description || '（无描述）'}{t.tags && t.tags.length ? ' · 标签 ' + t.tags.join(', ') : ''}{ids.length ? ' · 门禁 ' + ids.length : ''}</span>
-              {lib.length > 0 ? (
-                <div className="kbnb-gate-checks kbnb-gate-checks-inline">
-                  {lib.map((g: any) => (
-                    <label key={g.id} className="kbnb-gate-check">
-                      <input type="checkbox" checked={ids.includes(g.id)} onChange={() => toggleTemplateGate(t.id, g.id)} />
-                      <span>{g.name}</span>
-                    </label>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <button className="kbnb-btn kbnb-danger" type="button" onClick={() => props.kb.deleteTemplate(t.id)}>删除</button>
-          </section>
-        )
-      })}
+      {templates.map((t) => (
+        <TemplateCard key={t.id} tpl={t} lib={lib} kb={props.kb} />
+      ))}
     </div>
+  )
+}
+
+/** 单张模板卡片：点击展开编辑（名称/描述/标签/门禁勾选） */
+function TemplateCard(props: { tpl: CardTemplate; lib: CardGate[]; kb: ReturnType<typeof useKanbanBoard> }) {
+  const t = props.tpl
+  const ids = Array.isArray(t.gateIds) ? t.gateIds : []
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState(t.name)
+  const [desc, setDesc] = useState(t.description || '')
+  const [tagsText, setTagsText] = useState((t.tags || []).join(', '))
+  const [selIds, setSelIds] = useState<string[]>(ids.slice())
+  function beginEdit() {
+    setName(t.name)
+    setDesc(t.description || '')
+    setTagsText((t.tags || []).join(', '))
+    setSelIds(ids.slice())
+    setEditing(true)
+  }
+  function save() {
+    if (!name.trim()) return
+    const tags = tagsText.split(/[,，\s]+/).map((x) => x.trim()).filter(Boolean)
+    props.kb.updateTemplate(t.id, { name: name.trim(), description: desc.trim(), tags, gateIds: selIds })
+    setEditing(false)
+  }
+  const gates = ids.map((id) => props.lib.find((g: any) => g.id === id)).filter(Boolean)
+  return (
+    <section className="kbnb-settings kbnb-tpl-card">
+      <header className="kbnb-tpl-card-head" onClick={() => { if (!editing) beginEdit() }} title={editing ? '编辑中' : '点击编辑模板'}>
+        <div className="kbnb-tpl-main">
+          <span className="kbnb-tpl-name">{t.name}</span>
+          <span className="kbnb-tpl-desc">{t.description || '（无描述）'}</span>
+        </div>
+        <div className="kbnb-tpl-card-btns">
+          <button
+            className="kbnb-btn"
+            type="button"
+            onClick={(e) => { e.stopPropagation(); editing ? setEditing(false) : beginEdit() }}
+          >
+            {editing ? '收起' : '编辑'}
+          </button>
+          <button
+            className="kbnb-btn kbnb-danger"
+            type="button"
+            onClick={(e) => { e.stopPropagation(); props.kb.deleteTemplate(t.id) }}
+          >
+            删除
+          </button>
+        </div>
+      </header>
+      <div className="kbnb-tpl-chips">
+        {(t.tags || []).map((tg) => <span key={tg} className="kbnb-tag">{tg}</span>)}
+        {gates.map((g: any) => (
+          <span key={g.id} className="kbnb-tag kbnb-tag-gate" title={GATE_ON_LABEL_P[g.on] + (g.to ? '→' + g.to : '') + ' · ' + gateTypeLabel(g)}>
+            {g.name}
+          </span>
+        ))}
+        {(t.tags || []).length === 0 && gates.length === 0 ? <span className="kbnb-field-label">无标签 / 无门禁</span> : null}
+      </div>
+      {editing ? (
+        <div className="kbnb-tpl-edit">
+          <div className="kbnb-field">
+            <label className="kbnb-field-label">名称</label>
+            <input className="kbnb-input" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="kbnb-field">
+            <label className="kbnb-field-label">预置描述</label>
+            <input className="kbnb-input" value={desc} onChange={(e) => setDesc(e.target.value)} />
+          </div>
+          <div className="kbnb-field">
+            <label className="kbnb-field-label">预置标签（逗号分隔）</label>
+            <input className="kbnb-input" value={tagsText} onChange={(e) => setTagsText(e.target.value)} />
+          </div>
+          <div className="kbnb-field">
+            <label className="kbnb-field-label">勾选门禁（门禁库）</label>
+            {props.lib.length === 0 ? (
+              <div className="kbnb-settings-empty">门禁库为空：先到「门禁」页新建，或用 agent 工具 kanban_gate_create。</div>
+            ) : (
+              <div className="kbnb-gate-checks">
+                {props.lib.map((g: any) => (
+                  <label key={g.id} className="kbnb-gate-check">
+                    <input
+                      type="checkbox"
+                      checked={selIds.includes(g.id)}
+                      onChange={() => setSelIds((prev) => (prev.includes(g.id) ? prev.filter((x) => x !== g.id) : [...prev, g.id]))}
+                    />
+                    <span>{g.name}</span>
+                    <span className="kbnb-gate-check-meta">{GATE_ON_LABEL_P[g.on]}{g.to ? '→' + g.to : ''} · {gateTypeLabel(g)}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="kbnb-tpl-edit-btns">
+            <button className="kbnb-btn kbnb-primary" type="button" disabled={!name.trim()} onClick={save}>保存</button>
+            <button className="kbnb-btn" type="button" onClick={() => setEditing(false)}>取消</button>
+          </div>
+        </div>
+      ) : null}
+    </section>
   )
 }
 
