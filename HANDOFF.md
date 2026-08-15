@@ -1,6 +1,14 @@
 ## 文档结构更新（2026-08）
 
 - **skill 重组**：`.agents/skills/dsh-dynamic-plugin-dev/SKILL.md` 已切换为正式 bundle 形态知识（包结构/host+client 接入/构建/HMR/发布/踩坑清单 P-H-C-B）；动态插件专用知识（受限环境/模板/SDK 零粘贴/动态踩坑/运行模型）隔离到同目录 `legacy-dynamic-plugin.md`，cordis 工具（define/run/inspect）仍可用但正式功能不依赖。
+## 门禁工作流（workflow，已全链路真实跑通 2026-08）
+
+- **列模型（12 列）**：Backlog → RD → RD Ready → TD → TD Ready → UC → UC Ready → In Dev → 1st Review → Testing → Stage → Done。
+- **模板「workflow」**（看板数据里已建）：预置 8 条 move 门禁——进 RD/1st Review 需 mr-linked（已关联 MR）；进 RD Ready/TD Ready/UC Ready/Testing/Stage 需对应确认标签（rd/td/uc-confirmed、review-1-done、tests-passed）；进 Done 需 mr-merged。人工确认 = 打标签（agent 对话流 kanban_tags）。
+- **git 联动**：git_merge_pr 合并前检查卡片必须处于 Stage 列（kanban.getCardStatus）；合并成功后自动 sync + 自动 moveCard → Done。kanban 服务新增 moveCard/getCardStatus。
+- **真实跑通记录**：taskId dsh-plugins-1，分支 workflow/dsh-plugins-1，MR #3（squash 合并进 main，f19468c）——RD/TD/验收用例 3 文档 + scripts/workflow-ci-check.mjs（仓库级三插件 CI 脚本）合入；pipeline「三插件验证」0.1.1 跑真实测试；卡片现处 Done，带全部 5 个确认标签 + 8 门禁。
+- **踩坑**：① pipeline exec 节点必须传 sandboxPolicy:{mode:'danger-full-access'} 给宿主 shell（否则 policy undefined 报错，已修 68e781f）；② esbuild minify 中文转大写 hex \uXXXX，grep bundle 按此搜；③ 网络抖动时 git 拉取用后台 job 重试。
+
 ## kanban 门禁 + 创建模板（v4，2026-08）
 
 - **门禁**：卡片挂行为门禁（move/tags/archive 触发，不通过拒绝动作）。条件类型 mr-merged（查 GitHub API + GITHUB_TOKEN）/ tag-required / field-nonempty。host 引擎 `plugins/kanban/src/host/gate.ts`；工具层 card.ts/archive.ts 动作前检查；UI 动作前调 /kanban-api/gate-check（board-hook gateCheck），抽屉「门禁」区块增删。
