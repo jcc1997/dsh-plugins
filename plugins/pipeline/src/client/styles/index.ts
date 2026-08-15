@@ -179,8 +179,8 @@ export const plpCss = `
 /* ══ React Flow 容器与节点卡片 ══ */
 .plp-rf-wrap{width:100%;height:100%;position:relative}
 .plp-rf-wrap .react-flow{background:var(--dsw-alias-bg-base)}
-.plp-rf-wrap .react-flow__edge-path{stroke:var(--dsw-alias-border-l3);stroke-width:1.5}
-.plp-rf-wrap .react-flow__arrowhead polyline,.plp-rf-wrap .react-flow__arrowhead polygon,.plp-rf-wrap .react-flow__arrowhead path{fill:var(--dsw-alias-border-l3);stroke:var(--dsw-alias-border-l3)}
+.plp-rf-wrap .react-flow__edge-path{stroke:var(--dsw-alias-state-business-primary);stroke-width:1.8}
+.plp-rf-wrap .react-flow__arrowhead polyline,.plp-rf-wrap .react-flow__arrowhead polygon,.plp-rf-wrap .react-flow__arrowhead path{fill:var(--dsw-alias-state-business-primary);stroke:var(--dsw-alias-state-business-primary)}
 .plp-rf-handle{opacity:0;pointer-events:none;border:none;background:transparent;width:10px;height:10px}
 .plp-rf-wrap .react-flow__node{width:320px}
 .plp-rf-node{width:320px;box-sizing:border-box;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:10px 12px 6px;display:flex;flex-direction:column;gap:6px;cursor:pointer;position:relative;box-shadow:var(--dsw-shadow-lv2);transition:border-color 150ms cubic-bezier(.4,0,.2,1),box-shadow 150ms cubic-bezier(.4,0,.2,1)}
@@ -243,8 +243,8 @@ body[data-ds-dark-theme] .plp-rf-node-sel{box-shadow:0 0 0 2px rgba(103,158,254,
 
 /** React Flow 主题变量覆盖：对齐宿主 --dsw-* tokens（明暗自动适配） */
 export const xyflowThemeCss = `
-.react-flow{--xy-background-color:var(--dsw-alias-bg-base);--xy-edge-stroke:var(--dsw-alias-border-l3);--xy-edge-stroke-width:1.5;--xy-node-background-color:var(--dsw-alias-bg-base);--xy-node-border:var(--dsw-alias-border-l2);--xy-node-color:var(--dsw-alias-label-primary);--xy-handle-background-color:var(--dsw-alias-state-business-primary);--xy-controls-button-background-color:var(--dsw-alias-bg-base);--xy-controls-button-background-color-hover:var(--dsw-alias-interactive-bg-hover);--xy-controls-button-color:var(--dsw-alias-label-secondary);--xy-controls-button-color-hover:var(--dsw-alias-label-primary);--xy-controls-button-border-color:var(--dsw-alias-border-l2);--xy-attribution-background-color:transparent}
-.react-flow__edge-path{stroke:var(--dsw-alias-border-l3) !important}
-.react-flow__arrowhead path,.react-flow__arrowhead polyline{fill:var(--dsw-alias-border-l3) !important;stroke:var(--dsw-alias-border-l3) !important}
+.react-flow{--xy-background-color:var(--dsw-alias-bg-base);--xy-edge-stroke:var(--dsw-alias-state-business-primary);--xy-edge-stroke-width:1.8;--xy-node-background-color:var(--dsw-alias-bg-base);--xy-node-border:var(--dsw-alias-border-l2);--xy-node-color:var(--dsw-alias-label-primary);--xy-handle-background-color:var(--dsw-alias-state-business-primary);--xy-controls-button-background-color:var(--dsw-alias-bg-base);--xy-controls-button-background-color-hover:var(--dsw-alias-interactive-bg-hover);--xy-controls-button-color:var(--dsw-alias-label-secondary);--xy-controls-button-color-hover:var(--dsw-alias-label-primary);--xy-controls-button-border-color:var(--dsw-alias-border-l2);--xy-attribution-background-color:transparent}
+.react-flow__edge-path{stroke:var(--dsw-alias-state-business-primary) !important}
+.react-flow__arrowhead path,.react-flow__arrowhead polyline{fill:var(--dsw-alias-state-business-primary) !important;stroke:var(--dsw-alias-state-business-primary) !important}
 .react-flow__controls{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;overflow:hidden;box-shadow:var(--dsw-shadow-lv2)}
 `
