@@ -138,4 +138,4 @@
 | ADR-8 | tokens 单一来源 = design-platform.css 快照(sync 脚本从 submodule 同步) | 同一内容只在一处,宿主升级可复现 | 手工维护/宿主即来源(不可复现) |
 | ADR-9 | 间距 = 宿主实测归纳档位表,非自创 4n | 宿主无 spacing token,值散在组件 CSS | 4n 体系(与实测冲突,部分漂移) |
 | ADR-10 | compact 输入规格:radius 10/padding 2 10/font 12/icon 24;grow 单行用精确高度(lineHeight+padding)消除底部余量 | 批注等内嵌小输入需克制 | 常规 Composer(r22 胶囊,过大) |
-| ADR-11 | 批注**回退为内嵌文档流**(试过跟随选区浮窗:层级/滚动跟随/遮挡复杂度高,插件场景不值得);灰底 markdown-code-block(bluish-50)+上下边框拉满;行号=划中文字#L7 纯文字 | 内嵌简单可靠,无层级问题 | 浮窗(复杂度高,已试,否决) |
+| ADR-11 | 批注**回退为内嵌文档流**(试过跟随选区浮窗:层级/滚动跟随/遮挡复杂度高,插件场景不值得);形态=引用风格(左 3px 品牌蓝竖条 + markdown-code-block 淡灰底 + padding 8px 12px);行号=划中文字#L7 纯文字 | 内嵌简单可靠;引用风格有边界感且左右不秃 | 浮窗(复杂度高,已试,否决);无左右 padding 拉满(秃,否决) |

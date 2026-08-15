@@ -61,7 +61,7 @@ export const mdrCss = `
 
 /* ══ §4 划词批注框(内嵌对应块下方;灰底 bluish-50 淡灰 + 上下边框,横向拉满;行号纯文字;compact 输入 ADR-10) ══ */
 .mdr-editor-slot{display:block}
-.mdr-editor{margin:8px 0;display:flex;flex-direction:column;gap:6px;min-width:0;background:var(--dsw-alias-markdown-code-block);border-top:1px solid var(--dsw-alias-border-l1);border-bottom:1px solid var(--dsw-alias-border-l1);padding:8px 0}
+.mdr-editor{margin:8px 0;display:flex;flex-direction:column;gap:6px;min-width:0;background:var(--dsw-alias-markdown-code-block);border-left:3px solid var(--dsw-alias-state-business-primary);padding:8px 12px}
 .mdr-editor .cmp-composer{min-width:0}
 .mdr-editor .mdr-icon-btn{width:24px;height:24px}
 .mdr-editor .mdr-icon-btn svg{width:14px;height:14px}
