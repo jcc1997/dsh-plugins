@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "description": "workflow 模板配套 pipeline 定义：经 pipeline_import_config 按稳定 id 导入（幂等）。",
+  "pipelines": [
+    {
+      "id": "p-workflow-review",
+      "name": "代码评审",
+      "kind": "atomic",
+      "description": "workflow 1st Review → Testing 门禁：agent 按 workflow-template/prompts/review.md 评审 MR（代码逻辑 + 设计规范 + 文档纪律），REVIEW_VERDICT ok:true 才放行；失败自动落卡评论并保留会话供续评",
+      "tags": [
+        "workflow",
+        "review"
+      ],
+      "published": true,
+      "changelog": "workflow review 门禁初始版本",
+      "nodes": [
+        {
+          "id": "in",
+          "title": "输入",
+          "type": "input",
+          "order": 0,
+          "inputs": [],
+          "config": {}
+        },
+        {
+          "id": "review",
+          "title": "Agent 评审",
+          "type": "llm",
+          "order": 10,
+          "inputs": [
+            "in"
+          ],
+          "config": {
+            "prompt": "你是 DSH 仓库的代码评审 agent。入参 card 是待评审卡片：title=《{input.card.title}》，关联 github-repo={input.card.refs.0.externalId}（若有 local-repo 关联以它为准定位本地仓库），评审对象为 workflow 分支相对 main 的 MR 变更。\n\n步骤：\n1. 定位仓库（本地路径优先 card refs 的 local-repo；否则用当前工作目录，git status/git branch 确认分支）；\n2. 读取仓库内 workflow-template/prompts/review.md 获取完整评审要求；\n3. 用 git diff origin/main...HEAD 与 git log 查看本任务变更，按 review.md 的三个维度评审（代码逻辑 / 设计规范 / 文档纪律）；\n4. 全部问题已解决（本轮无未解决问题）才给出 OK，否则列出未解决问题。\n\n最终输出必须以最后一行 REVIEW_VERDICT:{\"ok\":true|false,\"issues\":[...]} 结尾；issues 每项含 file/location/severity/message。",
+            "sessionKey": "review-{input.card.id}",
+            "timeoutMs": 600000,
+            "agentPreset": "review"
+          }
+        },
+        {
+          "id": "out",
+          "title": "输出",
+          "type": "output",
+          "order": 100,
+          "inputs": [
+            "review"
+          ],
+          "config": {}
+        }
+      ]
+    }
+  ]
+}

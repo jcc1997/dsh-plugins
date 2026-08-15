@@ -1,0 +1,36 @@
+# The `review` agent preset: lean code-review subagent used by the pipeline
+# llm node (p-workflow-review). Token economy: ONLY the tools the review
+# actually needs — fs (read repo sources/docs) + bash (git diff) — and a
+# one-paragraph persona. NO skills, web, subagent, workflow, goals, plan mode.
+#
+# The review instructions themselves live in the repo at
+# workflow-template/prompts/review.md (read by the agent via fs), so no big
+# prompt sections are mounted here.
+
+# ── identity ────────────────────────────────────────────────────────────────
+# Minimal persona: identity + output contract. {{cwd}} resolves from the
+# agent's route/workspace.
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: |-
+      You are a code review agent on the DeepSeek Harness. Working directory: {{cwd}}.
+      Review the target MR (code logic, design specs, docs discipline) strictly per the review instructions you receive and the repository file workflow-template/prompts/review.md. Never modify files, never commit. End your final answer with a single last line: REVIEW_VERDICT:{"ok":true|false,"issues":[...]}.
+
+# ── shell (git diff / log) ──────────────────────────────────────────────────
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: !!js process.platform !== 'win32'
+
+# ── filesystem (read sources / docs / prompt) ──────────────────────────────
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
