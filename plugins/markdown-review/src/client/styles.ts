@@ -67,8 +67,15 @@ export const mdrCss = `
 .mdr-editor .mdr-icon-btn svg{width:14px;height:14px}
 .mdr-editor-quote{min-width:0;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary);max-height:48px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
 .mdr-editor-line{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dsw-alias-label-tertiary);white-space:nowrap;margin-left:2px}
-.mdr-quote-line{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dsw-alias-label-tertiary);margin-bottom:2px}
+.mdr-quote-line{display:flex;align-items:center;justify-content:space-between;gap:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dsw-alias-label-tertiary);margin-bottom:2px}
+.mdr-quote-ops{display:flex;align-items:center;gap:2px}
+.mdr-quote-op{width:20px;height:20px}
+.mdr-quote-op svg{width:13px;height:13px}
+.mdr-quote-op:hover{color:var(--dsw-alias-label-primary)}
 .mdr-card-quote-line{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dsw-alias-label-tertiary);margin-bottom:2px}
+/* 定位原文时的块高亮闪烁 */
+.mdr-block-flash{animation:mdr-flash 1.6s ease-out}
+@keyframes mdr-flash{0%{background:var(--dsw-alias-interactive-bg-hover-accent)}100%{background:transparent}}
 
 /* ══ markdown 渲染(官方字阶,13 基准) ══ */
 .mdr-content .mdr-h{font-weight:600;color:var(--dsw-alias-label-primary);margin:20px 0 8px;line-height:1.4}

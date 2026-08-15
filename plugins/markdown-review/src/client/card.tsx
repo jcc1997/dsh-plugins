@@ -5,7 +5,7 @@
 //   §3 MdViewer — 大浮窗:左栏(md 内容上 / 总评输入下)+ 右栏(审批内容清单)
 //   §4 AnnotationEditor — 划词后内嵌在对应块下方的批注框(引用文字#行号 + compact 输入)
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Composer, IconCheckOutline16, IconCloseOutline16 } from '@dsh-plugins/ui'
+import { Composer, IconBranchOutline16, IconCheckOutline16, IconCloseOutline16, IconEditOutline16 } from '@dsh-plugins/ui'
 import { parseMarkdownBlocks, renderBlocks } from './md'
 
 /* ═══════════ §1 类型与工具函数 ═══════════ */
@@ -21,7 +21,7 @@ export interface ToolViewProps {
   t?: (key: string, params?: Record<string, unknown>) => string
 }
 
-interface QuoteItem { id: string; text: string; note: string; line?: number }
+interface QuoteItem { id: string; key: string; text: string; note: string; line?: number; lineEnd?: number }
 interface DocInfo { ok: boolean; docId?: string; path?: string; title?: string; markdown?: string; error?: string }
 
 /** 从 block 提取工具入参(running: block.argsRaw;settled: block.call.argsRaw) */
@@ -41,6 +41,12 @@ async function postJson(url: string, body: unknown): Promise<any> {
     body: JSON.stringify(body),
   })
   return res.json()
+}
+
+/** 行号展示:L11 或 L11-13(单行只显示起始;agent 定位用) */
+export function fmtLine(s?: number, e?: number): string {
+  if (!s) return ''
+  return e && e > s ? 'L' + s + '-' + e : 'L' + s
 }
 
 /* ═══════════ §2 对话流工具卡 ═══════════ */
@@ -110,7 +116,7 @@ export function MdDocCard(props: ToolViewProps) {
         <div className="mdr-card-summary">
           {submitted.quotes.length > 0 ? submitted.quotes.map((q) => (
             <div key={q.id} className="mdr-card-quote">
-              {q.line ? <div className="mdr-card-quote-line">L{q.line}</div> : null}
+              {q.line ? <div className="mdr-card-quote-line">{fmtLine(q.line, q.lineEnd)}</div> : null}
               <div className="mdr-card-quote-text">{q.text}</div>
               {q.note ? <div className="mdr-card-quote-note">{q.note}</div> : null}
             </div>
@@ -135,13 +141,37 @@ export function MdDocCard(props: ToolViewProps) {
 export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { quotes: QuoteItem[]; comment: string }) => Promise<{ ok: boolean; error?: string }> }) {
   const [quotes, setQuotes] = useState<QuoteItem[]>([])
   const [comment, setComment] = useState('')
-  const [anchor, setAnchor] = useState<{ key: string; text: string; line?: number } | null>(null)
+  const [anchor, setAnchor] = useState<{ key: string; text: string; line?: number; lineEnd?: number } | null>(null)
   const [note, setNote] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [hint, setHint] = useState('')
   const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const blocks = useMemo(() => parseMarkdownBlocks(props.doc.markdown || ''), [props.doc])
+
+  /** 定位原文块:滚动到可见 + 高亮闪烁(右侧标注点击/编辑用) */
+  const locateBlock = (key: string) => {
+    const el = contentRef.current?.querySelector('[data-mdr-key="' + key + '"]')
+    if (!el) return
+    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    el.classList.add('mdr-block-flash')
+    window.setTimeout(() => el.classList.remove('mdr-block-flash'), 1600)
+  }
+
+  /** 编辑已有标注:定位原文 + 打开批注框预填 */
+  const startEdit = (q: QuoteItem) => {
+    setAnchor({ key: q.key, text: q.text, line: q.line, lineEnd: q.lineEnd })
+    setNote(q.note)
+    setEditingId(q.id)
+    locateBlock(q.key)
+  }
+
+  const cancelEdit = () => {
+    setAnchor(null)
+    setNote('')
+    setEditingId(null)
+  }
 
   /* ── Esc 关闭浮层(components.md §九-2) ── */
   useEffect(() => {
@@ -181,7 +211,9 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
     const text = sel.toString().trim()
     if (!text) return
     const lineNum = Number(startBlock.getAttribute('data-mdr-line') || 0) || undefined
-    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400), line: lineNum })
+    const lineEndNum = Number(startBlock.getAttribute('data-mdr-line-end') || 0) || undefined
+    cancelEdit()
+    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400), line: lineNum, lineEnd: lineEndNum })
     setNote('')
     setHint('')
     sel.removeAllRanges()
@@ -189,9 +221,16 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
 
   function addQuote() {
     if (!anchor) return
-    setQuotes((prev) => [...prev, { id: 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text: anchor.text, note: note.trim(), line: anchor.line }])
+    const next = { text: anchor.text, note: note.trim(), line: anchor.line, lineEnd: anchor.lineEnd }
+    if (editingId) {
+      setQuotes((prev) => prev.map((x) => (x.id === editingId ? { ...x, ...next } : x)))
+    } else {
+      const id = 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+      setQuotes((prev) => [...prev, { id, key: anchor.key, ...next }])
+    }
     setAnchor(null)
     setNote('')
+    setEditingId(null)
   }
 
   async function doSubmit() {
@@ -207,10 +246,10 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
   const extra = useMemo(() => {
     const m = new Map<string, React.ReactNode>()
     if (anchor) {
-      m.set(anchor.key, <AnnotationEditor text={anchor.text} line={anchor.line} note={note} onNote={setNote} onAdd={addQuote} onCancel={() => setAnchor(null)} />)
+      m.set(anchor.key, <AnnotationEditor text={anchor.text} line={anchor.line} lineEnd={anchor.lineEnd} note={note} editing={!!editingId} onNote={setNote} onAdd={addQuote} onCancel={cancelEdit} />)
     }
     return m
-  }, [anchor, note])
+  }, [anchor, note, editingId])
 
   const canSubmit = !submitting && (quotes.length > 0 || comment.trim() !== '')
 
@@ -258,12 +297,22 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
             {quotes.length === 0 ? <div className="mdr-card-muted">划词后批注会累积到这里</div> : null}
             {quotes.map((q) => (
               <div key={q.id} className="mdr-quote-item">
-                {q.line ? <div className="mdr-quote-line">L{q.line}</div> : null}
+                <div className="mdr-quote-line">
+                  {q.line ? fmtLine(q.line, q.lineEnd) : null}
+                  <span className="mdr-quote-ops">
+                    <button className="mdr-icon-btn mdr-quote-op" type="button" title="定位到原文" aria-label="定位到原文" onClick={() => locateBlock(q.key)}>
+                      <IconBranchOutline16 />
+                    </button>
+                    <button className="mdr-icon-btn mdr-quote-op" type="button" title="编辑这条批注" aria-label="编辑这条批注" onClick={() => startEdit(q)}>
+                      <IconEditOutline16 />
+                    </button>
+                    <button className="mdr-icon-btn mdr-quote-op" type="button" title="删除这条引用" aria-label="删除这条引用" onClick={() => setQuotes((prev) => prev.filter((x) => x.id !== q.id))}>
+                      <IconCloseOutline16 />
+                    </button>
+                  </span>
+                </div>
                 <div className="mdr-quote-text">{q.text}</div>
                 {q.note ? <div className="mdr-quote-note">{q.note}</div> : <div className="mdr-card-muted">(无批注)</div>}
-                <button className="mdr-icon-btn mdr-quote-x" type="button" title="删除这条引用" aria-label="删除这条引用" onClick={() => setQuotes((prev) => prev.filter((x) => x.id !== q.id))}>
-                  <IconCloseOutline16 />
-                </button>
               </div>
             ))}
           </aside>
@@ -276,16 +325,17 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
 /* ═══════════ §4 划词批注框(嵌段落下方;左:选中原文 / 右:批注输入+icon 按钮) ═══════════ */
 
 /** 批注框:内嵌在对应块下方(文档流,无层级/遮挡问题);灰底 bluish-50 + 行号纯文字 + compact 输入 */
-function AnnotationEditor(props: { text: string; line?: number; note: string; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
+function AnnotationEditor(props: { text: string; line?: number; lineEnd?: number; note: string; editing?: boolean; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
   const ref = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     if (ref.current) ref.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [])
+  const lineLabel = props.line ? (props.lineEnd && props.lineEnd > props.line ? 'L' + props.line + '-' + props.lineEnd : 'L' + props.line) : ''
   return (
     <div className="mdr-editor" data-mdr-editor ref={ref}>
       <div className="mdr-editor-quote">
         {props.text}
-        {props.line ? <span className="mdr-editor-line">#{'L' + props.line}</span> : null}
+        {lineLabel ? <span className="mdr-editor-line">#{lineLabel}</span> : null}
       </div>
       <Composer
         value={props.note}
@@ -299,7 +349,7 @@ function AnnotationEditor(props: { text: string; line?: number; note: string; on
             <button className="mdr-icon-btn" type="button" title="取消" aria-label="取消" onClick={props.onCancel}>
               <IconCloseOutline16 />
             </button>
-            <button className="mdr-icon-btn mdr-icon-confirm" type="button" title="添加批注" aria-label="添加批注" onClick={props.onAdd}>
+            <button className="mdr-icon-btn mdr-icon-confirm" type="button" title={props.editing ? '保存修改' : '添加批注'} aria-label={props.editing ? '保存修改' : '添加批注'} onClick={props.onAdd}>
               <IconCheckOutline16 />
             </button>
           </>
