@@ -3,8 +3,8 @@
 // 后续组件沉淀进 packages/ui 后,这里随包同步展示。
 import React, { useState } from 'react'
 import { Composer, IconCheckOutline16, IconCloseOutline16, IconTrashOutline16, Modal } from '@dsh-plugins/ui'
-import { MdViewer } from '../../plugins/markdown-review/src/client/card'
-import { parseMarkdownBlocks, renderBlocks } from '../../plugins/markdown-review/src/client/md'
+import { MdViewer } from '../../../plugins/markdown-review/src/client/card'
+import { parseMarkdownBlocks, renderBlocks } from '../../../plugins/markdown-review/src/client/md'
 
 const DEMO_MD = [
   '# 组件展示文档',
