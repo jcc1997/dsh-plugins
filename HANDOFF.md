@@ -1,6 +1,14 @@
 ## 文档结构更新（2026-08）
 
 - **skill 重组**：`.agents/skills/dsh-dynamic-plugin-dev/SKILL.md` 已切换为正式 bundle 形态知识（包结构/host+client 接入/构建/HMR/发布/踩坑清单 P-H-C-B）；动态插件专用知识（受限环境/模板/SDK 零粘贴/动态踩坑/运行模型）隔离到同目录 `legacy-dynamic-plugin.md`，cordis 工具（define/run/inspect）仍可用但正式功能不依赖。
+## 门禁 v5 抽象（checker 统一检查单元，真实实例验证 2026-08）
+
+- **门禁 = checker**:gate={id,name,on(move/tags/archive),to?(限目标列),checker:{type,config}}。6 种 type:tag-required / field-nonempty / mr-linked / mr-merged / code / pipeline。注册表 checkerRegistry(host/gate.ts)可扩展。
+- **code checker**:沙箱 node 执行;config.code 内联 JS 或 config.script 仓库脚本(约定目录 gates/);卡片+门禁载荷写临时文件(/tmp/dsh-gate-<id>.json)传入,exit 0 且 stdout {ok:true} 通过。依赖注入 writeTempFile(宿主 fs)避免 node:fs 依赖。
+- **pipeline checker**:现场启动 config.pipelines(数组,并行)并等全部成功(GitHub CI 门禁语义),inputs={card};经 kanban inject 'shell' + ctx.get('pipeline') 懒解析。实测:move 触发真实跑「三插件验证」1.0s 后放行。
+- **旧数据自动迁移**:v4 平铺 {kind,config} 读时 migrateGate 转 checker 子对象(存储不强制改写)。
+- 实测记录:真实实例上 pipeline checker 触发 run(带 card 载荷)、code checker 拦截 move 均 PASS。待调研:「code checker 沙箱内调用其他 plugin」(当前可经 HTTP 路由 fetch 或 pipeline checker 组合实现)。
+
 ## 门禁工作流（workflow，已全链路真实跑通 2026-08）
 
 - **列模型（12 列）**：Backlog → RD → RD Ready → TD → TD Ready → UC → UC Ready → In Dev → 1st Review → Testing → Stage → Done。
