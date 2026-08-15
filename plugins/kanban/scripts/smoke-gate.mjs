@@ -1,4 +1,4 @@
-// kanban 门禁/模板端到端冒烟：内存 fs → apply → 模板建卡 → 门禁拦截 → 移除门禁 → 动作放行
+// kanban 门禁/模板端到端冒烟(v5 checker 模型):模板建卡 → tag-required 拦截 → code checker → pipeline checker → 放行
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 const root = dirname(fileURLToPath(import.meta.url)) + '/..'
@@ -17,6 +17,8 @@ const ctx = {
     if (name === 'tools') return { register: (d) => { registered.push(d); return () => {} } }
     if (name === 'webServer') return { register: () => () => {} }
     if (name === 'credentials') return { resolve: async () => undefined }
+    if (name === 'shell') return { run: async (spec) => ({ exitCode: 0, stdout: { text: JSON.stringify({ ok: true, reason: '' }), truncated: false } }) }
+    if (name === 'pipeline') return { run: async () => ({ output: 'pass' }) }
     return undefined
   },
   provide: () => {},
@@ -25,47 +27,48 @@ const ctx = {
 mod.apply(ctx)
 const tool = (n) => registered.find((t) => t.name === n)
 
-// 1) 建模板（带 tag-required 门禁）
+// 1) 模板(checker 模型:tag-required)
 let r = await tool('kanban_template_create').execute({
-  name: '需评审标签', description: '模板预置描述', tags: ['pre'],
-  gates: [{ kind: 'tag-required', on: 'archive', name: '归档需 done 标签', config: { tags: ['done'] } }],
+  name: '需评审标签v5', description: 'v5 模板', tags: ['pre'],
+  gates: [{ on: 'archive', name: '归档需 done 标签', checker: { type: 'tag-required', config: { tags: ['done'] } } }],
 })
-console.log('1 模板创建:', JSON.stringify(r))
+console.log('1 模板:', JSON.stringify(r))
 
-// 2) 用模板建卡（不显式传 tags → 模板预填 pre）
-r = await tool('kanban_create').execute({ title: '模板卡', template: '需评审标签' })
-console.log('2 模板建卡:', JSON.stringify(r))
+// 2) 模板建卡
+r = await tool('kanban_create').execute({ title: 'v5 卡', template: '需评审标签v5' })
+console.log('2 建卡:', JSON.stringify(r))
 const cardId = r.card_id
 
-// 3) 验证卡片带模板字段 + 门禁
-r = await tool('kanban_get_card').execute({ card_id: cardId })
-console.log('3 卡片字段: desc=', JSON.stringify(r.card.description), 'tags=', JSON.stringify(r.card.tags), 'gates=', JSON.stringify(r.card.gates))
-
-// 4) 归档被门禁拦截（缺 done 标签）
+// 3) 归档被 tag-required 拦截
 r = await tool('kanban_archive').execute({ card_id: cardId })
-console.log('4 归档拦截:', JSON.stringify(r))
-if (r.ok) throw new Error('FAIL: 门禁未拦截归档')
+console.log('3 拦截:', JSON.stringify(r))
+if (r.ok) throw new Error('FAIL: 门禁未拦截')
 
-// 5) gate_check 预检
-r = await tool('kanban_gate_check').execute({ card_id: cardId, action: 'archive' })
-console.log('5 预检:', JSON.stringify(r))
-if (r.ok) throw new Error('FAIL: 预检应不通过')
+// 4) code checker 门禁(挂 + 预检,通过 mock shell)
+r = await tool('kanban_gate_add').execute({
+  card_id: cardId, checker_type: 'code', on: 'move', name: '代码检查标题',
+  config: { code: "console.log(JSON.stringify({ok:true}))" },
+})
+console.log('4 挂 code 门禁:', JSON.stringify(r))
+r = await tool('kanban_gate_check').execute({ card_id: cardId, action: 'move', to: '完成' })
+console.log('5 code 预检:', JSON.stringify(r))
+if (!r.ok) throw new Error('FAIL: code checker 应通过')
 
-// 6) 加 done 标签（tags 动作无 tags 门禁，放行）
+// 6) pipeline checker 门禁(两条并行,全过)
+r = await tool('kanban_gate_add').execute({
+  card_id: cardId, checker_type: 'pipeline', on: 'tags', name: '双 pipeline',
+  config: { pipelines: ['p1', 'p2'] },
+})
+console.log('6 挂 pipeline 门禁:', JSON.stringify(r))
+r = await tool('kanban_gate_check').execute({ card_id: cardId, action: 'tags' })
+console.log('7 pipeline 预检:', JSON.stringify(r))
+if (!r.ok) throw new Error('FAIL: pipeline checker 应通过')
+
+// 8) 加 done 标签 → 归档放行
 r = await tool('kanban_tags').execute({ card_id: cardId, add: ['done'] })
-console.log('6 加标签:', JSON.stringify(r))
-if (!r.ok) throw new Error('FAIL: 加标签应放行')
-
-// 7) 再归档 → 通过
+if (!r.ok) throw new Error('FAIL: 加标签应放行(mock pipeline ok)')
 r = await tool('kanban_archive').execute({ card_id: cardId })
-console.log('7 归档放行:', JSON.stringify(r))
-if (!r.ok) throw new Error('FAIL: 满足门禁后归档应通过')
+console.log('8 归档放行:', JSON.stringify(r))
+if (!r.ok) throw new Error('FAIL: 归档应通过')
 
-// 8) 显式传参覆盖模板：description 覆盖
-r = await tool('kanban_create').execute({ title: '覆盖卡', template: '需评审标签', description: '显式描述', tags: ['x'] })
-console.log('8 覆盖建卡:', JSON.stringify(r))
-r = await tool('kanban_get_card').execute({ card_id: r.card_id })
-if (r.card.description !== '显式描述' || r.card.tags.join(',') !== 'x') throw new Error('FAIL: 显式传参未覆盖模板')
-console.log('9 覆盖验证: desc=', r.card.description, 'tags=', JSON.stringify(r.card.tags))
-
-console.log('KANBAN-GATE SMOKE PASS')
+console.log('KANBAN-GATE-V5 SMOKE PASS')

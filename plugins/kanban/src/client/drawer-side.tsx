@@ -321,6 +321,8 @@ const GATE_KINDS: { kind: string; label: string }[] = [
   { kind: 'mr-linked', label: '已关联 MR' },
   { kind: 'tag-required', label: '必须含标签' },
   { kind: 'field-nonempty', label: '字段非空' },
+  { kind: 'code', label: '代码检查' },
+  { kind: 'pipeline', label: 'pipeline 检查' },
 ]
 const GATE_ONS: { on: string; label: string }[] = [
   { on: 'move', label: '移动状态' },
@@ -328,13 +330,18 @@ const GATE_ONS: { on: string; label: string }[] = [
   { on: 'archive', label: '归档' },
 ]
 const GATE_ON_LABEL: Record<string, string> = { move: '移动状态', tags: '增减标签', archive: '归档' }
-const GATE_KIND_LABEL: Record<string, string> = { 'mr-merged': 'MR 已合并', 'mr-linked': '已关联 MR', 'tag-required': '必须含标签', 'field-nonempty': '字段非空' }
+const GATE_KIND_LABEL: Record<string, string> = { 'mr-merged': 'MR 已合并', 'mr-linked': '已关联 MR', 'tag-required': '必须含标签', 'field-nonempty': '字段非空', 'code': '代码检查', 'pipeline': 'pipeline 检查' }
 
 function gateSummary(g: CardGate): string {
-  if (g.kind === 'tag-required') return '需含标签：' + String(((g.config && g.config.tags) || [])).replace(/,/g, ', ')
-  if (g.kind === 'field-nonempty') return '字段「' + String((g.config && g.config.field) || 'description') + '」非空'
-  if (g.kind === 'mr-linked') return '必须已关联仓库与 MR'
-  return '关联 MR 必须已合并'
+  const t = g.checker ? g.checker.type : (g as any).kind
+  const cfg = g.checker ? g.checker.config : (g as any).config
+  if (t === 'tag-required') return '需含标签：' + String((cfg && (cfg as any).tags || [])).replace(/,/g, ', ')
+  if (t === 'field-nonempty') return '字段「' + String((cfg && (cfg as any).field) || 'description') + '」非空'
+  if (t === 'mr-linked') return '必须已关联仓库与 MR'
+  if (t === 'mr-merged') return '关联 MR 必须已合并'
+  if (t === 'code') return '执行代码' + ((cfg && (cfg as any).script) ? '（' + (cfg as any).script + '）' : '（内联 JS）')
+  if (t === 'pipeline') return '跑 pipeline：' + String((cfg && (cfg as any).pipelines || (cfg as any).pipelineId || ''))
+  return String(t)
 }
 
 function GateCard(props: {
@@ -356,13 +363,14 @@ function GateCard(props: {
     } else {
       if (kind === 'tag-required') config = { tags: [] }
       if (kind === 'field-nonempty') config = { field: 'description' }
+      if (kind === 'pipeline') config = { pipelines: [] }
+      if (kind === 'code') config = { code: "const fs = await import('node:fs/promises');\nconst { card } = JSON.parse(await fs.readFile(process.argv[2], 'utf8'));\nconsole.log(JSON.stringify({ ok: true }))" }
     }
     props.onAddGate({
       id: safeId('g'),
       name: name.trim() || (GATE_KIND_LABEL[kind] + '（' + GATE_ON_LABEL[on] + '）'),
-      kind: kind as CardGate['kind'],
       on: on as CardGate['on'],
-      config,
+      checker: { type: kind as any, config: config || {} },
     })
     setName('')
     setCfgText('')
@@ -381,7 +389,7 @@ function GateCard(props: {
       {gates.map((g) => (
         <div key={g.id} className="kbnb-gate-row">
           <span className="kbnb-gate-name" title={g.name}>{g.name}</span>
-          <span className="kbnb-gate-meta">{GATE_ON_LABEL[g.on]} · {GATE_KIND_LABEL[g.kind]}</span>
+          <span className="kbnb-gate-meta">{GATE_ON_LABEL[g.on]} · {GATE_KIND_LABEL[g.checker ? g.checker.type : (g as any).kind]}</span>
           <span className="kbnb-gate-summary" title={gateSummary(g)}>{gateSummary(g)}</span>
           <span className="kbnb-ref-x" title="移除门禁" onClick={() => props.onRemoveGate(g.id)}>×</span>
         </div>

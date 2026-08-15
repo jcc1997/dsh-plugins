@@ -22,7 +22,7 @@ type WebRouteRegistrar = { register(r: { kind: 'exact' | 'prefix'; path: string;
 
 // 声明服务依赖：cordis 等待全部就绪后才激活 apply（宿主 include 是并发 apply，
 // webServer 等 web-app 层服务可能晚于本插件；不 inject 会拿到 undefined 导致路由静默缺失）
-export const inject = ['fs', 'webServer', 'tools', 'credentials']
+export const inject = ['fs', 'webServer', 'tools', 'credentials', 'shell']
 
 export function apply(ctx: KanbanCtx) {
   // fs 是硬依赖：缺失直接不启动
@@ -32,7 +32,8 @@ export function apply(ctx: KanbanCtx) {
   const tools = ctx.get('tools') as { register(def: unknown): () => void } | undefined
   const credentials = ctx.get('credentials') as CredLike | undefined
 
-  /* ── 门禁依赖：mr-merged 查询 GitHub 需要 GITHUB_TOKEN（与 git 插件同 ref 名） ── */
+  /* ── 门禁依赖：mr-* 查 GitHub 需 token；code checker 用 shell 沙箱；pipeline checker 调 pipeline 服务 ── */
+  const shell = ctx.get('shell') as { run(spec: any): Promise<any> } | undefined
   const gateDeps = {
     getToken: async () => {
       if (!credentials) return undefined
@@ -40,6 +41,12 @@ export function apply(ctx: KanbanCtx) {
         const r = await credentials.resolve('GITHUB_TOKEN')
         return r && r.value ? r.value : undefined
       } catch { return undefined }
+    },
+    shell,
+    getPipelineService: () => ctx.get('pipeline') as any | undefined,
+    writeTempFile: async (path: string, content: string) => {
+      const target = await fs.resolve(path)
+      await fs.writeText(target, content, undefined, undefined, { mode: 'danger-full-access' })
     },
   }
 

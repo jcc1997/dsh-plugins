@@ -36,17 +36,25 @@ export interface KanbanCard {
   gates?: CardGate[]
 }
 
-/** 门禁（v4）：某类行为触发时必须通过的条件。挂在卡片或创建模板上。 */
+/** 门禁检查器（v5 抽象）：门禁 = 统一检查单元，可以是内置条件、一段代码或一条/多条 pipeline。 */
+export interface GateChecker {
+  /** 检查器类型：tag-required / field-nonempty / mr-linked / mr-merged / code / pipeline */
+  type: 'tag-required' | 'field-nonempty' | 'mr-linked' | 'mr-merged' | 'code' | 'pipeline'
+  /** 类型相关配置：tag-required {tags:[]}；field-nonempty {field}；code {code?, script?, timeoutMs?}；pipeline {pipelines:[], timeoutMs?} */
+  config?: Record<string, unknown>
+}
+
+/** 门禁（v5）：某类行为触发时必须通过的检查单元。挂在卡片或创建模板上。 */
 export interface CardGate {
   id: string
   /** 门禁名（展示用） */
   name: string
-  /** 条件类型：mr-merged（关联 MR 已合并）/ mr-linked（必须已关联 MR）/ tag-required（必须含指定标签）/ field-nonempty（字段非空） */
-  kind: 'mr-merged' | 'mr-linked' | 'tag-required' | 'field-nonempty'
   /** 触发行为：move（移动状态）/ tags（增减标签）/ archive（归档） */
   on: 'move' | 'tags' | 'archive'
-  /** 条件配置：mr-merged 无；tag-required { tags: [] }；field-nonempty { field: 'description' }；move 可带 { to: '列名' } 限定目标 */
-  config?: Record<string, unknown>
+  /** 统一检查器（v5）；旧平铺 kind/config 数据由 normalize 自动迁移 */
+  checker: GateChecker
+  /** move 可带目标列限定（等价 checker 外的触发过滤） */
+  to?: string
 }
 
 /** 创建模板（v4）：预设 description / tags / content / gates，创建卡片时引用免重复输入 */

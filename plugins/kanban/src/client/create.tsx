@@ -97,7 +97,7 @@ export function CreateCardModal(props: {
         <div className="kbnb-field-row" style={{ marginBottom: 8 }}>
           <span className="kbnb-field-label">门禁（随卡带入）</span>
           <span style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)' }}>
-            {gates.map((g) => g.name || g.kind).join('、')}
+            {gates.map((g) => g.name || (g.checker ? g.checker.type : (g as any).kind)).join('、')}
           </span>
         </div>
       ) : null}
