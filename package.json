@@ -5,7 +5,8 @@
   "description": "DSH 插件大仓：遵循 deepseek-harness 官方规范的 Cordis 插件 bundle 集合（workspace 根）",
   "type": "module",
   "scripts": {
-    "verify": "dsh --profile demo --dump-config"
+    "verify": "dsh --profile demo --dump-config",
+    "dev:ui": "pnpm --filter dsh-ui-showcase dev"
   },
   "engines": {
     "node": ">=22"

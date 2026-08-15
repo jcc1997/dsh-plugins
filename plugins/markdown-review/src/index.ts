@@ -7,7 +7,6 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import { readFileSync, statSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve as resolvePath, basename } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 
 const name = 'dsh-markdown-review'
@@ -80,37 +79,6 @@ export function apply(ctx: any) {
 
   // 卡片读取文档内容(打开按钮点击时调用)
   route('/md-api/read', (payload: any) => readDoc(String(payload && payload.path || ''), payload && payload.title))
-
-  // 组件展示页(开发微调用):HTML 壳 + 预编译 iife bundle
-  const showcaseHtml = [
-    '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>md-review 组件展示</title></head>',
-    '<body style="margin:0"><div id="root"></div>',
-    '<script src="/md-api/showcase.js"></script>',
-    '<script>MdShowcase.render(document.getElementById(\'root\'))</script>',
-    '</body></html>',
-  ].join('')
-  webServer.register({
-    kind: 'exact',
-    path: '/md-api/showcase',
-    handler: async (_req: any, res: any) => {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-      res.end(showcaseHtml)
-    },
-  })
-  webServer.register({
-    kind: 'exact',
-    path: '/md-api/showcase.js',
-    handler: async (_req: any, res: any) => {
-      try {
-        const file = readFileSync(fileURLToPath(new URL('./showcase.js', import.meta.url)))
-        res.writeHead(200, { 'Content-Type': 'text/javascript' })
-        res.end(file)
-      } catch (e) {
-        res.writeHead(500, { 'Content-Type': 'application/json' })
-        res.end(JSON.stringify({ ok: false, error: 'showcase.js 未构建(先 node build.mjs): ' + String((e as Error).message || e) }))
-      }
-    },
-  })
 
   // 提交:resolve 挂起的工具执行
   route('/md-api/submit', (payload: any) => {

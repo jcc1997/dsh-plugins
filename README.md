@@ -90,12 +90,14 @@ dsh-plugins/
 │   ├── ui/          # 共享包 @dsh-plugins/ui:设计 tokens + 图标 + 工具函数
 │   └── communication/ # 通信协议层(bus/rpc/services)
 ├── workflow-template/ # 开发流程配置样例包:workflow.json + 使用指南 + workflow skill(经 kanban_import_config 导入)
+├── apps/ui-showcase/ # UI 组件库独立 showcase 开发服务(pnpm dev:ui)
 ├── scripts/         # 仓库级工具(workflow-ci-check.mjs 等)
 └── .agents/skills/  # 插件开发技能(dsh-dynamic-plugin-dev 等)+ workflow 流程 skill 同步副本
 ```
 
 ## 开发与贡献
 
+- **UI 组件开发**:`pnpm dev:ui` 起独立组件库 showcase 服务(http://127.0.0.1:5173,不依赖 dsh 宿主)——在 [apps/ui-showcase](apps/ui-showcase) 里开发/微调组件,规范见 [packages/ui/DESIGN.md](packages/ui/DESIGN.md)。
 - 插件开发完整指南见 [.agents/skills/dsh-dynamic-plugin-dev](.agents/skills/dsh-dynamic-plugin-dev/SKILL.md)(包结构、host/client 双半、构建、槽位 UI 四种模式、踩坑清单)。
 - UI 设计规范见 [packages/ui/DESIGN.md](packages/ui/DESIGN.md)(直接引用宿主 --dsw-* tokens,明暗自适应)。
 - 工作规则见 [AGENTS.md](AGENTS.md)。
