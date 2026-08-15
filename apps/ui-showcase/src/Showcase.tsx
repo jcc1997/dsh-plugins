@@ -1,10 +1,47 @@
 // src/Showcase.tsx — dsh-plugins UI 组件库画廊(独立开发服务,不依赖宿主)
-// 组件来源:packages/ui(Composer/icons)+ plugins/markdown-review/src/client(工具卡/浮窗/批注框/markdown 渲染)
+// 组件来源:packages/ui(Composer/icons)+ plugins/markdown-review(工具卡/浮窗/批注/markdown)+ plugins/pipeline(工具卡/节点图/控件)
 // 后续组件沉淀进 packages/ui 后,这里随包同步展示。
 import React, { useEffect, useState } from 'react'
 import { Composer, IconCheckOutline16, IconCloseOutline16, IconDarkOutline16, IconLightOutline16, IconTrashOutline16, Modal } from '@dsh-plugins/ui'
 import { MdViewer } from '../../../plugins/markdown-review/src/client/card'
 import { parseMarkdownBlocks, renderBlocks } from '../../../plugins/markdown-review/src/client/md'
+import { PipelineCallCard } from '../../../plugins/pipeline/src/client/call-card'
+import { NodeGraph } from '../../../plugins/pipeline/src/client/graph'
+
+// ── pipeline demo:mock /pipeline-api 接口(工具卡轮询/页面数据不依赖真实后端) ──
+const DEMO_RUN: any = {
+  run_id: 'demo-run-1',
+  status: 'running',
+  nodes: [
+    { id: 'n1', title: '输入', status: 'success' },
+    { id: 'n2', title: '转 mp3', status: 'running' },
+    { id: 'n3', title: '输出', status: 'queued' },
+  ],
+  error: '',
+  output: null,
+}
+const originalFetch = window.fetch.bind(window)
+window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+  const url = String(input)
+  if (url.startsWith('/pipeline-api/run-status')) {
+    // 第一轮返回 running,后续推进到 success
+    if (!DEMO_RUN.started) DEMO_RUN.started = true
+    DEMO_RUN.elapsed = (DEMO_RUN.elapsed || 0) + 1
+    if (DEMO_RUN.elapsed >= 2) { DEMO_RUN.status = 'success'; DEMO_RUN.nodes[1].status = 'success'; DEMO_RUN.nodes[2].status = 'success'; DEMO_RUN.output = { mp3: '/tmp/demo.mp3', size: 1280 } }
+    return Promise.resolve(new Response(JSON.stringify({ run: DEMO_RUN }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+  }
+  return originalFetch(input, init)
+}) as typeof fetch
+
+// 节点图 demo 数据(覆盖全部类型徽章)
+const DEMO_GRAPH_NODES = [
+  { id: 'g1', title: '读取文档', type: 'input', order: 0, inputs: [], config: { path: '/tmp/a.md' } },
+  { id: 'g2', title: 'LLM 总结', type: 'llm', order: 1, inputs: ['g1'], config: { model: 'deepseek' } },
+  { id: 'g3', title: '调用子流水线', type: 'pipeline', order: 2, inputs: ['g2'], config: { ref: 'other@1.0.0' } },
+  { id: 'g4', title: '执行命令', type: 'exec', order: 3, inputs: ['g3'], config: { cmd: 'ffmpeg -i a.mp3 b.mp3' } },
+  { id: 'g5', title: '抓取网页', type: 'fetch', order: 4, inputs: ['g4'], config: { url: 'https://example.com' } },
+  { id: 'g6', title: '输出结果', type: 'output', order: 5, inputs: ['g5'], config: {} },
+] as any
 
 const DEMO_MD = [
   '# 组件展示文档',
@@ -136,6 +173,82 @@ export function Showcase() {
             onClose={() => {}}
             onSubmit={async (p) => { console.log('submit', p); return { ok: true } }}
           />
+        </div>
+      </Section>
+      <Section title="Pipeline 工具卡(轮询演示,2 轮后自动完成)">
+        <div className="sc-card-col">
+          <PipelineCallCard
+            toolName="pipeline_run"
+            callId="demo-call-1"
+            block={{ kind: 'running', argsRaw: JSON.stringify({ run_id: 'demo-run-1' }) }}
+          />
+          <PipelineCallCard
+            toolName="pipeline_run"
+            callId="demo-call-2"
+            block={{ kind: 'result', isError: false, meta: { run_id: 'demo-run-2', status: 'success', done: 3, total: 3 }, call: { argsRaw: JSON.stringify({ run_id: 'demo-run-2' }) } }}
+          />
+          <PipelineCallCard
+            toolName="pipeline_run_status"
+            callId="demo-call-3"
+            block={{ kind: 'result', isError: true, meta: { run_id: 'demo-run-3', status: 'failed' }, call: { argsRaw: JSON.stringify({ run_id: 'demo-run-3' }) } }}
+          />
+        </div>
+      </Section>
+      <Section title="Pipeline 节点图(React Flow,只读模式)">
+        <div style={{ height: 480, border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 12 }}>
+          <NodeGraph
+            nodes={DEMO_GRAPH_NODES}
+            selectedId=""
+            readonly
+            onSelect={() => {}}
+            onAdd={() => {}}
+            onAddEdge={() => {}}
+            onDelete={() => {}}
+            onMove={() => {}}
+            onAddTail={() => {}}
+          />
+        </div>
+      </Section>
+      <Section title="Pipeline 控件(按钮/输入/徽章/版本行)">
+        <div className="sc-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+          <button className="plp-btn plp-primary">主按钮</button>
+          <button className="plp-btn">次按钮</button>
+          <button className="plp-btn plp-danger">危险按钮</button>
+          <button className="plp-btn" disabled>禁用</button>
+          <button className="plp-icon-btn" title="图标按钮"><IconTrashOutline16 /></button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+          <div className="plp-field">
+            <label className="plp-field-label">输入框(零高亮)</label>
+            <input className="plp-input" placeholder="输入点什么…" />
+          </div>
+          <div className="plp-field">
+            <label className="plp-field-label">选择框</label>
+            <select className="plp-select"><option>atomic</option><option>combined</option></select>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+          <span className="plp-badge">atomic</span>
+          <span className="plp-badge plp-badge-kind">combined</span>
+          <span className="plp-version">v0.1.0</span>
+          <span className="plp-ver-latest">最新</span>
+          <span className="plp-graph-type plp-graph-type-input">input</span>
+          <span className="plp-graph-type plp-graph-type-llm">llm</span>
+          <span className="plp-graph-type plp-graph-type-pipeline">pipeline</span>
+          <span className="plp-graph-type plp-graph-type-exec">exec</span>
+          <span className="plp-graph-type plp-graph-type-fetch">fetch</span>
+          <span className="plp-graph-type plp-graph-type-output">output</span>
+        </div>
+        <div style={{ maxWidth: 560, marginTop: 12 }}>
+          <div className="plp-ver-row"><span className="plp-ver-chip plp-ver-published">v0.1.0</span><span className="plp-ver-meta">已发布</span><span className="plp-ver-latest">已发布</span></div>
+          <div className="plp-ver-row plp-ver-row-sel"><span className="plp-ver-chip plp-ver-draft">v0.2.0</span><span className="plp-ver-meta">草稿</span><span className="plp-ver-latest">最新</span></div>
+        </div>
+        <div className="plp-run" style={{ maxWidth: 560, marginTop: 12 }}>
+          <span className="plp-run-status plp-st-running" />
+          <div className="plp-run-main">
+            <div className="plp-run-title">视频转 mp3</div>
+            <div className="plp-run-meta"><span className="plp-run-id">run-abc123</span><span>节点 2/5 · 40%</span></div>
+          </div>
         </div>
       </Section>
     </div>
