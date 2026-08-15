@@ -4,12 +4,13 @@ DSH Pipeline 流水线插件（正式 bundle 形态）。类似 dify 的可复�
 
 ## 能力
 
-- **Pipeline 管理**：侧边栏入口（同看板）打开全屏主界面，管理流水线列表 / 运行与队列 / 说明。
+- **Pipeline 管理**：侧边栏入口（同看板）打开全屏主界面；流水线列表**多列网格**；选中进入**独立编辑页面**（列表 / 编辑 / 运行与队列 / 说明）。
+- **流水线图（dify 式）**：编辑页基于开源 **@xyflow/react（React Flow，与 dify 同源）** 渲染节点图——节点卡片（类型徽章/标题/配置摘要/删除）+ SVG 连线 + **边中点 + 插入节点** + 点击节点右侧面板编辑（标题/依赖/配置 JSON）；不支持拖拽节点，画布可平移缩放。
 - **版本管理（npm 风格 semver）**：版本号形如 v1.0.1（major.minor.patch）。发布后版本不可变；最新版本是草稿，可编辑节点图；发布时按 patch/minor/major 升位。
 - **atomic 与 combined**：atomic 是无依赖基础单元（可复用）；combined 引用已发布的 atomic 单元组合成完整流程（pipeline 节点 ref 支持 `<pipelineId>@<version>` / `@latest`）。
 - **节点类型**：input / output / exec（shell 命令）/ fetch（HTTP）/ transform（JSON 转换）/ llm（大模型分析）/ pipeline（子流水线引用）。支持 {input.xxx} / {up.<nodeId>.<field>} 占位符串联数据。
 - **运行与队列**：运行入队串行执行；「运行与队列」视图实时轮询进度、节点状态（pending/running/success/failed）、输出与错误，支持**按流水线筛选**。
-- **对话中查看**：会话「流水线」tab（conversation.view 槽位）实时显示最近运行卡片（状态徽章 + 进度条 + 节点进度），**点击卡片跳转主面板运行详情**；agent 气泡中的 pipeline_run / pipeline_run_status 工具卡片也带声明式进度展示（presentCall/presentResult）。
+- **对话中查看**：对话消息流中的 pipeline_run / pipeline_run_status 工具卡片（tool.call.toolview 槽位接管）实时显示状态徽章 + 进度条 + 节点进度，**「查看详情」跳转主面板运行详情**。
 - **面向 agent**：对话上下文 10 个 pipeline_* 工具——查 / 建 / 改 / 删 / 发布版本 / 运行 / 查进度 / 看队列 / 目录。
 - **跨插件服务**：其他插件可经 ctx.get('pipeline') 调用 list / get / getPublished / run（同步阻塞）/ runAsync（入队）/ status / catalog。
 

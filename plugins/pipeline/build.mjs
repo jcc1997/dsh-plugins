@@ -26,12 +26,14 @@ await build({
 })
 
 // client：CJS browser + ModuleLoader 包装
+// loader '.css': 'text' → @xyflow/react 的样式以字符串打进 bundle，运行时注入 <style>（见 client/index.ts）
 await build({
   ...base,
   entryPoints: [join(root, 'src', 'client', 'index.ts')],
   format: 'cjs',
   platform: 'browser',
   jsx: 'automatic',
+  loader: { '.css': 'text' },
   external: ['react', 'react/jsx-runtime', 'react-dom', '@deepseek-ai/*'],
   outfile: tmp,
   banner: { js: 'var module = { exports: {} }; var exports = module.exports; window.__ModuleLoader__.load({ id: ' + JSON.stringify(id) + ', factory: (require) => {' },

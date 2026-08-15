@@ -153,6 +153,70 @@ export const plpCss = `
 .plp-callcard-go{flex:none;border:1px solid var(--dsw-alias-state-business-primary);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-state-business-primary);cursor:pointer;border-radius:999px;padding:2px 10px;font-size:11px;line-height:16px;font-family:inherit}
 .plp-callcard-go:hover{background:var(--dsw-alias-interactive-bg-hover-accent)}
 
+/* ══ 列表多列网格 ══ */
+.plp-list-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;align-items:start}
+.plp-list-grid .plp-row{margin-bottom:0}
+
+/* ══ 编辑器页面布局 ══ */
+.plp-editor{flex:1;display:flex;flex-direction:column;min-height:0}
+.plp-editor-basic{border-bottom:1px solid var(--dsw-alias-border-l2);padding:8px 20px}
+.plp-basic-toggle{display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--dsw-alias-label-secondary);font-size:12px;font-family:inherit;padding:4px 0}
+.plp-basic-toggle:hover{color:var(--dsw-alias-label-primary)}
+.plp-basic-grid{display:grid;grid-template-columns:1fr 2fr 200px 1fr;gap:16px;padding:8px 0 12px}
+.plp-editor-body{flex:1;display:flex;min-height:0}
+.plp-graph-scroll{flex:1;min-width:0;overflow:auto;padding:16px}
+.plp-editor-side{width:320px;flex:none;border-left:1px solid var(--dsw-alias-border-l2);padding:16px;overflow-y:auto}
+.plp-panel-empty{padding:32px 16px;text-align:center;font-size:12px;line-height:2;color:var(--dsw-alias-label-tertiary);border:1px dashed var(--dsw-alias-border-l2);border-radius:12px;margin-bottom:16px}
+.plp-ver-block{margin-top:20px}
+
+/* ══ React Flow 容器与节点卡片 ══ */
+.plp-rf-wrap{width:100%;height:100%;position:relative}
+.plp-rf-wrap .react-flow{background:var(--dsw-alias-bg-base)}
+.plp-rf-wrap .react-flow__node{width:320px}
+.plp-rf-node{width:320px;box-sizing:border-box;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:10px 12px 6px;display:flex;flex-direction:column;gap:6px;cursor:pointer;position:relative;box-shadow:var(--dsw-shadow-lv2);transition:border-color 150ms cubic-bezier(.4,0,.2,1),box-shadow 150ms cubic-bezier(.4,0,.2,1)}
+.plp-rf-node:hover{border-color:var(--dsw-alias-state-business-primary)}
+.plp-rf-node-sel{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px rgba(65,118,230,.18),var(--dsw-shadow-lv2)}
+.plp-rf-node-head{display:flex;align-items:center;gap:6px;min-width:0}
+.plp-rf-node-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.plp-rf-node-spacer{flex:1}
+.plp-rf-node-summary{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dsw-alias-label-tertiary);background:var(--dsw-alias-bg-layer-2);border-radius:6px;padding:4px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plp-rf-node-foot{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--dsw-alias-label-tertiary)}
+.plp-graph-type{font-size:10px;font-weight:600;padding:1px 6px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);flex:none;letter-spacing:.3px}
+.plp-graph-type-input{background:var(--dsw-alias-state-success-secondary);color:var(--dsw-alias-state-success-primary)}
+.plp-graph-type-output{background:var(--dsw-alias-state-warn-secondary);color:var(--dsw-alias-state-warn-label)}
+.plp-graph-type-llm{background:var(--dsw-alias-interactive-bg-hover-accent);color:var(--dsw-alias-state-business-primary)}
+.plp-graph-type-pipeline{background:var(--dsw-static-blue-100);color:var(--dsw-static-blue-900)}
+.plp-graph-type-exec{background:var(--dsw-static-amber-100);color:var(--dsw-static-amber-900)}
+.plp-graph-type-fetch{background:var(--dsw-static-green-100);color:var(--dsw-static-green-900)}
+.plp-graph-deps{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plp-graph-del{background:none;border:none;cursor:pointer;color:var(--dsw-alias-label-dimmed);font-size:15px;line-height:1;padding:2px 5px;border-radius:6px;flex:none}
+.plp-graph-del:hover{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}
+.plp-graph-move{background:none;border:none;cursor:pointer;color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:1;padding:2px 5px;border-radius:6px;flex:none}
+.plp-graph-move:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.plp-graph-move:disabled{opacity:.3;cursor:default}
+.plp-rf-port{position:absolute;left:50%;width:10px;height:10px;border-radius:50%;background:var(--dsw-alias-bg-base);border:2px solid var(--dsw-alias-state-business-primary);transform:translateX(-50%)}
+.plp-rf-port-in{top:-6px}
+.plp-rf-port-out{bottom:-6px}
+.plp-rf-edge-add{width:20px;height:20px;border-radius:50%;border:1px dashed var(--dsw-alias-state-business-primary);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-state-business-primary);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-family:inherit}
+.plp-rf-edge-add:hover{background:var(--dsw-alias-state-business-primary);color:#fff}
+.plp-rf-hint{font-size:11px;color:var(--dsw-alias-label-tertiary);margin-left:10px}
+
+/* ══ 类型选择网格 ══ */
+.plp-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.plp-type-cell{display:flex;flex-direction:column;gap:4px;align-items:flex-start;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-base);cursor:pointer;font-family:inherit;text-align:left;transition:border-color 150ms cubic-bezier(.4,0,.2,1)}
+.plp-type-cell:hover{border-color:var(--dsw-alias-state-business-primary)}
+.plp-type-desc{font-size:11px;color:var(--dsw-alias-label-tertiary)}
+
+/* ══ 节点编辑面板 ══ */
+.plp-nodepanel{display:flex;flex-direction:column;gap:4px}
+.plp-dep-list{max-height:150px;overflow-y:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px}
+.plp-dep-item{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:6px;font-size:12px;cursor:pointer}
+.plp-dep-item:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.plp-dep-item input{margin:0}
+.plp-dep-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plp-dep-id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:var(--dsw-alias-label-tertiary)}
+.plp-cfg-hint{font-size:11px;color:var(--dsw-alias-label-tertiary);white-space:pre-wrap;word-break:break-all;background:var(--dsw-alias-bg-layer-2);border-radius:8px;padding:8px 10px;margin-top:6px}
+
 /* ══ 宿主侧边栏入口 ══ */
 .plp-side-btn{box-sizing:border-box;width:100%;height:49px;color:var(--dsw-alias-label-primary);cursor:pointer;background:none;border:none;border-radius:8px;align-items:center;gap:8px;padding:0 8px 0 6px;font-family:inherit;font-size:13px;display:inline-flex;overflow:hidden;line-height:20px;transition:background 150ms cubic-bezier(.4,0,.2,1)}
 .plp-side-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
@@ -164,4 +228,11 @@ body[data-ds-dark-theme] .plp-input:focus-visible,
 body[data-ds-dark-theme] .plp-textarea:focus-visible,
 body[data-ds-dark-theme] .plp-node-input:focus-visible{box-shadow:0 0 0 2px rgba(103,158,254,.25)}
 body[data-ds-dark-theme] .plp-primary:hover{background:var(--dsw-static-deepseek-500);border-color:var(--dsw-static-deepseek-500)}
+body[data-ds-dark-theme] .plp-rf-node-sel{box-shadow:0 0 0 2px rgba(103,158,254,.3),var(--dsw-shadow-lv2)}
+`
+
+/** React Flow 主题变量覆盖：对齐宿主 --dsw-* tokens（明暗自动适配） */
+export const xyflowThemeCss = `
+.react-flow{--xy-background-color:var(--dsw-alias-bg-base);--xy-edge-stroke:var(--dsw-alias-border-l3);--xy-edge-stroke-width:1.5;--xy-node-background-color:var(--dsw-alias-bg-base);--xy-node-border:var(--dsw-alias-border-l2);--xy-node-color:var(--dsw-alias-label-primary);--xy-handle-background-color:var(--dsw-alias-state-business-primary);--xy-controls-button-background-color:var(--dsw-alias-bg-base);--xy-controls-button-background-color-hover:var(--dsw-alias-interactive-bg-hover);--xy-controls-button-color:var(--dsw-alias-label-secondary);--xy-controls-button-color-hover:var(--dsw-alias-label-primary);--xy-controls-button-border-color:var(--dsw-alias-border-l2);--xy-attribution-background-color:transparent}
+.react-flow__controls{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;overflow:hidden;box-shadow:var(--dsw-shadow-lv2)}
 `

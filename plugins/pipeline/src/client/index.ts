@@ -1,7 +1,9 @@
 // pipeline 插件客户端半（正式 bundle 形态）：侧边栏入口 + 全屏流水线面板
 // 数据通道：fetch → /pipeline-api/* webServer 路由；样式注入同 kanban。
+// React Flow（@xyflow/react）打进 bundle，其样式经 loader '.css': 'text' 以字符串引入，apply 时注入 <style>。
 import React from 'react'
-import { plpCss } from './styles'
+import xyflowCss from '@xyflow/react/dist/style.css'
+import { plpCss, xyflowThemeCss } from './styles'
 import { PipelinePage } from './page'
 import { PipelineCallCard } from './call-card'
 import { registerOpenHandler } from './nav'
@@ -50,6 +52,14 @@ export function apply(ctx: { get(name: string): unknown }) {
       el.dataset.plugin = 'dsh-pipeline'
       el.dataset.pluginCss = 'pipeline/all'
       el.textContent = plpCss
+      document.head.appendChild(el)
+    }
+    // React Flow 官方样式（打进 bundle 的字符串）+ 主题变量对齐宿主 --dsw-* tokens
+    if (!document.querySelector('style[data-plugin-css="pipeline/xyflow"]')) {
+      const el = document.createElement('style')
+      el.dataset.plugin = 'dsh-pipeline'
+      el.dataset.pluginCss = 'pipeline/xyflow'
+      el.textContent = xyflowCss + xyflowThemeCss
       document.head.appendChild(el)
     }
   } catch { /* ignore */ }

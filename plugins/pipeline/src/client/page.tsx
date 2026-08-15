@@ -31,7 +31,7 @@ export function PipelinePage(props: { onClose: () => void; focusRunId?: string |
     },
   }), [])
 
-  const [view, setView] = useState<'list' | 'runs' | 'settings'>('list')
+  const [view, setView] = useState<'list' | 'editor' | 'runs' | 'settings'>('list')
   const [doc, setDoc] = useState<PipelineDoc | null>(null)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
@@ -49,7 +49,7 @@ export function PipelinePage(props: { onClose: () => void; focusRunId?: string |
 
   useEffect(() => { load() }, [load])
 
-  // 外部跳转（会话 tab 卡片点击）：切到运行视图并定位 run
+  // 外部跳转（对话流卡片点击）：切到运行视图并定位 run
   useEffect(() => {
     if (props.focusRunId) {
       setView('runs')
@@ -58,6 +58,8 @@ export function PipelinePage(props: { onClose: () => void; focusRunId?: string |
   }, [props.focusRunId])
 
   const nav = (v: 'list' | 'runs' | 'settings') => { setView(v); setEditing(null) }
+  const openEditor = (id: string) => { setEditing(id); setView('editor') }
+  const backToList = () => { setEditing(null); setView('list') }
 
   return (
     <div className="plp-page">
@@ -78,7 +80,7 @@ export function PipelinePage(props: { onClose: () => void; focusRunId?: string |
       <div className="plp-body">
         <aside className="plp-app-side">
           <div className="plp-nav-section">管理</div>
-          <button type="button" className={'plp-nav-item' + (view === 'list' ? ' plp-nav-on' : '')} onClick={() => nav('list')}>
+          <button type="button" className={'plp-nav-item' + (view === 'list' || view === 'editor' ? ' plp-nav-on' : '')} onClick={() => nav('list')}>
             <span className="plp-nav-label">流水线</span>
             <span className="plp-nav-badge">{doc ? doc.pipelines.length : 0}</span>
           </button>
@@ -93,11 +95,11 @@ export function PipelinePage(props: { onClose: () => void; focusRunId?: string |
         </aside>
         <main className="plp-main">
           {!doc ? <div className="plp-loading">加载中…</div> : null}
-          {doc && view === 'list' ? <ListView doc={doc} host={host} onOpen={(id) => setEditing(id)} onChanged={load} /> : null}
+          {doc && view === 'list' ? <ListView doc={doc} host={host} onOpen={openEditor} onChanged={load} /> : null}
+          {doc && view === 'editor' && editing ? <EditorView host={host} pipelineId={editing} onBack={backToList} onChanged={load} /> : null}
           {doc && view === 'runs' ? <RunsView doc={doc} host={host} onChanged={load} focusRunId={props.focusRunId} /> : null}
           {doc && view === 'settings' ? <AboutView /> : null}
-          {doc && editing ? <EditorView host={host} pipelineId={editing} onClose={() => { setEditing(null); load() }} onChanged={load} /> : null}
-          {creating ? <CreateModal host={host} onCreated={(id) => { setCreating(false); setEditing(id); load() }} onClose={() => setCreating(false)} /> : null}
+          {creating ? <CreateModal host={host} onCreated={(id) => { setCreating(false); openEditor(id); load() }} onClose={() => setCreating(false)} /> : null}
         </main>
       </div>
     </div>
@@ -168,20 +170,22 @@ function ListView(props: { doc: PipelineDoc; host: HostLike; onOpen: (id: string
         <input className="plp-input" placeholder="搜索流水线…" value={kw} onChange={(e) => setKw(e.target.value)} />
       </div>
       {list.length === 0 ? <div className="plp-empty">还没有流水线。点击右上角「新建流水线」开始。</div> : null}
-      {list.map((p) => (
-        <div key={p.id} className="plp-row" onClick={() => props.onOpen(p.id)}>
-          <div className="plp-row-main">
-            <div className="plp-row-title">{p.name}</div>
-            <div className="plp-row-desc">{p.description || '（无描述）'}</div>
-            <div className="plp-row-meta">
-              <span className={'plp-badge' + (p.kind === 'combined' ? ' plp-badge-kind' : '')}>{p.kind === 'combined' ? 'combined' : 'atomic'}</span>
-              <span className="plp-version">最新 {p.latestVersion}</span>
-              {p.publishedVersion ? <span className="plp-version">已发布 {p.publishedVersion}</span> : <span className="plp-badge">未发布</span>}
-              {p.tags && p.tags.length > 0 ? p.tags.map((t) => <span key={t} className="plp-badge">{t}</span>) : null}
+      <div className="plp-list-grid">
+        {list.map((p) => (
+          <div key={p.id} className="plp-row" onClick={() => props.onOpen(p.id)}>
+            <div className="plp-row-main">
+              <div className="plp-row-title">{p.name}</div>
+              <div className="plp-row-desc">{p.description || '（无描述）'}</div>
+              <div className="plp-row-meta">
+                <span className={'plp-badge' + (p.kind === 'combined' ? ' plp-badge-kind' : '')}>{p.kind === 'combined' ? 'combined' : 'atomic'}</span>
+                <span className="plp-version">最新 {p.latestVersion}</span>
+                {p.publishedVersion ? <span className="plp-version">已发布 {p.publishedVersion}</span> : <span className="plp-badge">未发布</span>}
+                {p.tags && p.tags.length > 0 ? p.tags.map((t) => <span key={t} className="plp-badge">{t}</span>) : null}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }

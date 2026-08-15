@@ -1,41 +1,52 @@
-// client/editor.tsx — 流水线编辑器：meta / 版本列表 / 节点图编辑 / 发布 / 运行调试
+// client/editor.tsx — 流水线编辑器（独立页面视图）：左 NodeGraph 图 + 右面板（节点编辑/版本列表）
+// 交互：点节点选中 → 右侧编辑（标题/依赖/配置 JSON）；边中点 + 与面板按钮新增；卡片 × 删除；↑↓ 调整顺序。
 import React, { useState, useEffect, useCallback } from 'react'
 import type { HostLike } from './page'
+import { NodeGraph, NODE_LABEL, NODE_DEFAULT_CONFIG, NODE_TYPES, TYPE_DESC } from './graph'
+import type { GraphNode } from './graph'
 
 export interface EditorPipeline {
   id: string; name: string; description: string; kind: string; tags: string[]
   latestVersion: string; publishedVersion: string | null
   versions: Array<{
     version: string; published: boolean; publishedAt?: string; changelog?: string; createdAt: string
-    nodes: Array<{ id: string; title: string; type: string; order: number; inputs?: string[]; config: Record<string, unknown> }>
+    nodes: GraphNode[]
     inputSchema?: any
   }>
   createdAt: string; updatedAt: string
 }
 
-const NODE_TYPES = ['input', 'output', 'exec', 'fetch', 'transform', 'llm', 'pipeline']
-const NODE_LABEL: Record<string, string> = {
-  input: '输入', output: '输出', exec: 'Shell 命令', fetch: 'HTTP 请求',
-  transform: '转换', llm: 'LLM 分析', pipeline: '子流水线',
+/** 配置 JSON 示例提示（按类型） */
+const CONFIG_HINT: Record<string, string> = {
+  input: '{\n  "keys": ["text"]\n}   // 从入参抽取的字段；空 = 透传全部',
+  output: '{\n  "pick": ["output"]\n}   // 只输出这些字段；空 = 合并全部上游',
+  exec: '{\n  "command": "echo {input.text}",\n  "workdir": "/tmp",\n  "timeoutMs": 60000\n}   // {input.x} / {up.<nodeId>.<f>} 占位符',
+  fetch: '{\n  "url": "https://api.example.com/x",\n  "method": "GET",\n  "headers": {},\n  "body": {} }',
+  transform: '{\n  "mappings": { "a": "input.text" },\n  "template": "{{up.in.text}}-done"\n}',
+  llm: '{\n  "prompt": "请总结：{{up.in.output}}"\n}   // 沙箱子 agent 延后实现，当前占位',
+  pipeline: '{\n  "ref": "<pipelineId>@<version>",\n  "inputs": { "text": "input.text" }\n}   // @latest = 已发布最新',
 }
 
-export function EditorView(props: { host: HostLike; pipelineId: string | null; onClose: () => void; onChanged: () => void }) {
+export function EditorView(props: { host: HostLike; pipelineId: string; onBack: () => void; onChanged: () => void }) {
   const [p, setP] = useState<EditorPipeline | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  // 本地编辑缓冲：meta + 最新版本节点
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [kind, setKind] = useState<'atomic' | 'combined'>('atomic')
   const [tags, setTags] = useState('')
-  const [nodes, setNodes] = useState<any[]>([])
+  const [nodes, setNodes] = useState<GraphNode[]>([])
+  const [selectedId, setSelectedId] = useState<string>('')
+  const [showBasic, setShowBasic] = useState(true)
   const [publishRelease, setPublishRelease] = useState<'major' | 'minor' | 'patch'>('patch')
   const [changelog, setChangelog] = useState('')
   const [showPublish, setShowPublish] = useState(false)
   const [runInputs, setRunInputs] = useState('{}')
   const [showRun, setShowRun] = useState(false)
   const [runResult, setRunResult] = useState<any>(null)
+  // 边中点插入的类型选择（from→to）
+  const [edgeInsert, setEdgeInsert] = useState<{ from: string; to: string } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -51,6 +62,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string | null; o
       setTags((pl.tags || []).join(', '))
       const latest = pl.versions.find((v) => v.version === pl.latestVersion)
       setNodes(latest ? JSON.parse(JSON.stringify(latest.nodes)) : [])
+      setSelectedId('')
       setLoading(false)
     } catch (e) {
       setError(String(e && (e as Error).message ? (e as Error).message : e))
@@ -66,7 +78,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string | null; o
     try {
       const r = await props.host.call('update', {
         pipeline_id: p.id, name, description, tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
-        nodes, kind,
+        nodes,
       })
       if (r.ok) { await load(); props.onChanged() } else setError(r.error || '保存失败')
     } catch (e) {
@@ -99,98 +111,175 @@ export function EditorView(props: { host: HostLike; pipelineId: string | null; o
     } finally { setBusy(false) }
   }
 
-  function patchNode(nodeId: string, patch: any) {
+  /* ── 节点操作（本地 state，保存时统一提交） ── */
+  function patchNode(nodeId: string, patch: Partial<GraphNode>) {
     setNodes((ns) => ns.map((n) => (n.id === nodeId ? { ...n, ...patch } : n)))
   }
-  function addNode(type: string) {
+  function normalizeOrder(arr: GraphNode[]): GraphNode[] {
+    return arr.map((n, i) => ({ ...n, order: i * 10 }))
+  }
+  /** 在 afterId 之后插入新节点 */
+  function insertNode(afterId: string | null, type: string) {
     setNodes((ns) => {
-      const maxOrder = ns.reduce((m, n) => Math.max(m, n.order), 0)
-      return [...ns, { id: 'n' + Date.now().toString(36), title: NODE_LABEL[type] || type, type, order: maxOrder + 10, inputs: [], config: {} }]
+      const sorted = [...ns].sort((a, b) => a.order - b.order)
+      const afterIdx = afterId ? sorted.findIndex((n) => n.id === afterId) : -1
+      const node: GraphNode = {
+        id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+        title: NODE_LABEL[type] || type,
+        type,
+        order: 0,
+        inputs: afterIdx >= 0 ? [sorted[afterIdx].id] : [],
+        config: JSON.parse(JSON.stringify(NODE_DEFAULT_CONFIG[type] || {})),
+      }
+      const arr = [...sorted]
+      arr.splice(afterIdx + 1, 0, node)
+      const normalized = normalizeOrder(arr)
+      setSelectedId(node.id)
+      return normalized
     })
   }
-  function removeNode(nodeId: string) {
-    setNodes((ns) => ns.filter((n) => n.id !== nodeId))
+  /** 在 from→to 边之间插入：新节点依赖 from，to 的依赖 from 替换为新节点 */
+  function insertBetween(from: string, to: string, type: string) {
+    setNodes((ns) => {
+      const sorted = [...ns].sort((a, b) => a.order - b.order)
+      const fromIdx = sorted.findIndex((n) => n.id === from)
+      const node: GraphNode = {
+        id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+        title: NODE_LABEL[type] || type,
+        type,
+        order: 0,
+        inputs: [from],
+        config: JSON.parse(JSON.stringify(NODE_DEFAULT_CONFIG[type] || {})),
+      }
+      const arr = [...sorted]
+      arr.splice(fromIdx + 1, 0, node)
+      // to 的依赖里 from → node（串联进链）
+      const normalized = normalizeOrder(arr).map((n) => (n.id === to ? { ...n, inputs: (n.inputs || []).map((d) => (d === from ? node.id : d)) } : n))
+      setSelectedId(node.id)
+      return normalized
+    })
+  }
+  function deleteNode(nodeId: string) {
+    setNodes((ns) => {
+      const arr = normalizeOrder(ns.filter((n) => n.id !== nodeId))
+      if (selectedId === nodeId) setSelectedId('')
+      return arr
+    })
+  }
+  function moveNode(nodeId: string, dir: -1 | 1) {
+    setNodes((ns) => {
+      const sorted = [...ns].sort((a, b) => a.order - b.order)
+      const i = sorted.findIndex((n) => n.id === nodeId)
+      const j = i + dir
+      if (i < 0 || j < 0 || j >= sorted.length) return ns
+      const t = sorted[i]; sorted[i] = sorted[j]; sorted[j] = t
+      return normalizeOrder(sorted)
+    })
   }
 
   if (loading) return <div className="plp-loading">加载中…</div>
   if (!p) return <div className="plp-loading">{error || '流水线不存在'}</div>
 
-  const latestVer = p.versions.find((v) => v.version === p.latestVersion)
+  const sel = selectedId ? nodes.find((n) => n.id === selectedId) || null : null
+  const sortedNodes = [...nodes].sort((a, b) => a.order - b.order)
 
   return (
-    <div>
-      {/* ── meta 表单 ── */}
-      <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 16 }}>
-        <button className="plp-btn" type="button" onClick={props.onClose}>返回</button>
-        <span className="plp-title">{p.name}</span>
+    <div className="plp-editor">
+      {/* ── 顶栏 ── */}
+      <header className="plp-header plp-editor-head">
+        <button className="plp-icon-btn" type="button" title="返回列表" onClick={props.onBack}>
+          <svg width={16} height={16} viewBox="0 0 14 14" fill="none"><path d="M8.5 2.15L8.08 2.58 5.35 5.3c-.26.26-.43.48-.51.69-.09.22-.09.4 0 .62.08.21.25.43.51.69l2.73 2.72.42.43-.85.85-.42-.43-2.73-2.72c-.28-.28-.53-.56-.7-.84-.16-.27-.24-.56-.24-.88s.08-.61.24-.88c.17-.28.42-.56.7-.84l2.73-2.72.42-.43.85.85z" fill="currentColor"/></svg>
+        </button>
+        <span className="plp-title">{name}</span>
         <span className={'plp-badge' + (p.kind === 'combined' ? ' plp-badge-kind' : '')}>{p.kind}</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+        <span className="plp-version">最新 {p.latestVersion}</span>
+        {p.publishedVersion ? <span className="plp-version">已发布 {p.publishedVersion}</span> : <span className="plp-badge">未发布</span>}
+        <div className="plp-header-actions">
           <button className="plp-btn" type="button" onClick={() => setShowRun(true)} disabled={busy}>运行调试</button>
           <button className="plp-btn" type="button" onClick={() => setShowPublish(true)} disabled={busy}>发布新版本</button>
           <button className="plp-btn plp-primary" type="button" onClick={save} disabled={busy}>{busy ? '保存中…' : '保存'}</button>
         </div>
-      </div>
+      </header>
       {error ? <div className="plp-error">{error}</div> : null}
 
-      <div style={{ display: 'flex', gap: 16 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* ── meta ── */}
-          <div className="plp-field">
-            <label className="plp-field-label">名称</label>
-            <input className="plp-input" value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="plp-field">
-            <label className="plp-field-label">描述</label>
-            <textarea className="plp-textarea" value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <div className="plp-field" style={{ flex: 1 }}>
+      {/* ── 基本信息（可折叠） ── */}
+      <div className="plp-editor-basic">
+        <button type="button" className="plp-basic-toggle" onClick={() => setShowBasic(!showBasic)}>
+          <span>基本信息</span>
+          <svg width={12} height={12} viewBox="0 0 14 14" fill="none" style={{ transform: showBasic ? 'rotate(180deg)' : 'none' }}><path d="M2.15 5.5l.43-.42L5.3 2.35c.26-.26.48-.43.69-.51.22-.09.4-.09.62 0 .21.08.43.25.69.51l2.72 2.73.43.42-.85.85-.43-.42-2.72-2.73c-.28-.28-.43-.45-.56-.59a1 1 0 0 0-.18-.13.62.62 0 0 0-.14-.05.5.5 0 0 0-.14.05c-.06.04-.12.08-.18.13-.13.14-.28.31-.56.59L2.57 5.93l-.42.42-.85-.85z" fill="currentColor"/></svg>
+        </button>
+        {showBasic ? (
+          <div className="plp-basic-grid">
+            <div className="plp-field" style={{ marginBottom: 0 }}>
+              <label className="plp-field-label">名称</label>
+              <input className="plp-input" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className="plp-field" style={{ marginBottom: 0 }}>
+              <label className="plp-field-label">描述</label>
+              <input className="plp-input" value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+            <div className="plp-field" style={{ marginBottom: 0 }}>
               <label className="plp-field-label">类型</label>
               <select className="plp-select" value={kind} onChange={(e) => setKind(e.target.value as any)}>
-                <option value="atomic">atomic（无依赖基础单元）</option>
+                <option value="atomic">atomic（基础单元）</option>
                 <option value="combined">combined（组合流水线）</option>
               </select>
             </div>
-            <div className="plp-field" style={{ flex: 2 }}>
-              <label className="plp-field-label">标签（逗号分隔）</label>
-              <input className="plp-input" value={tags} onChange={(e) => setTags(e.target.value)} />
+            <div className="plp-field" style={{ marginBottom: 0 }}>
+              <label className="plp-field-label">标签</label>
+              <input className="plp-input" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="逗号分隔" />
             </div>
           </div>
+        ) : null}
+      </div>
 
-          {/* ── 节点编辑 ── */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '20px 0 12px' }}>
-            <span className="plp-section-title" style={{ margin: 0 }}>节点图（{p.latestVersion} 草稿）</span>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-              {NODE_TYPES.map((t) => (
-                <button key={t} className="plp-btn" type="button" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => addNode(t)}>
-                  + {NODE_LABEL[t]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="plp-nodes">
-            {nodes.map((n) => (
-              <NodeRow key={n.id} node={n} onPatch={(patch) => patchNode(n.id, patch)} onRemove={() => removeNode(n.id)} />
+      {/* ── 主区：图 + 右面板 ── */}
+      <div className="plp-editor-body">
+        <div className="plp-graph-scroll">
+          <NodeGraph
+            nodes={nodes}
+            selectedId={selectedId}
+            onSelect={(id) => setSelectedId(id)}
+            onAdd={(afterIndex, type) => { const a = sortedNodes[afterIndex] || null; insertNode(a ? a.id : null, type) }}
+            onAddEdge={(from, to) => setEdgeInsert({ from, to })}
+            onDelete={deleteNode}
+            onMove={moveNode}
+            onAddTail={(type) => { const last = sortedNodes[sortedNodes.length - 1] || null; insertNode(last ? last.id : null, type) }}
+          />
+        </div>
+        <aside className="plp-editor-side">
+          {sel ? (
+            <NodePanel
+              node={sel}
+              allNodes={sortedNodes}
+              onPatch={(patch) => patchNode(sel.id, patch)}
+              onDelete={() => deleteNode(sel.id)}
+            />
+          ) : (
+            <div className="plp-panel-empty">点击图中节点编辑配置<br />边中点 + 可插入节点</div>
+          )}
+          <div className="plp-ver-block">
+            <div className="plp-section-title">版本（semver）</div>
+            {(p.versions || []).map((v) => (
+              <div key={v.version} className="plp-ver-row">
+                <span className={'plp-ver-chip ' + (v.published ? 'plp-ver-published' : 'plp-ver-draft')}>{v.version}</span>
+                {v.version === p.latestVersion ? <span className="plp-ver-latest">最新</span> : null}
+                {v.version === p.publishedVersion ? <span className="plp-ver-latest">已发布</span> : null}
+                <span className="plp-ver-meta">{v.published ? (v.changelog || '已发布') : '草稿'}</span>
+              </div>
             ))}
           </div>
-          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--dsw-alias-label-tertiary)' }}>
-            提示：未显式声明依赖（inputs）时按 order 串联；output 节点自动合并上游输出。
-          </div>
-        </div>
-
-        {/* ── 版本列表 ── */}
-        <div style={{ width: 280, flex: 'none' }}>
-          <div className="plp-section-title">版本（npm 风格 semver）</div>
-          {(p.versions || []).map((v) => (
-            <div key={v.version} className="plp-ver-row">
-              <span className={'plp-ver-chip ' + (v.published ? 'plp-ver-published' : 'plp-ver-draft')}>{v.version}</span>
-              {v.version === p.latestVersion ? <span className="plp-ver-latest">最新</span> : null}
-              {v.version === p.publishedVersion ? <span className="plp-ver-latest">已发布</span> : null}
-              <span className="plp-ver-meta">{v.published ? (v.changelog || '已发布') : '草稿'}{v.publishedAt ? ' · ' + fmt(v.publishedAt) : ''}</span>
-            </div>
-          ))}
-        </div>
+        </aside>
       </div>
+
+      {/* ── 边中点插入类型选择 ── */}
+      {edgeInsert ? (
+        <TypePickerModal
+          title="在连线中间插入节点"
+          onClose={() => setEdgeInsert(null)}
+          onPick={(type) => { insertBetween(edgeInsert.from, edgeInsert.to, type); setEdgeInsert(null) }}
+        />
+      ) : null}
 
       {/* ── 发布弹窗 ── */}
       {showPublish ? (
@@ -202,8 +291,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string | null; o
             </div>
             <div className="plp-modal-body">
               <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)', lineHeight: 1.8 }}>
-                当前已发布：<span className="plp-version">{p.publishedVersion || '无'}</span>。
-                发布基于当前已发布版本升位（缺省 patch）。发布后版本不可变，可作为子单元被 combined 引用。
+                当前已发布：<span className="plp-version">{p.publishedVersion || '无'}</span>。发布后版本不可变，可作为子单元被 combined 引用。
               </p>
               <div className="plp-field">
                 <label className="plp-field-label">版本升位</label>
@@ -257,43 +345,82 @@ export function EditorView(props: { host: HostLike; pipelineId: string | null; o
   )
 }
 
-/* ── 节点行（内联编辑） ── */
-function NodeRow(props: { node: any; onPatch: (patch: any) => void; onRemove: () => void }) {
+/* ── 节点编辑面板 ── */
+function NodePanel(props: { node: GraphNode; allNodes: GraphNode[]; onPatch: (p: Partial<GraphNode>) => void; onDelete: () => void }) {
   const n = props.node
   const [cfgText, setCfgText] = useState<string>(() => JSON.stringify(n.config || {}, null, 2))
-  const [depsText, setDepsText] = useState<string>(() => (n.inputs || []).join(', '))
-
+  const [dirty, setDirty] = useState(false)
+  // 节点切换时重置编辑缓冲
+  useEffect(() => { setCfgText(JSON.stringify(n.config || {}, null, 2)); setDirty(false) }, [n.id])
+  const others = props.allNodes.filter((x) => x.id !== n.id)
+  const deps = n.inputs || []
+  function toggleDep(id: string) {
+    const next = deps.includes(id) ? deps.filter((d) => d !== id) : [...deps, id]
+    props.onPatch({ inputs: next })
+  }
   function commitCfg() {
-    try { props.onPatch({ config: JSON.parse(cfgText) }) } catch { /* 忽略非法 JSON，保留原值 */ }
+    try { props.onPatch({ config: JSON.parse(cfgText) }); setDirty(false) } catch { /* 非法 JSON 忽略 */ }
   }
-  function commitDeps() {
-    props.onPatch({ inputs: depsText.split(',').map((s) => s.trim()).filter(Boolean) })
-  }
-
   return (
-    <div className="plp-node">
-      <div className="plp-node-left">
-        <div className="plp-node-type">{NODE_LABEL[n.type] || n.type}</div>
-        <input className="plp-node-input plp-node-title" style={{ fontSize: 13, fontWeight: 600, marginTop: 2 }} value={n.title || ''}
-          onChange={(e) => props.onPatch({ title: e.target.value })} placeholder="节点名" />
-        <div className="plp-node-config">
-          <input className="plp-node-input" value={depsText} onChange={(e) => setDepsText(e.target.value)} onBlur={commitDeps}
-            placeholder="依赖节点 id（逗号分隔，留空 = 串联上游）" />
-          <textarea className="plp-node-input" style={{ minHeight: 60, fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace', resize: 'vertical' }}
-            value={cfgText} onChange={(e) => setCfgText(e.target.value)} onBlur={commitCfg} placeholder="节点配置 JSON" />
+    <div className="plp-nodepanel">
+      <div className="plp-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className={'plp-graph-type plp-graph-type-' + n.type}>{NODE_LABEL[n.type] || n.type}</span>
+        <span style={{ fontSize: 12, color: 'var(--dsw-alias-label-tertiary)' }}>{n.id}</span>
+      </div>
+      <div className="plp-field">
+        <label className="plp-field-label">节点名</label>
+        <input className="plp-input" value={n.title || ''} onChange={(e) => props.onPatch({ title: e.target.value })} />
+      </div>
+      <div className="plp-field">
+        <label className="plp-field-label">依赖上游（勾选；不勾 = 串联上一个）</label>
+        <div className="plp-dep-list">
+          {others.length === 0 ? <span style={{ fontSize: 12, color: 'var(--dsw-alias-label-tertiary)' }}>没有其他节点</span> : null}
+          {others.map((o) => (
+            <label key={o.id} className="plp-dep-item">
+              <input type="checkbox" checked={deps.includes(o.id)} onChange={() => toggleDep(o.id)} />
+              <span className="plp-dep-name" title={o.id}>{o.title || o.id}</span>
+              <span className="plp-dep-id">{o.id}</span>
+            </label>
+          ))}
         </div>
       </div>
-      <button className="plp-icon-btn plp-node-remove" type="button" title="删除节点" onClick={props.onRemove}>
-        <svg width={14} height={14} viewBox="0 0 16 16" fill="none"><path d="M14.48 4.84l-.27 5.28c-.1 2.07-.14 2.89-.83 3.84-.28.4-.63.73-1.04.99-.52.34-1.1.48-1.78.55-.67.07-1.51.07-2.56.07s-1.89 0-2.56-.07c-.68-.07-1.26-.21-1.78-.55-.41-.26-.76-.59-1.04-.99-.69-.95-.73-1.77-.83-3.84l-.27-5.28 1.37-.07.26 5.28c.11 2.17.17 2.55.58 3.11.18.25.4.47.67.64.26.17.6.28 1.18.33.59.06 1.34.06 2.42.06s1.83 0 2.42-.06c.58-.05.92-.16 1.18-.33.27-.17.49-.39.67-.64.41-.56.47-.94.58-3.11l.26-5.28 1.37.07zM5.43 6.23h1.37v5.16H5.43V6.23zm3.77 0h1.37v5.16H9.2V6.23zM8.54.43c.64 0 1.11-.01 1.56.14.14.05.27.1.4.17.42.21.75.55 1.2 1.01l.8.8h2.87v1.37H.63V2.54h2.88l.79-.79c.46-.46.78-.8 1.2-1.01.13-.07.26-.12.4-.17.45-.14.92-.14 1.56-.14h1.07zm-1.07 1.37c-.73 0-.95.01-1.14.07a1.3 1.3 0 0 0-.21.08c-.15.08-.3.2-.67.58h5.11c-.38-.38-.52-.5-.67-.58a1.3 1.3 0 0 0-.21-.08c-.19-.06-.41-.07-1.14-.07h-1.07z" fill="currentColor"/></svg>
-      </button>
+      <div className="plp-field">
+        <label className="plp-field-label">配置（JSON）</label>
+        <textarea
+          className="plp-textarea plp-cfg-json"
+          style={{ fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace', minHeight: 140 }}
+          value={cfgText}
+          onChange={(e) => { setCfgText(e.target.value); setDirty(true) }}
+          onBlur={commitCfg}
+        />
+        <div className="plp-cfg-hint">{CONFIG_HINT[n.type] || ''}</div>
+        {dirty ? <button className="plp-btn" type="button" onClick={commitCfg}>应用配置</button> : null}
+      </div>
+      <button className="plp-btn plp-danger" type="button" onClick={props.onDelete}>删除节点</button>
     </div>
   )
 }
 
-function fmt(iso?: string): string {
-  try {
-    const d = new Date(iso || '')
-    const p = (n: number) => (n < 10 ? '0' + n : String(n))
-    return p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes())
-  } catch { return '' }
+/* ── 类型选择弹窗 ── */
+function TypePickerModal(props: { title: string; onClose: () => void; onPick: (type: string) => void }) {
+  return (
+    <div className="plp-mask plp-mask-clear" onClick={props.onClose}>
+      <div className="plp-modal" style={{ width: 380 }} onClick={(e) => e.stopPropagation()}>
+        <div className="plp-modal-head">
+          <span className="plp-modal-title">{props.title}</span>
+          <button className="plp-icon-btn" type="button" onClick={props.onClose}>×</button>
+        </div>
+        <div className="plp-modal-body">
+          <div className="plp-type-grid">
+            {NODE_TYPES.map((t) => (
+              <button key={t} type="button" className="plp-type-cell" onClick={() => props.onPick(t)}>
+                <span className={'plp-graph-type plp-graph-type-' + t}>{NODE_LABEL[t]}</span>
+                <span className="plp-type-desc">{TYPE_DESC[t]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
