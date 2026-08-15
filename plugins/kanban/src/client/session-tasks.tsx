@@ -72,6 +72,9 @@ function CardDetailPane(props: { card: any; columns: any[]; cardId: string; kb: 
           try { sessions.open(sid) } catch { /* 会话可能已不存在 */ }
         }
       }}
+      gateLibrary={kb.board ? kb.board.gateLibrary || [] : []}
+      onAddGate={(gateId) => kb.attachGate(cardId, gateId)}
+      onRemoveGate={(gateId) => kb.removeGate(cardId, gateId)}
       actionHost={() => <SyncButton cardId={cardId} host={host} onDone={() => kb.reload()} />}
     />
   )

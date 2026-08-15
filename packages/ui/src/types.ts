@@ -32,7 +32,9 @@ export interface KanbanCard {
   /** 归档时记录来源列 id（恢复时回原列）；恢复后保留 */
   archivedFrom?: string
   archivedAt?: string
-  /** 挂在卡片上的门禁（v4）：触发行为时检查，不通过则拒绝动作 */
+  /** 卡片勾选的门禁（v6）：门禁库 id 引用列表；旧内联 gates 读取时自动入库迁移 */
+  gateIds?: string[]
+  /** 兼容旧数据：内联门禁（v5 及以前），normalize 时迁入门禁库 */
   gates?: CardGate[]
 }
 
@@ -64,6 +66,9 @@ export interface CardTemplate {
   description?: string
   tags?: string[]
   content?: KanbanBlock[]
+  /** 模板勾选的门禁（v6）：门禁库 id 引用列表 */
+  gateIds?: string[]
+  /** 兼容旧数据：内联门禁（normalize 时迁入门禁库） */
   gates?: CardGate[]
   createdAt?: string
   updatedAt?: string
@@ -115,6 +120,8 @@ export interface KanbanBoard {
   archive?: KanbanCard[]
   /** 创建模板（v4）：新建卡片时引用，预填描述/标签/内容/门禁 */
   templates?: CardTemplate[]
+  /** 门禁库（v6）：门禁是独立可复用实体，单独配置；模板/卡片用 gateIds 引用勾选 */
+  gateLibrary?: CardGate[]
   meta?: Record<string, unknown>
 }
 

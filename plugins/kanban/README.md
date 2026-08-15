@@ -1,26 +1,26 @@
 # dsh-kanban
 
-DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板，27 个 agent 工具，人和 AI 在同一块板上协作。
+DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板，29 个 agent 工具，人和 AI 在同一块板上协作。
 
 ## 能力
 
 - **看板**：竖线分隔列、拖拽排序与跨列移动、分组（按 git 仓库）、归档/恢复、富文本内容（Notion 式块编辑器）、标签、评论、变更记录。
 - **外部关联（refs）**：github-repo / github-branch / github-mr / local-repo / session 等；git 插件经子槽位 kanban.card.actions 注入同步按钮。
-- **门禁（Gate）**：卡片可挂行为门禁——move（移动状态）/ tags（增减标签）/ archive（归档）触发时检查，不通过则拒绝动作。门禁是统一抽象：**一个检查单元（checker）**，可以是内置条件、一段代码、一条/多条 pipeline。详见下文「面向 Agent 的门禁指南」。
-- **创建模板**：预设 description / tags / content / gates，新建卡片时引用免重复输入。agent（kanban_create(template=) 或 kanban_template_* 工具）与手动创建（创建弹窗模板下拉 + 预填）均可用。
+- **门禁（Gate）**：门禁是**门禁库里的独立实体**（单独配置，卡片/模板按 id 勾选复用）——move（移动状态）/ tags（增减标签）/ archive（归档）触发时检查，不通过则拒绝动作。检查器统一抽象为 **checker**：内置条件 / 沙箱代码 / pipeline 三种写法，唯一执行底层是沙箱 code。详见下文「面向 Agent 的门禁指南」。
+- **创建模板**：预设 description / tags / content / 门禁勾选（gate_ids 引用门禁库），新建卡片时引用免重复输入。agent（kanban_create(template=) 或 kanban_template_* 工具）与手动创建（创建弹窗模板下拉 + 预填）均可用。
 - **跨插件服务**：ctx.provide('kanban')（getCard / updateCard / listCards / getCardStatus / moveCard）。
 
 ## 面向 Agent 的门禁指南
 
 > agent 在对话中给卡片挂门禁、写门禁代码前，先读本节——工具参数、检查器契约、沙箱能力都在这里。
 
-### 1. 门禁模型
+### 1. 门禁模型（v6：门禁库）
 
-一个门禁 = 某类动作触发时、必须通过的一个检查单元：
+门禁是**门禁库（board.gateLibrary）里的独立实体**：单独创建、单独配置，卡片与模板按 id **勾选引用**（card.gateIds / template.gateIds）。同一门禁可被多张卡/多个模板复用，改一处全局生效。
 
 ```json
 {
-  "id": "g...",              // 自动生成
+  "id": "g...",              // 自动生成（库 id）
   "name": "进 RD 需关联 MR",  // 展示用
   "on": "move",              // 触发行为：move / tags / archive
   "to": "RD",                // 仅 move：限定目标列名（可选；不填 = 移到任何列都触发）
@@ -28,7 +28,7 @@ DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板�
 }
 ```
 
-一张卡片可挂**多条门禁**，触发动作时全部通过才放行；任一失败返回「门禁未通过：<原因>」并拒绝动作。门禁可挂在卡片上，也可由创建模板带入。
+一张卡片可勾选**多条门禁**，触发动作时全部通过才放行；任一失败返回「门禁未通过：<原因>」并拒绝动作。模板勾选的门禁在建卡时随卡带入（复制 gateIds 引用）。旧版内联 `gates[]` 数据读取时自动迁入门禁库。
 
 ### 2. checker 六种类型（唯一执行底层 = 沙箱 code）
 
@@ -68,46 +68,59 @@ DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板�
 #### 示例 1：人工确认（最常用）
 
 ```
-kanban_gate_add(card_id, checker_type: "tag-required", on: "move", to: "RD Ready",
-                name: "RD 人工确认", config: {tags: ["rd-confirmed"]})
+# 1) 在门禁库创建门禁（独立实体，只建一次，多卡复用）
+kanban_gate_create(name: "RD 人工确认", checker_type: "tag-required",
+                   on: "move", to: "RD", config: {tags: ["rd-confirmed"]})
+# 2) 卡片勾选挂载（或模板 gate_ids 勾选后随卡带入）
+kanban_gate_add(card_id, gate_id: "<上一步的 gate_id>")
 # 确认动作 = agent 在对话流里打标签：kanban_tags(card_id, add: ["rd-confirmed"])
 ```
 
 #### 示例 2：MR 合并才能归档
 
 ```
-kanban_gate_add(card_id, checker_type: "mr-merged", on: "archive", name: "MR 已合并才能归档")
+kanban_gate_create(name: "MR 已合并才能归档", checker_type: "mr-merged", on: "archive")
+kanban_gate_add(card_id, gate_id: "<gate_id>")
 ```
 
 #### 示例 3：进 Done 前跑测试 pipeline（现场等结果）
 
 ```
-kanban_gate_add(card_id, checker_type: "pipeline", on: "move", to: "Done",
-                name: "测试流水线通过", config: {pipelines: ["<三插件验证 pipelineId>"]})
+kanban_gate_create(name: "测试流水线通过", checker_type: "pipeline", on: "move", to: "Done",
+                   config: {pipelines: ["<三插件验证 pipelineId>"]})
+kanban_gate_add(card_id, gate_id: "<gate_id>")
 ```
 
 #### 示例 4：沙箱内调其他插件（code）
 
 ```
-kanban_gate_add(card_id, checker_type: "code", on: "move", to: "Stage", name: "git 已配置且标题够长",
+kanban_gate_create(name: "git 已配置且标题够长", checker_type: "code", on: "move", to: "Stage",
   config: {code: "const gitCfg = await gate.call({service: 'git', method: 'isConfigured'});\nconst card = await gate.card({});\nreturn { ok: gitCfg.configured === true && String(card.title).length > 5, reason: 'git 未配置或标题过短' };"})
+```
+
+#### 模板勾选门禁（随卡带入）
+
+```
+kanban_template_create(name: "workflow", gate_ids: ["<gate_id>…"])   # 或内联 gates 数组（自动入库）
+kanban_create(title: …, template: "workflow")                        # 新卡自动勾选相同门禁
 ```
 
 ### 4. 相关工具
 
-- 门禁管理：`kanban_gate_add` / `kanban_gate_remove` / `kanban_gate_list` / `kanban_gate_check`（手动预检，不执行动作）
-- 模板带门禁：`kanban_template_create(gates: […])` → 建卡 `kanban_create(template: …)` 自动带入
-- UI：卡片抽屉「门禁」区块增删；动作前 UI 调 /kanban-api/gate-check 预检
+- 门禁库：`kanban_gate_create` / `kanban_gate_delete`（删库同时从卡片/模板摘除）/ `kanban_gate_list`（返回 gate_library + 指定卡片 card_gates）
+- 挂载：`kanban_gate_add`（card_id + gate_id）/ `kanban_gate_remove`；预检：`kanban_gate_check`（不执行动作）
+- 模板带门禁：`kanban_template_create/update` 支持 `gate_ids`（兼容内联 `gates` 自动入库）→ 建卡 `kanban_create(template: …)` 自动带入
+- UI：「门禁」页 = 门禁库 CRUD（含引用关系）；卡片抽屉「门禁」区块勾选挂载；动作前 UI 调 /kanban-api/gate-check 预检
 
 ## 数据
 
 - 目录：~/.dsh/kanban/board.json + config.json(dataDir)
-- board：columns + archive + templates（创建模板）；卡片含 gates[]（门禁，旧平铺格式读取时自动迁移）
+- board：columns + archive + templates（创建模板）+ gateLibrary（门禁库）；卡片/模板含 gateIds[]（引用门禁库；旧内联 gates[] 读取时自动迁移入库）
 
 ## 开发
 
 ```bash
-pnpm --filter dsh-kanban check   # typecheck + build + verify（27 工具 / 5 路由断言）
+pnpm --filter dsh-kanban check   # typecheck + build + verify（29 工具 / 5 路由断言）
 node scripts/smoke-gate.mjs      # 门禁/模板端到端冒烟
 node build.mjs --watch           # HMR 开发
 ```

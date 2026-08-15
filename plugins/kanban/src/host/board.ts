@@ -25,19 +25,37 @@ export function defaultBoard(): any {
   }
 }
 
-/** 读板后归一化：补齐 templates/gates 等 v4 字段（旧板兼容） */
+/** 读板后归一化：补齐 v6 门禁库字段；内联 gates → 门禁库 + gateIds 引用（旧数据兼容） */
 export function normalizeBoard(board: any): any {
   if (!board) return board
   if (!Array.isArray(board.archive)) board.archive = []
   if (!Array.isArray(board.templates)) board.templates = []
-  for (const col of board.columns || []) {
-    for (const card of col.cards || []) {
-      if (!Array.isArray(card.gates)) card.gates = []
+  if (!Array.isArray(board.gateLibrary)) board.gateLibrary = []
+  const lib: any[] = board.gateLibrary
+  const ensureGate = (g: any): string => {
+    // 入库去重：同名 + 同 checker.type + 同 on + 同 to → 复用；否则新增
+    if (!g.id || typeof g.id !== 'string') g.id = 'g' + Math.random().toString(36).slice(2, 10)
+    const type = g.checker ? g.checker.type : g.kind
+    const hit = lib.find((x) => x.name === g.name && (x.checker ? x.checker.type : x.kind) === type && x.on === g.on && String(x.to || '') === String(g.to || ''))
+    if (hit) return hit.id
+    lib.push(g)
+    return g.id
+  }
+  const migrateHolder = (holder: any) => {
+    if (!holder) return
+    if (!Array.isArray(holder.gateIds)) holder.gateIds = []
+    if (Array.isArray(holder.gates) && holder.gates.length > 0) {
+      for (const g of holder.gates) {
+        const id = ensureGate(g)
+        if (!holder.gateIds.includes(id)) holder.gateIds.push(id)
+      }
     }
   }
-  for (const card of board.archive || []) {
-    if (!Array.isArray(card.gates)) card.gates = []
+  for (const col of board.columns || []) {
+    for (const card of col.cards || []) migrateHolder(card)
   }
+  for (const card of board.archive || []) migrateHolder(card)
+  for (const tpl of board.templates || []) migrateHolder(tpl)
   return board
 }
 

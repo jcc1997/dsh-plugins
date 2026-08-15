@@ -90,7 +90,7 @@ export function apply(ctx: KanbanCtx) {
     const board = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
     const hit = findCardAny(board, String(a.card_id))
     if (!hit) return { ok: false, error: 'card not found: ' + a.card_id }
-    const res = await checkGates(hit.card, a.action as GateAction, gateDeps, { to: a.to ? String(a.to) : undefined })
+    const res = await checkGates(hit.card, board, a.action as GateAction, gateDeps, { to: a.to ? String(a.to) : undefined })
     return { ok: res.ok, failed: res.failed }
   })
   // 整板保存（client 侧 mutate 后全量落盘；归档/富文本随板）

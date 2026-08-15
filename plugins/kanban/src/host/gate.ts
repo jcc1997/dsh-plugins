@@ -43,6 +43,8 @@ export interface GateFailure {
 /** v4 → v5 迁移：旧平铺 {kind, on, config:{to,...}} → 新 {on, to?, checker:{type, config}} */
 export function migrateGate(g: any): CardGate {
   if (!g || typeof g !== 'object') return g
+  // 补 id：模板带入的门禁可能没有 id（缺失 id 会导致 UI 展开/删除定位错乱）
+  if (!g.id || typeof g.id !== 'string') g.id = 'g' + Math.random().toString(36).slice(2, 10)
   if (g.checker && typeof g.checker === 'object' && typeof g.checker.type === 'string') return g as CardGate
   const config = { ...(g.config || {}) }
   const to = typeof config.to === 'string' ? (config.to as string) : undefined
@@ -51,9 +53,27 @@ export function migrateGate(g: any): CardGate {
   return { id: g.id, name: g.name || type, on: g.on || 'move', ...(to ? { to } : {}), checker: { type: type as any, config } }
 }
 
+/** 解析卡片/模板实际生效的门禁（v6 门禁库引用优先，兼容内联） */
+export function resolveGates(holder: any, board: any): CardGate[] {
+  if (!holder) return []
+  const lib: any[] = (board && Array.isArray(board.gateLibrary)) ? board.gateLibrary : []
+  const out: CardGate[] = []
+  if (Array.isArray(holder.gateIds) && holder.gateIds.length > 0) {
+    for (const id of holder.gateIds) {
+      const g = lib.find((x) => x.id === id)
+      if (g) out.push(migrateGate(g))
+    }
+    if (out.length > 0) return out
+  }
+  if (Array.isArray(holder.gates)) {
+    for (const g of holder.gates) out.push(migrateGate(g))
+  }
+  return out
+}
+
 /** 匹配某动作应触发的门禁（on 相等；move 可限目标列 gate.to） */
-export function gatesFor(card: any, action: GateAction, extra?: { to?: string }): CardGate[] {
-  const gates: CardGate[] = Array.isArray(card && card.gates) ? card.gates.map(migrateGate) : []
+export function gatesFor(holder: any, action: GateAction, extra?: { to?: string }, board?: any): CardGate[] {
+  const gates = resolveGates(holder, board)
   return gates.filter((g) => {
     if (g.on !== action) return false
     if (action === 'move' && g.to) {
@@ -323,11 +343,12 @@ checkerRegistry['pipeline'] = async (card, gate, cfg, deps) => {
 /** 检查卡片上匹配 action 的全部门禁；任一失败即拒绝 */
 export async function checkGates(
   card: any,
+  board: any,
   action: GateAction,
   deps: GateCheckDeps,
   extra?: { to?: string },
 ): Promise<{ ok: boolean; failed: GateFailure[] }> {
-  const gates = gatesFor(card, action, extra)
+  const gates = gatesFor(card, action, extra, board)
   if (gates.length === 0) return { ok: true, failed: [] }
   const failed: GateFailure[] = []
   for (const g of gates) {

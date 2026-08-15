@@ -26,6 +26,20 @@ export const drawerCss = `
 .kbnb-gate-meta{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary)}
 .kbnb-gate-summary{flex:1;min-width:0;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kbnb-gate-add{display:flex;flex-direction:column;gap:8px}
+.kbnb-gate-add-empty{flex-direction:row;align-items:center;gap:10px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
+
+/* ══ 门禁库视图（v6） ══ */
+.kbnb-gate-form-row{display:flex;align-items:center;gap:8px}
+.kbnb-gate-form-row .kbnb-input{flex:1}
+.kbnb-gate-card{display:flex;flex-direction:column;gap:8px;position:relative}
+.kbnb-gate-card .kbnb-gate-detail-pre{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px}
+.kbnb-gate-users{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.kbnb-gate-users .kbnb-gates-cardlink{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;margin-bottom:0}
+.kbnb-gate-del{position:absolute;top:0;right:0}
+.kbnb-gate-checks{display:flex;flex-direction:column;gap:6px}
+.kbnb-gate-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dsw-alias-label-primary);cursor:pointer}
+.kbnb-gate-check-meta{font-size:11px;color:var(--dsw-alias-label-tertiary)}
+.kbnb-gate-checks-inline{flex-direction:row;flex-wrap:wrap;margin-top:8px}
 
 /* ══ 抽屉 ══ */
 .kbnb-drawer-mask{position:fixed;inset:0;background:var(--dsw-alias-bg-mask-1);z-index:70;pointer-events:auto;display:flex;justify-content:flex-end}

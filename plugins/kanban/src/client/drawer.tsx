@@ -71,8 +71,10 @@ export function CardDetail(props: {
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
   onOpenSession: (sessionId: string) => void
-  onAddGate?: (gate: CardGate) => void
+  gateLibrary?: CardGate[]
+  onAddGate?: (gateId: string) => void
   onRemoveGate?: (gateId: string) => void
+  onOpenGatesView?: () => void
   actionHost?: (() => React.ReactNode) | null
 }) {
   const [title, setTitle] = useState(props.card.title)
@@ -184,8 +186,10 @@ export function CardDetail(props: {
         onAddRef={props.onAddRef}
         onRemoveRef={props.onRemoveRef}
         onOpenSession={props.onOpenSession}
+        gateLibrary={props.gateLibrary}
         onAddGate={props.onAddGate}
         onRemoveGate={props.onRemoveGate}
+        onOpenGatesView={props.onOpenGatesView}
         actionHost={props.actionHost}
       />
     </div>
@@ -206,8 +210,10 @@ export function CardDrawer(props: {
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
   onOpenSession: (sessionId: string) => void
-  onAddGate?: (gate: CardGate) => void
+  gateLibrary?: CardGate[]
+  onAddGate?: (gateId: string) => void
   onRemoveGate?: (gateId: string) => void
+  onOpenGatesView?: () => void
   actionHost?: (() => React.ReactNode) | null
 }) {
   return (
@@ -232,8 +238,10 @@ export function CardDrawer(props: {
           onAddRef={props.onAddRef}
           onRemoveRef={props.onRemoveRef}
           onOpenSession={props.onOpenSession}
+          gateLibrary={props.gateLibrary}
           onAddGate={props.onAddGate}
           onRemoveGate={props.onRemoveGate}
+          onOpenGatesView={props.onOpenGatesView}
           actionHost={props.actionHost}
         />
       </aside>

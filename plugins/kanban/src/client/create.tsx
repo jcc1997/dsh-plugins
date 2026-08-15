@@ -45,36 +45,42 @@ function plainText(html: string): string {
 
 export function CreateCardModal(props: {
   templates?: CardTemplate[]
-  onCreate: (title: string, description: string, tags: string[], content: KanbanBlock[], gates?: CardGate[], templateName?: string) => void
+  gateLibrary?: CardGate[]
+  onCreate: (title: string, description: string, tags: string[], content: KanbanBlock[], gateIds?: string[], templateName?: string) => void
   onClose: () => void
 }) {
   const templates = props.templates || []
+  const lib = props.gateLibrary || []
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [tagsText, setTagsText] = useState('')
   const [content, setContent] = useState<KanbanBlock[]>([])
   const [tplId, setTplId] = useState('')
-  const [gates, setGates] = useState<CardGate[]>([])
+  const [gateIds, setGateIds] = useState<string[]>([])
   const [tplName, setTplName] = useState<string | undefined>(undefined)
 
-  /** 选择模板：预填描述/标签/内容/门禁（标题不预填） */
+  /** 选择模板：预填描述/标签/内容/门禁勾选（标题不预填） */
   function pickTemplate(id: string) {
     setTplId(id)
     const tpl = templates.find((t) => t.id === id)
-    if (!tpl) { setDescription(''); setTagsText(''); setContent([]); setGates([]); setTplName(undefined); return }
+    if (!tpl) { setDescription(''); setTagsText(''); setContent([]); setGateIds([]); setTplName(undefined); return }
     setDescription(tpl.description || '')
     setTagsText((tpl.tags || []).join(', '))
     setContent(Array.isArray(tpl.content) ? JSON.parse(JSON.stringify(tpl.content)) : [])
-    setGates(Array.isArray(tpl.gates) ? JSON.parse(JSON.stringify(tpl.gates)) : [])
+    setGateIds(Array.isArray(tpl.gateIds) ? tpl.gateIds.slice() : [])
     setTplName(tpl.name)
   }
   function submit() {
     const t = plainText(title)
     if (!t) return
     const tags = tagsText.split(/[,，\s]+/).map((x) => x.trim()).filter((x) => x)
-    props.onCreate(t, plainText(description), tags, content, gates, tplName)
+    props.onCreate(t, plainText(description), tags, content, gateIds, tplName)
     props.onClose()
   }
+  const gateNames = gateIds.map((id) => {
+    const g = lib.find((x: any) => x.id === id)
+    return g ? g.name : id
+  })
   return (
     <Modal title="新建卡片" width={560} onClose={props.onClose}>
       {templates.length > 0 ? (
@@ -87,17 +93,17 @@ export function CreateCardModal(props: {
             <option value="">不使用模板</option>
             {templates.map((t) => (
               <option key={t.id} value={t.id}>
-                {t.name}{t.gates && t.gates.length > 0 ? '（门禁 ' + t.gates.length + '）' : ''}
+                {t.name}{Array.isArray(t.gateIds) && t.gateIds.length > 0 ? '（门禁 ' + t.gateIds.length + '）' : ''}
               </option>
             ))}
           </select>
         </div>
       ) : null}
-      {gates.length > 0 ? (
+      {gateIds.length > 0 ? (
         <div className="kbnb-field-row" style={{ marginBottom: 8 }}>
           <span className="kbnb-field-label">门禁（随卡带入）</span>
           <span style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)' }}>
-            {gates.map((g) => g.name || (g.checker ? g.checker.type : (g as any).kind)).join('、')}
+            {gateNames.join('、')}
           </span>
         </div>
       ) : null}

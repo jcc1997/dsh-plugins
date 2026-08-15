@@ -245,28 +245,94 @@ export function useKanbanBoard(host: HostLike) {
     })
   }
 
-  /* ── 门禁管理（v4）：挂/摘卡片门禁 ── */
-  function addGate(cardId: string, gate: any) {
+  /* ── 门禁管理（v6）：门禁库实体 + 卡片/模板按 id 勾选 ── */
+  /** 卡片挂载门禁（按门禁库 id 勾选） */
+  function attachGate(cardId: string, gateId: string) {
     mutate((b) => {
       const hit = hitOf(b, cardId)
       const card = hit && (hit as any).card
       if (!card) return
-      if (!Array.isArray(card.gates)) card.gates = []
-      if (card.gates.some((g: any) => g.kind === gate.kind && g.on === gate.on)) return
-      card.gates.push(gate)
+      if (!Array.isArray(card.gateIds)) card.gateIds = []
+      if (card.gateIds.includes(gateId)) return
+      card.gateIds.push(gateId)
       card.updatedAt = safeNow()
-      appendActivity(card, '挂门禁：' + (gate.name || gate.kind) + '（on ' + gate.on + '）')
+      const g = (b.gateLibrary || []).find((x: any) => x.id === gateId)
+      appendActivity(card, '挂门禁：' + (g ? g.name : gateId))
     })
   }
+  /** 卡片摘除门禁（按门禁库 id） */
   function removeGate(cardId: string, gateId: string) {
     mutate((b) => {
       const hit = hitOf(b, cardId)
       const card = hit && (hit as any).card
-      if (!card || !Array.isArray(card.gates)) return
-      const g = card.gates.find((x: any) => x.id === gateId)
-      card.gates = card.gates.filter((x: any) => x.id !== gateId)
+      if (!card) return
+      if (!Array.isArray(card.gateIds)) card.gateIds = []
+      const before = card.gateIds.includes(gateId)
+      card.gateIds = card.gateIds.filter((id: string) => id !== gateId)
+      if (!before) return
       card.updatedAt = safeNow()
-      if (g) appendActivity(card, '移除门禁：' + (g.name || g.kind))
+      const g = (b.gateLibrary || []).find((x: any) => x.id === gateId)
+      appendActivity(card, '移除门禁：' + (g ? g.name : gateId))
+    })
+  }
+  /** 门禁库新增（独立实体；返回新门禁 id 供引用） */
+  function createGate(gate: any): string | null {
+    return mutate((b) => {
+      if (!Array.isArray(b.gateLibrary)) b.gateLibrary = []
+      const g = JSON.parse(JSON.stringify(gate))
+      if (!g.id) g.id = safeId('g')
+      b.gateLibrary.push(g)
+      return g.id
+    })
+  }
+  /** 门禁库删除（同时从所有卡片/模板的 gateIds 摘除） */
+  function deleteGate(gateId: string) {
+    mutate((b) => {
+      b.gateLibrary = (b.gateLibrary || []).filter((g: any) => g.id !== gateId)
+      for (const col of b.columns || []) {
+        for (const card of col.cards || []) {
+          if (Array.isArray(card.gateIds)) card.gateIds = card.gateIds.filter((id: string) => id !== gateId)
+        }
+      }
+      for (const card of b.archive || []) {
+        if (Array.isArray(card.gateIds)) card.gateIds = card.gateIds.filter((id: string) => id !== gateId)
+      }
+      for (const tpl of b.templates || []) {
+        if (Array.isArray(tpl.gateIds)) tpl.gateIds = tpl.gateIds.filter((id: string) => id !== gateId)
+      }
+    })
+  }
+  /** 更新门禁库实体（字段局部覆盖） */
+  function updateGate(gateId: string, patch: any) {
+    mutate((b) => {
+      const g = (b.gateLibrary || []).find((x: any) => x.id === gateId)
+      if (!g) return
+      Object.assign(g, patch)
+    })
+  }
+  /** 模板勾选门禁（覆盖式） */
+  function setTemplateGates(templateId: string, gateIds: string[]) {
+    mutate((b) => {
+      const tpl = (b.templates || []).find((t: any) => t.id === templateId)
+      if (!tpl) return
+      tpl.gateIds = gateIds.slice()
+      tpl.updatedAt = safeNow()
+    })
+  }
+  /** 新建模板（预置描述/标签/门禁勾选） */
+  function createTemplate(name: string, description: string, tags: string[], gateIds: string[]) {
+    mutate((b) => {
+      if (!Array.isArray(b.templates)) b.templates = []
+      b.templates.push({
+        id: safeId('t'), name, description, tags, content: [], gateIds: gateIds.slice(),
+        createdAt: safeNow(), updatedAt: safeNow(),
+      })
+    })
+  }
+  /** 删除模板 */
+  function deleteTemplate(templateId: string) {
+    mutate((b) => {
+      b.templates = (b.templates || []).filter((t: any) => t.id !== templateId)
     })
   }
 
@@ -328,8 +394,14 @@ export function useKanbanBoard(host: HostLike) {
     addComment,
     addRef,
     removeRef,
-    addGate,
+    attachGate,
     removeGate,
+    createGate,
+    updateGate,
+    deleteGate,
+    setTemplateGates,
+    createTemplate,
+    deleteTemplate,
     gateCheck,
     addColumn,
     renameColumn,

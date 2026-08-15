@@ -58,7 +58,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
               ...cardSummary(card, hit.col), archived: hit.archived,
               description: card.description || '', content: card.content || [], contentText: contentText(card),
               comments: card.comments || [], activity: card.activity || [], refs: card.refs || [], meta: card.meta || {},
-              gates: card.gates || [],
+              gate_ids: card.gateIds || [], gates: card.gates || [],
             },
             column: hit.col ? { id: hit.col.id, title: hit.col.title } : null,
           }
@@ -160,7 +160,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
             content: args.content !== undefined ? normalizeContent(args.content) : (tpl && Array.isArray(tpl.content) ? JSON.parse(JSON.stringify(tpl.content)) : []),
             links: [], refs: [], meta: {}, comments: [], activity: [],
             tags: args.tags !== undefined ? args.tags.map((x: any) => String(x)) : (tpl && Array.isArray(tpl.tags) ? tpl.tags.map((x: any) => String(x)) : []),
-            gates: tpl && Array.isArray(tpl.gates) ? JSON.parse(JSON.stringify(tpl.gates)) : [],
+            gateIds: tpl && Array.isArray(tpl.gateIds) ? [...tpl.gateIds] : [],
             createdAt: now(), updatedAt: now(),
           }
           appendActivity(card, '创建卡片' + (tpl ? '（模板：' + tpl.name + '）' : ''))
@@ -183,7 +183,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
         const to0 = resolveColumn(board0, args.status)
         if (!to0) return { ok: false, error: 'column not found: ' + String(args.status) }
         // 门禁（to 传目标列标题，config.to 可限定目标列）
-        const gate = await checkGates(hit0.card, 'move', gateDeps, { to: to0.title })
+        const gate = await checkGates(hit0.card, board0, 'move', gateDeps, { to: to0.title })
         if (!gate.ok) return { ok: false, error: '门禁未通过：' + gate.failed.map((f) => f.reason).join('；') }
         return mutateBoard(fs, (board: any) => {
           const hit = findCardGlobal(board, String(args.card_id))
@@ -239,7 +239,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
         const board0 = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
         const hit0 = findCardAny(board0, String(args.card_id))
         if (!hit0) return { ok: false, error: 'card not found: ' + args.card_id }
-        const gate = await checkGates(hit0.card, 'tags', gateDeps)
+        const gate = await checkGates(hit0.card, board0, 'tags', gateDeps)
         if (!gate.ok) return { ok: false, error: '门禁未通过：' + gate.failed.map((f) => f.reason).join('；') }
         return mutateBoard(fs, (board: any) => {
           const hit = findCardAny(board, String(args.card_id))

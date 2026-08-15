@@ -24,7 +24,7 @@ export function archiveToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
         })()
         if (!hit0) return { ok: false, error: 'card not found（可能已归档）: ' + args.card_id }
         // 门禁（如「对应 MR 必须 merge 才能进入归档」）
-        const gate = await checkGates(hit0.card, 'archive', gateDeps)
+        const gate = await checkGates(hit0.card, board0, 'archive', gateDeps)
         if (!gate.ok) return { ok: false, error: '门禁未通过：' + gate.failed.map((f) => f.reason).join('；') }
         return mutateBoard(fs, (board: any) => {
           const hit = (() => {
