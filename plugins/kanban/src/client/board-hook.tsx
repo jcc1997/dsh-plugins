@@ -76,6 +76,22 @@ export function useKanbanBoard(host: HostLike) {
     return null
   }
 
+  /* ── 门禁预检（v4）：动作前调 host gate-check，不通过则报错并拒绝 ── */
+  async function gateCheck(cardId: string, action: 'move' | 'tags' | 'archive', to?: string): Promise<boolean> {
+    try {
+      const r = await host.call('kanban/gate-check', { card_id: cardId, action, to })
+      if (r && r.ok) return true
+      const reasons = r && Array.isArray(r.failed) && r.failed.length > 0
+        ? r.failed.map((f: any) => (f.name || f.kind) + '：' + (f.reason || '')).join('；')
+        : (r && r.error) || '未知原因'
+      setError('门禁未通过，动作已拒绝：' + reasons)
+      return false
+    } catch (e) {
+      setError('门禁检查失败: ' + String(e))
+      return false
+    }
+  }
+
   /* ── 卡片操作（按 cardId 定位，供看板页 / 会话面板 / 抽屉共用） ── */
   /** 保存标题/描述/富文本内容（无变化不写盘） */
   function saveCard(cardId: string, title: string, description: string, content?: KanbanBlock[]) {
@@ -93,8 +109,10 @@ export function useKanbanBoard(host: HostLike) {
       appendActivity(card, '更新卡片')
     })
   }
-  /** 跨列移动（记录状态变更日志） */
-  function moveCardToStatus(cardId: string, targetColId: string) {
+  /** 跨列移动（记录状态变更日志；v4 先过 move 门禁） */
+  async function moveCardToStatus(cardId: string, targetColId: string) {
+    const toTitle = board && board.columns ? (board.columns.find((c) => c.id === targetColId) || ({} as any)).title : undefined
+    if (!(await gateCheck(cardId, 'move', toTitle))) return
     mutate((b) => {
       const hit = hitOf(b, cardId)
       if (!hit) return
@@ -121,8 +139,9 @@ export function useKanbanBoard(host: HostLike) {
     })
   }
   /* ── 归档操作（v3） ── */
-  /** 归档：移出列 → board.archive（archivedFrom 记原列，恢复时回原列） */
-  function archiveCard(cardId: string) {
+  /** 归档：移出列 → board.archive（archivedFrom 记原列，恢复时回原列；v4 先过 archive 门禁） */
+  async function archiveCard(cardId: string) {
+    if (!(await gateCheck(cardId, 'archive'))) return
     mutate((b) => {
       const hit = hitOf(b, cardId)
       if (!hit) return
@@ -160,8 +179,9 @@ export function useKanbanBoard(host: HostLike) {
       b.archive = b.archive.filter((k) => k.id !== cardId)
     })
   }
-  /** 标签增减（写变更记录） */
-  function updateTags(cardId: string, add: string[], remove: string[]) {
+  /** 标签增减（写变更记录；v4 先过 tags 门禁） */
+  async function updateTags(cardId: string, add: string[], remove: string[]) {
+    if (!(await gateCheck(cardId, 'tags'))) return
     mutate((b) => {
       const hit = hitOf(b, cardId)
       const target = hit && (hit as any).card
@@ -225,6 +245,31 @@ export function useKanbanBoard(host: HostLike) {
     })
   }
 
+  /* ── 门禁管理（v4）：挂/摘卡片门禁 ── */
+  function addGate(cardId: string, gate: any) {
+    mutate((b) => {
+      const hit = hitOf(b, cardId)
+      const card = hit && (hit as any).card
+      if (!card) return
+      if (!Array.isArray(card.gates)) card.gates = []
+      if (card.gates.some((g: any) => g.kind === gate.kind && g.on === gate.on)) return
+      card.gates.push(gate)
+      card.updatedAt = safeNow()
+      appendActivity(card, '挂门禁：' + (gate.name || gate.kind) + '（on ' + gate.on + '）')
+    })
+  }
+  function removeGate(cardId: string, gateId: string) {
+    mutate((b) => {
+      const hit = hitOf(b, cardId)
+      const card = hit && (hit as any).card
+      if (!card || !Array.isArray(card.gates)) return
+      const g = card.gates.find((x: any) => x.id === gateId)
+      card.gates = card.gates.filter((x: any) => x.id !== gateId)
+      card.updatedAt = safeNow()
+      if (g) appendActivity(card, '移除门禁：' + (g.name || g.kind))
+    })
+  }
+
   /* ── 列操作 ── */
   function addColumn(title: string) {
     mutate((b) => b.columns.push({ id: safeId('c'), title, cards: [], meta: {} }))
@@ -283,6 +328,9 @@ export function useKanbanBoard(host: HostLike) {
     addComment,
     addRef,
     removeRef,
+    addGate,
+    removeGate,
+    gateCheck,
     addColumn,
     renameColumn,
     deleteColumn,

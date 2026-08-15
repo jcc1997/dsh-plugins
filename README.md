@@ -4,7 +4,7 @@
 
 当前包含三个插件：
 
-- **看板（kanban）插件**：嵌入 DSH 侧边栏的全功能看板，提供**给 Agent 调用的 19 个工具**（数据模型 v3：卡片外部关联 refs + 跨插件 `kanban` 服务 + 归档 + 分组 + 富文本内容），让人和 AI 在同一块板上协作。
+- **看板（kanban）插件**：嵌入 DSH 侧边栏的全功能看板，提供**给 Agent 调用的 27 个工具**（数据模型 v4：卡片外部关联 refs + 跨插件 `kanban` 服务 + 归档 + 分组 + 富文本内容 + **行为门禁** + **创建模板**），让人和 AI 在同一块板上协作。
 - **git 插件**：task 关联 GitHub/本地仓库/branch/MR + 7 个 `git_*` 工具 + [ID] 自动关联 + MR 同步/合并（方案见 [`plugins/git/PLAN.md`](plugins/git/PLAN.md)）。
 - **pipeline 插件**（新）：类 dify 的可复用 AI 流水线——atomic 基础单元（如「转 mp3」）+ combined 组合流水线（如「bilibili 视频总结」），npm 风格 semver 版本管理（v1.0.1）、节点图编辑、运行队列与进度监控、10 个 `pipeline_*` agent 工具、跨插件 `pipeline` 服务。
 
@@ -24,7 +24,7 @@
 
 ### Agent 工具
 
-插件向模型注册 19 个工具，Agent 可以直接读写看板：
+插件向模型注册 27 个工具，Agent 可以直接读写看板：
 
 **查询**
 | 工具 | 说明 |
@@ -55,6 +55,24 @@
 | `kanban_delete_column` | 删除列（非空默认拒绝，`force: true` 级联删除卡片） |
 | `kanban_move_column` | 调整列顺序（按目标位置） |
 
+**门禁（v4）**
+| 工具 | 说明 |
+|---|---|
+| `kanban_gate_add` | 给卡片挂门禁（kind：mr-merged / tag-required / field-nonempty；on：move / tags / archive） |
+| `kanban_gate_remove` | 移除卡片门禁 |
+| `kanban_gate_list` | 列出卡片门禁 |
+| `kanban_gate_check` | 手动预检某动作的门禁（不执行动作） |
+
+**创建模板（v4）**
+| 工具 | 说明 |
+|---|---|
+| `kanban_template_list` | 列出创建模板 |
+| `kanban_template_create` | 新建模板（预设 description/tags/content/gates） |
+| `kanban_template_update` | 更新模板 |
+| `kanban_template_delete` | 删除模板（不影响已建卡片） |
+
+`kanban_create` 支持 `template` 参数：按模板预填描述/标签/内容/门禁（显式传参覆盖模板值）；`kanban_move` / `kanban_tags` / `kanban_archive` 在门禁不通过时拒绝动作并返回原因。
+
 所有 Agent 操作自动写入变更记录（`actor: "agent"`），与 UI 手动操作（`actor: "手动调整"`）同源可追溯。
 
 ## Pipeline 插件
@@ -82,7 +100,7 @@
 dsh-plugins/
 ├── plugins/
 │   ├── git/           # git 插件：git 服务 + 7 工具 + [ID] 自动关联 + MR 同步/合并，方案见 PLAN.md
-│   ├── kanban/        # 看板插件：TS 源码（模块化拆分）+ 编译管线 + 19 个 agent 工具 + kanban 服务（v3：归档/分组/富文本）
+│   ├── kanban/        # 看板插件：TS 源码（模块化拆分）+ 编译管线 + 27 个 agent 工具 + kanban 服务（v4：归档/分组/富文本/门禁/模板）
 │   └── pipeline/      # pipeline 插件：流水线引擎（DAG + 队列）+ 版本管理 + 10 个 agent 工具 + pipeline 跨插件服务
 ├── packages/
 │   ├── communication/ # 通信协议层（bus/rpc/services，开发/部署双形态工厂）

@@ -1,13 +1,15 @@
 // host/tools/card.ts — 卡片类 10 个 agent 工具：查询（view/get_card/search/recent）+ 操作（create/move/update/tags/comment/delete）
-import { FsLike } from '../board'
+// v4：move/tags 触发门禁检查（gateDeps 注入）；create 支持 template 预填。
+import { FsLike, normalizeBoard } from '../board'
 import {
   mutateBoard, readBoard, resolveDataDir, defaultBoard,
   findCardAny, findCardGlobal, resolveColumn, cardSummary,
   normalizeContent, contentText, cardRepo, appendActivity, safeId, now,
 } from '../board'
 import { P, STR, STRS, NUM, outputOf } from './shared'
+import { checkGates, GateCheckDeps } from '../gate'
 
-export function cardToolDefs(fs: FsLike): any[] {
+export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
   return [
     {
       // 看板全览：平铺列或按 git 仓库分组（group_by=repo）
@@ -56,6 +58,7 @@ export function cardToolDefs(fs: FsLike): any[] {
               ...cardSummary(card, hit.col), archived: hit.archived,
               description: card.description || '', content: card.content || [], contentText: contentText(card),
               comments: card.comments || [], activity: card.activity || [], refs: card.refs || [], meta: card.meta || {},
+              gates: card.gates || [],
             },
             column: hit.col ? { id: hit.col.id, title: hit.col.title } : null,
           }
@@ -129,13 +132,14 @@ export function cardToolDefs(fs: FsLike): any[] {
     {
       // 新建卡片：title 必填；content 支持块数组或字符串
       name: 'kanban_create',
-      description: '新建卡片。title 必填；status 为列名或列 id（缺省放入第一列）；可带 description（一句话纯文本）、content（富文本块数组或 markdown 字符串）与 tags。',
+      description: '新建卡片。title 必填；status 为列名或列 id（缺省放入第一列）；可带 description、content（富文本块数组或 markdown 字符串）、tags；template 传创建模板名或 id（预填 description/tags/content/gates，显式传参覆盖模板）。',
       parameters: P({
         title: STR('卡片标题（必填）'),
         status: STR('目标列名或列 id，缺省第一列'),
         description: STR('一句话纯文本描述'),
         content: { type: 'array', items: { type: 'object', additionalProperties: true }, description: '富文本块数组：[{ type: "text|h1|h2|h3|bullet|ordered|check|quote|code|divider|image", text?, url?, checked? }]；也可传字符串自动转文本块' },
         tags: STRS('初始标签列表'),
+        template: STR('创建模板名或 id（可选）：预填 description/tags/content/gates；显式传参覆盖模板值'),
       }, ['title']),
       execute: async (args: any) => {
         return mutateBoard(fs, (board: any) => {
@@ -143,25 +147,44 @@ export function cardToolDefs(fs: FsLike): any[] {
           if (!col) return { ok: false, error: 'column not found: ' + String(args.status) }
           const t = String(args.title).trim()
           if (!t) return { ok: false, error: 'title is required' }
+          // 模板解析（按名或 id）
+          let tpl: any = null
+          if (args.template) {
+            const ts = String(args.template)
+            tpl = (board.templates || []).find((x: any) => x.id === ts || x.name === ts) || null
+            if (!tpl) return { ok: false, error: 'template not found: ' + ts }
+          }
           const card: any = {
-            id: safeId('k'), title: t, description: args.description || '', content: normalizeContent(args.content),
+            id: safeId('k'), title: t,
+            description: args.description !== undefined ? String(args.description) : (tpl && tpl.description ? String(tpl.description) : ''),
+            content: args.content !== undefined ? normalizeContent(args.content) : (tpl && Array.isArray(tpl.content) ? JSON.parse(JSON.stringify(tpl.content)) : []),
             links: [], refs: [], meta: {}, comments: [], activity: [],
-            tags: Array.isArray(args.tags) ? args.tags.map((x: any) => String(x)) : [],
+            tags: args.tags !== undefined ? args.tags.map((x: any) => String(x)) : (tpl && Array.isArray(tpl.tags) ? tpl.tags.map((x: any) => String(x)) : []),
+            gates: tpl && Array.isArray(tpl.gates) ? JSON.parse(JSON.stringify(tpl.gates)) : [],
             createdAt: now(), updatedAt: now(),
           }
-          appendActivity(card, '创建卡片')
+          appendActivity(card, '创建卡片' + (tpl ? '（模板：' + tpl.name + '）' : ''))
           col.cards.push(card)
-          return { card_id: card.id, column: col.title }
+          return { card_id: card.id, column: col.title, template: tpl ? tpl.name : null }
         })
       },
       output: outputOf('创建结果'),
     },
     {
-      // 跨列移动
+      // 跨列移动（v4：触发 move 门禁检查）
       name: 'kanban_move',
-      description: '移动卡片到目标状态（列）。status 传列名或列 id，如"进行中"。',
+      description: '移动卡片到目标状态（列）。status 传列名或列 id，如"进行中"。卡片挂有 move 门禁时，不通过则拒绝移动。',
       parameters: P({ card_id: STR('要移动的卡片 id'), status: STR('目标列名或列 id') }, ['card_id', 'status']),
       execute: async (args: any) => {
+        const dataDir = await resolveDataDir(fs)
+        const board0 = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
+        const hit0 = findCardGlobal(board0, String(args.card_id))
+        if (!hit0) return { ok: false, error: 'card not found: ' + args.card_id }
+        const to0 = resolveColumn(board0, args.status)
+        if (!to0) return { ok: false, error: 'column not found: ' + String(args.status) }
+        // 门禁（to 传目标列标题，config.to 可限定目标列）
+        const gate = await checkGates(hit0.card, 'move', gateDeps, { to: to0.title })
+        if (!gate.ok) return { ok: false, error: '门禁未通过：' + gate.failed.map((f) => f.reason).join('；') }
         return mutateBoard(fs, (board: any) => {
           const hit = findCardGlobal(board, String(args.card_id))
           if (!hit) return null
@@ -207,11 +230,17 @@ export function cardToolDefs(fs: FsLike): any[] {
       output: outputOf('更新结果'),
     },
     {
-      // 标签增减
+      // 标签增减（v4：触发 tags 门禁检查）
       name: 'kanban_tags',
-      description: '为卡片增减标签。add 与 remove 为标签名数组，可同时传；返回卡片当前标签列表。',
+      description: '为卡片增减标签。add 与 remove 为标签名数组，可同时传；返回卡片当前标签列表。卡片挂有 tags 门禁时，不通过则拒绝。',
       parameters: P({ card_id: STR('卡片 id'), add: STRS('要添加的标签（可选）'), remove: STRS('要移除的标签（可选）') }, ['card_id']),
       execute: async (args: any) => {
+        const dataDir = await resolveDataDir(fs)
+        const board0 = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
+        const hit0 = findCardAny(board0, String(args.card_id))
+        if (!hit0) return { ok: false, error: 'card not found: ' + args.card_id }
+        const gate = await checkGates(hit0.card, 'tags', gateDeps)
+        if (!gate.ok) return { ok: false, error: '门禁未通过：' + gate.failed.map((f) => f.reason).join('；') }
         return mutateBoard(fs, (board: any) => {
           const hit = findCardAny(board, String(args.card_id))
           if (!hit) return null

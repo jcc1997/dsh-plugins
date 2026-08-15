@@ -9,7 +9,7 @@ import { ColumnsPanel } from './columns'
 import { KanbanSettings } from './settings'
 import { safeId, safeNow, appendActivity } from '@dsh-plugins/ui'
 import { useKanbanBoard, HostLike } from './board-hook'
-import { KanbanBlock } from '@dsh-plugins/ui'
+import { KanbanBlock, CardGate, CardTemplate } from '@dsh-plugins/ui'
 import { BoardView, GroupBy } from './board-view'
 import { ArchiveView } from './archive-view'
 
@@ -78,7 +78,7 @@ export function KanbanPage(props: {
   function removeRef(cardId: string, refId: string) {
     kb.removeRef(cardId, refId)
   }
-  function createCard(columnId: string, title: string, description: string, tags: string[], content: KanbanBlock[]) {
+  function createCard(columnId: string, title: string, description: string, tags: string[], content: KanbanBlock[], gates?: CardGate[], templateName?: string) {
     kb.mutate((b) => {
       const col = b.columns.find((c) => c.id === columnId)
       if (!col) return
@@ -93,10 +93,11 @@ export function KanbanPage(props: {
         meta: {},
         comments: [],
         activity: [],
+        gates: gates || [],
         createdAt: safeNow(),
         updatedAt: safeNow(),
       }
-      appendActivity(card, '创建卡片')
+      appendActivity(card, '创建卡片' + (templateName ? '（模板：' + templateName + '）' : ''))
       col.cards.push(card)
     })
   }
@@ -216,6 +217,8 @@ export function KanbanPage(props: {
           onAddRef={(ref) => addRef(drawer.cardId, ref)}
           onRemoveRef={(refId) => removeRef(drawer.cardId, refId)}
           onOpenSession={openSession}
+          onAddGate={(gate) => kb.addGate(drawer.cardId, gate)}
+          onRemoveGate={(gateId) => kb.removeGate(drawer.cardId, gateId)}
           actionHost={props.renderSlot ? () => (
             <div className="kbnb-card-actions">
               {props.renderSlot!('kanban.card.actions', { cardId: drawer.cardId, onSynced: kb.reload }, {}) as React.ReactNode}
@@ -225,7 +228,8 @@ export function KanbanPage(props: {
       ) : null}
       {creating ? (
         <CreateCardModal
-          onCreate={(title, description, tags, content) => createCard(creating, title, description, tags, content)}
+          templates={board.templates || []}
+          onCreate={(title, description, tags, content, gates, templateName) => createCard(creating, title, description, tags, content, gates, templateName)}
           onClose={() => setCreating(null)}
         />
       ) : null}

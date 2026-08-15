@@ -32,6 +32,33 @@ export interface KanbanCard {
   /** 归档时记录来源列 id（恢复时回原列）；恢复后保留 */
   archivedFrom?: string
   archivedAt?: string
+  /** 挂在卡片上的门禁（v4）：触发行为时检查，不通过则拒绝动作 */
+  gates?: CardGate[]
+}
+
+/** 门禁（v4）：某类行为触发时必须通过的条件。挂在卡片或创建模板上。 */
+export interface CardGate {
+  id: string
+  /** 门禁名（展示用） */
+  name: string
+  /** 条件类型：mr-merged（关联 MR 已合并）/ tag-required（必须含指定标签）/ field-nonempty（字段非空） */
+  kind: 'mr-merged' | 'tag-required' | 'field-nonempty'
+  /** 触发行为：move（移动状态）/ tags（增减标签）/ archive（归档） */
+  on: 'move' | 'tags' | 'archive'
+  /** 条件配置：mr-merged 无；tag-required { tags: [] }；field-nonempty { field: 'description' }；move 可带 { to: '列名' } 限定目标 */
+  config?: Record<string, unknown>
+}
+
+/** 创建模板（v4）：预设 description / tags / content / gates，创建卡片时引用免重复输入 */
+export interface CardTemplate {
+  id: string
+  name: string
+  description?: string
+  tags?: string[]
+  content?: KanbanBlock[]
+  gates?: CardGate[]
+  createdAt?: string
+  updatedAt?: string
 }
 
 /** 平台无关的外部引用。kind 命名空间：<platform>-<type>；payload 细节归 provider */
@@ -78,6 +105,8 @@ export interface KanbanBoard {
   columns: KanbanColumn[]
   /** 归档卡片（v3）：从列移出、看板隐藏，可恢复 */
   archive?: KanbanCard[]
+  /** 创建模板（v4）：新建卡片时引用，预填描述/标签/内容/门禁 */
+  templates?: CardTemplate[]
   meta?: Record<string, unknown>
 }
 

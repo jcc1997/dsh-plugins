@@ -3,9 +3,10 @@
 import { FsLike } from '../board'
 
 export const P = (properties: any, required: string[] = []) => ({ type: 'object', properties, required })
-export const STR = (description: string) => ({ type: 'string', description })
+export const STR = (description: string, required?: boolean) => ({ type: 'string', description, ...(required ? { required: true } : {}) })
 export const STRS = (description: string) => ({ type: 'array', items: { type: 'string' }, description })
 export const NUM = (description: string) => ({ type: 'number', description })
+export const OBJ = (description: string, required?: boolean) => ({ type: 'object', additionalProperties: true, description, ...(required ? { required: true } : {}) })
 
 /** 工具输出定义：纯文本 JSON 渲染 */
 export const outputOf = (description: string) => ({

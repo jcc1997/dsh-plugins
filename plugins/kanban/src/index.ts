@@ -1,10 +1,11 @@
-// kanban 插件宿主半（正式 bundle 形态）：RPC 路由 + kanban 跨插件服务 + 19 个 agent 工具
+// kanban 插件宿主半（正式 bundle 形态）：RPC 路由 + kanban 跨插件服务 + 27 个 agent 工具
 // 数据层在 host/board.ts（纯函数），工具定义在 host/tools/（按类别拆分）；
 // 接入点（正式形态）：ctx.webServer.register 暴露 /api/kanban/*（client UI 数据通道）；
 //       ctx.tools.register(defineTool(...)) 注册 agent 工具；ctx.provide('kanban') 跨插件服务。
-// 由动态形态迁移而来：业务逻辑零改动，仅 harness.handle/registerTool 换成正式服务。
-import { FsLike, findCardAny, mutateBoard, readBoard, resolveDataDir, defaultBoard, appendActivity, now } from './host/board'
+// v4：门禁引擎（host/gate.ts）+ 创建模板（board.templates）；credentials 供 mr-merged 门禁查 GitHub。
+import { FsLike, findCardAny, mutateBoard, readBoard, resolveDataDir, defaultBoard, appendActivity, now, normalizeBoard } from './host/board'
 import { buildToolDefs } from './host/tools'
+import { checkGates, GateAction } from './host/gate'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 interface KanbanCtx {
@@ -13,11 +14,15 @@ interface KanbanCtx {
   effect(cb: () => unknown): unknown
 }
 
+interface CredLike {
+  resolve(ref: string): Promise<{ value: string; source: string } | undefined>
+}
+
 type WebRouteRegistrar = { register(r: { kind: 'exact' | 'prefix'; path: string; handler: (req: any, res: any) => void | Promise<void> }): () => void }
 
 // 声明服务依赖：cordis 等待全部就绪后才激活 apply（宿主 include 是并发 apply，
 // webServer 等 web-app 层服务可能晚于本插件；不 inject 会拿到 undefined 导致路由静默缺失）
-export const inject = ['fs', 'webServer', 'tools']
+export const inject = ['fs', 'webServer', 'tools', 'credentials']
 
 export function apply(ctx: KanbanCtx) {
   // fs 是硬依赖：缺失直接不启动
@@ -25,6 +30,18 @@ export function apply(ctx: KanbanCtx) {
   if (!fs) return
   const webServer = ctx.get('webServer') as WebRouteRegistrar | undefined
   const tools = ctx.get('tools') as { register(def: unknown): () => void } | undefined
+  const credentials = ctx.get('credentials') as CredLike | undefined
+
+  /* ── 门禁依赖：mr-merged 查询 GitHub 需要 GITHUB_TOKEN（与 git 插件同 ref 名） ── */
+  const gateDeps = {
+    getToken: async () => {
+      if (!credentials) return undefined
+      try {
+        const r = await credentials.resolve('GITHUB_TOKEN')
+        return r && r.value ? r.value : undefined
+      } catch { return undefined }
+    },
+  }
 
   /* ── HTTP 路由：client UI 数据通道（POST /api/kanban/*，body JSON） ── */
   function route(path: string, handler: (args: any) => Promise<any>) {
@@ -49,12 +66,23 @@ export function apply(ctx: KanbanCtx) {
     }
   }
 
-  // 加载整板（含归档）与数据目录
+  // 加载整板（含归档/模板）与数据目录
   route('/kanban-api/load', async () => {
     const dataDir = await resolveDataDir(fs)
-    const board = await readBoard(fs, dataDir)
-    if (board && !Array.isArray(board.archive)) board.archive = []
-    return { board: board || defaultBoard(), dataDir }
+    const board = normalizeBoard(await readBoard(fs, dataDir)) || defaultBoard()
+    return { board, dataDir }
+  })
+  // 门禁预检（UI 动作前调用）：card_id + action(move/tags/archive) [+ to 目标列名]
+  route('/kanban-api/gate-check', async (args: any) => {
+    const a = (args || {}) as { card_id?: string; action?: string; to?: string }
+    if (!a.card_id || !a.action) return { ok: false, error: 'card_id and action required' }
+    if (!['move', 'tags', 'archive'].includes(String(a.action))) return { ok: false, error: 'unknown action: ' + a.action }
+    const dataDir = await resolveDataDir(fs)
+    const board = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
+    const hit = findCardAny(board, String(a.card_id))
+    if (!hit) return { ok: false, error: 'card not found: ' + a.card_id }
+    const res = await checkGates(hit.card, a.action as GateAction, gateDeps, { to: a.to ? String(a.to) : undefined })
+    return { ok: res.ok, failed: res.failed }
   })
   // 整板保存（client 侧 mutate 后全量落盘；归档/富文本随板）
   route('/kanban-api/save', async (args: any) => {
@@ -161,7 +189,7 @@ export function apply(ctx: KanbanCtx) {
       }
       return out
     }
-    for (const d of buildToolDefs(fs)) {
+    for (const d of buildToolDefs(fs, gateDeps)) {
       ctx.effect(() => tools.register(defineTool({ ...d, parameters: toToolParameters(d.parameters) })))
     }
   } else {

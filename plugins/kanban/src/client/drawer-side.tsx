@@ -1,7 +1,7 @@
-// client/drawer-side.tsx — 抽屉右侧栏：状态切换 + 归档/删除 + 标签 + Git 关联卡片 + 外部关联 + 变更记录
+// client/drawer-side.tsx — 抽屉右侧栏：状态切换 + 归档/删除 + 标签 + Git 关联卡片 + 外部关联 + 门禁 + 变更记录
 import React, { useState } from 'react'
-import { fmtTime } from '@dsh-plugins/ui'
-import { KanbanCard, KanbanColumn } from '@dsh-plugins/ui'
+import { fmtTime, safeId } from '@dsh-plugins/ui'
+import { KanbanCard, KanbanColumn, CardGate } from '@dsh-plugins/ui'
 
 /** 关联类型定义（新增/展示按类型；git 关联 + 会话关联） */
 export const REF_KINDS: { kind: string; label: string }[] = [
@@ -22,6 +22,8 @@ export function DrawerSide(props: {
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
   onOpenSession: (sessionId: string) => void
+  onAddGate?: (gate: CardGate) => void
+  onRemoveGate?: (gateId: string) => void
   actionHost?: (() => React.ReactNode) | null
 }) {
   const [refKind, setRefKind] = useState('github-repo')
@@ -166,6 +168,11 @@ export function DrawerSide(props: {
         ) : null}
       </section>
 
+      {/* 门禁（v4）：挂在此卡上的行为门禁，动作触发时检查；可增删 */}
+      {typeof props.onAddGate === 'function' ? (
+        <GateCard card={props.card} onAddGate={props.onAddGate} onRemoveGate={props.onRemoveGate || (() => {})} />
+      ) : null}
+
       {/* 变更记录：时间 + 操作者徽章 + 内容 */}
       <section className="kbnb-section">
         <div className="kbnb-section-title">变更记录 {activity.length}</div>
@@ -305,6 +312,102 @@ function TagInput(props: { onAdd: (tag: string) => void }) {
       }}
       onBlur={commit}
     />
+  )
+}
+
+/* ── 门禁卡片（v4）：列表 + 添加折叠表单 ── */
+const GATE_KINDS: { kind: string; label: string }[] = [
+  { kind: 'mr-merged', label: 'MR 已合并' },
+  { kind: 'tag-required', label: '必须含标签' },
+  { kind: 'field-nonempty', label: '字段非空' },
+]
+const GATE_ONS: { on: string; label: string }[] = [
+  { on: 'move', label: '移动状态' },
+  { on: 'tags', label: '增减标签' },
+  { on: 'archive', label: '归档' },
+]
+const GATE_ON_LABEL: Record<string, string> = { move: '移动状态', tags: '增减标签', archive: '归档' }
+const GATE_KIND_LABEL: Record<string, string> = { 'mr-merged': 'MR 已合并', 'tag-required': '必须含标签', 'field-nonempty': '字段非空' }
+
+function gateSummary(g: CardGate): string {
+  if (g.kind === 'tag-required') return '需含标签：' + String(((g.config && g.config.tags) || [])).replace(/,/g, ', ')
+  if (g.kind === 'field-nonempty') return '字段「' + String((g.config && g.config.field) || 'description') + '」非空'
+  return '关联 MR 必须已合并'
+}
+
+function GateCard(props: {
+  card: KanbanCard
+  onAddGate: (gate: CardGate) => void
+  onRemoveGate: (gateId: string) => void
+}) {
+  const [adding, setAdding] = useState(false)
+  const [kind, setKind] = useState('mr-merged')
+  const [on, setOn] = useState('archive')
+  const [name, setName] = useState('')
+  const [cfgText, setCfgText] = useState('')
+  const gates: CardGate[] = (props.card.gates || []) as CardGate[]
+
+  function submit() {
+    let config: Record<string, unknown> | undefined
+    if (cfgText.trim()) {
+      try { config = JSON.parse(cfgText) } catch { config = undefined }
+    } else {
+      if (kind === 'tag-required') config = { tags: [] }
+      if (kind === 'field-nonempty') config = { field: 'description' }
+    }
+    props.onAddGate({
+      id: safeId('g'),
+      name: name.trim() || (GATE_KIND_LABEL[kind] + '（' + GATE_ON_LABEL[on] + '）'),
+      kind: kind as CardGate['kind'],
+      on: on as CardGate['on'],
+      config,
+    })
+    setName('')
+    setCfgText('')
+    setAdding(false)
+  }
+
+  return (
+    <section className="kbnb-card kbnb-gates-card">
+      <header className="kbnb-card-sec-head">
+        <span className="kbnb-card-sec-title">门禁 {gates.length}</span>
+        <button className="kbnb-btn kbnb-ref-add-btn" type="button" onClick={() => setAdding(!adding)}>
+          {adding ? '收起' : '+ 新增'}
+        </button>
+      </header>
+      {gates.length === 0 ? <div className="kbnb-refs-empty">暂无门禁：动作不受限制</div> : null}
+      {gates.map((g) => (
+        <div key={g.id} className="kbnb-gate-row">
+          <span className="kbnb-gate-name" title={g.name}>{g.name}</span>
+          <span className="kbnb-gate-meta">{GATE_ON_LABEL[g.on]} · {GATE_KIND_LABEL[g.kind]}</span>
+          <span className="kbnb-gate-summary" title={gateSummary(g)}>{gateSummary(g)}</span>
+          <span className="kbnb-ref-x" title="移除门禁" onClick={() => props.onRemoveGate(g.id)}>×</span>
+        </div>
+      ))}
+      {adding ? (
+        <div className="kbnb-gate-add">
+          <select className="kbnb-input" value={kind} onChange={(e) => setKind(e.target.value)}>
+            {GATE_KINDS.map((k) => <option key={k.kind} value={k.kind}>{k.label}</option>)}
+          </select>
+          <select className="kbnb-input" value={on} onChange={(e) => setOn(e.target.value)}>
+            {GATE_ONS.map((o) => <option key={o.on} value={o.on}>{o.label}</option>)}
+          </select>
+          <input className="kbnb-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="门禁名（可选）" />
+          <input
+            className="kbnb-input"
+            value={cfgText}
+            onChange={(e) => setCfgText(e.target.value)}
+            placeholder={
+              kind === 'tag-required' ? '配置 JSON：{"tags":["done"]}'
+              : kind === 'field-nonempty' ? '配置 JSON：{"field":"description"}'
+              : kind === 'mr-merged' ? '无需配置（读取 github-repo + github-mr 关联）'
+              : '配置 JSON（可选）'
+            }
+          />
+          <button className="kbnb-btn kbnb-primary" type="button" onClick={submit}>添加门禁</button>
+        </div>
+      ) : null}
+    </section>
   )
 }
 

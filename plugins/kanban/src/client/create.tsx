@@ -1,7 +1,8 @@
 // 新建卡片弹窗：Notion 风格大标题（contentEditable）+ 一句话描述 + 标签 + 富文本内容（可选）
+// v4：支持创建模板——选择模板预填描述/标签/内容/门禁，创建时随卡带入。
 import React, { useRef, useState } from 'react'
 import { Modal } from '@dsh-plugins/ui'
-import { KanbanBlock } from '@dsh-plugins/ui'
+import { KanbanBlock, CardTemplate, CardGate } from '@dsh-plugins/ui'
 import { RichTextEditor } from './rich-text'
 
 /** contentEditable 文本：单行 Enter 失焦或提交 */
@@ -43,22 +44,63 @@ function plainText(html: string): string {
 }
 
 export function CreateCardModal(props: {
-  onCreate: (title: string, description: string, tags: string[], content: KanbanBlock[]) => void
+  templates?: CardTemplate[]
+  onCreate: (title: string, description: string, tags: string[], content: KanbanBlock[], gates?: CardGate[], templateName?: string) => void
   onClose: () => void
 }) {
+  const templates = props.templates || []
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [tagsText, setTagsText] = useState('')
   const [content, setContent] = useState<KanbanBlock[]>([])
+  const [tplId, setTplId] = useState('')
+  const [gates, setGates] = useState<CardGate[]>([])
+  const [tplName, setTplName] = useState<string | undefined>(undefined)
+
+  /** 选择模板：预填描述/标签/内容/门禁（标题不预填） */
+  function pickTemplate(id: string) {
+    setTplId(id)
+    const tpl = templates.find((t) => t.id === id)
+    if (!tpl) { setDescription(''); setTagsText(''); setContent([]); setGates([]); setTplName(undefined); return }
+    setDescription(tpl.description || '')
+    setTagsText((tpl.tags || []).join(', '))
+    setContent(Array.isArray(tpl.content) ? JSON.parse(JSON.stringify(tpl.content)) : [])
+    setGates(Array.isArray(tpl.gates) ? JSON.parse(JSON.stringify(tpl.gates)) : [])
+    setTplName(tpl.name)
+  }
   function submit() {
     const t = plainText(title)
     if (!t) return
     const tags = tagsText.split(/[,，\s]+/).map((x) => x.trim()).filter((x) => x)
-    props.onCreate(t, plainText(description), tags, content)
+    props.onCreate(t, plainText(description), tags, content, gates, tplName)
     props.onClose()
   }
   return (
     <Modal title="新建卡片" width={560} onClose={props.onClose}>
+      {templates.length > 0 ? (
+        <div className="kbnb-field">
+          <div className="kbnb-field-row">
+            <span className="kbnb-field-label">模板</span>
+            {tplName ? <span className="kbnb-field-label" style={{ color: 'var(--dsw-alias-state-business-primary)' }}>{tplName}（已预填，可修改）</span> : null}
+          </div>
+          <select className="kbnb-input" value={tplId} onChange={(e) => pickTemplate(e.target.value)}>
+            <option value="">不使用模板</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}{t.gates && t.gates.length > 0 ? '（门禁 ' + t.gates.length + '）' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+      {gates.length > 0 ? (
+        <div className="kbnb-field-row" style={{ marginBottom: 8 }}>
+          <span className="kbnb-field-label">门禁（随卡带入）</span>
+          <span style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)' }}>
+            {gates.map((g) => g.name || g.kind).join('、')}
+          </span>
+        </div>
+      ) : null}
       <div className="kbnb-title-row">
         <EditableLine
           className="kbnb-input-title-editable"

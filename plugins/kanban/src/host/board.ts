@@ -13,15 +13,32 @@ export const BOARD_FILE = 'board.json'
 export const WRITE_POLICY = { mode: 'danger-full-access' }
 export const ACTOR_AGENT = 'agent'
 
-/** 缺板时的新板：3 个默认列 + 空归档（version 2 = 归档/内容模型） */
+/** 缺板时的新板：3 个默认列 + 空归档 + 空模板（version 4 = 门禁/创建模板模型） */
 export function defaultBoard(): any {
   const cols = ['待办', '进行中', '完成']
   return {
-    version: 2,
+    version: 4,
     columns: cols.map((title) => ({ id: 'c' + Math.random().toString(36).slice(2, 10), title, cards: [], meta: {} })),
     archive: [],
+    templates: [],
     meta: {},
   }
+}
+
+/** 读板后归一化：补齐 templates/gates 等 v4 字段（旧板兼容） */
+export function normalizeBoard(board: any): any {
+  if (!board) return board
+  if (!Array.isArray(board.archive)) board.archive = []
+  if (!Array.isArray(board.templates)) board.templates = []
+  for (const col of board.columns || []) {
+    for (const card of col.cards || []) {
+      if (!Array.isArray(card.gates)) card.gates = []
+    }
+  }
+  for (const card of board.archive || []) {
+    if (!Array.isArray(card.gates)) card.gates = []
+  }
+  return board
 }
 
 export function now(): string {
@@ -55,7 +72,7 @@ export async function readBoard(fs: FsLike, dataDir: string): Promise<any | null
   try {
     const target = await fs.resolve(dataDir + '/' + BOARD_FILE)
     const text = await fs.readText(target)
-    return JSON.parse(text)
+    return normalizeBoard(JSON.parse(text))
   } catch {
     return null
   }
@@ -70,8 +87,7 @@ export async function writeBoard(fs: FsLike, dataDir: string, board: unknown): P
 export async function mutateBoard(fs: FsLike, fn: (board: any) => any): Promise<any> {
   try {
     const dataDir = await resolveDataDir(fs)
-    const board = (await readBoard(fs, dataDir)) || defaultBoard()
-    if (!Array.isArray(board.archive)) board.archive = []
+    const board = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
     const result = fn(board)
     if (result === null) return { ok: false, error: 'not found' }
     await writeBoard(fs, dataDir, board)

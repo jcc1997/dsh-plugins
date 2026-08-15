@@ -1,16 +1,31 @@
 // host/tools/archive.ts — 归档类 3 个 agent 工具：archive / unarchive / list_archived
 // 归档 = 移出列隐藏到 board.archive（archivedFrom 记原列），恢复回原列或指定列。
-import { FsLike } from '../board'
+// v4：archive 触发门禁检查。
+import { FsLike, normalizeBoard } from '../board'
 import { mutateBoard, readBoard, resolveDataDir, defaultBoard, resolveColumn, appendActivity, now } from '../board'
 import { P, STR, outputOf } from './shared'
+import { checkGates, GateCheckDeps } from '../gate'
 
-export function archiveToolDefs(fs: FsLike): any[] {
+export function archiveToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
   return [
     {
       name: 'kanban_archive',
-      description: '归档一张卡片：从看板列中移出（隐藏），可在侧边栏「归档」中找回。归档不删除数据。',
+      description: '归档一张卡片：从看板列中移出（隐藏），可在侧边栏「归档」中找回。归档不删除数据。卡片挂有 archive 门禁（如 MR 必须合并）时，不通过则拒绝归档。',
       parameters: P({ card_id: STR('要归档的卡片 id') }, ['card_id']),
       execute: async (args: any) => {
+        const dataDir = await resolveDataDir(fs)
+        const board0 = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
+        const hit0 = (() => {
+          for (const col of board0.columns || []) {
+            const card = (col.cards || []).find((k: any) => k.id === String(args.card_id))
+            if (card) return { col, card }
+          }
+          return null
+        })()
+        if (!hit0) return { ok: false, error: 'card not found（可能已归档）: ' + args.card_id }
+        // 门禁（如「对应 MR 必须 merge 才能进入归档」）
+        const gate = await checkGates(hit0.card, 'archive', gateDeps)
+        if (!gate.ok) return { ok: false, error: '门禁未通过：' + gate.failed.map((f) => f.reason).join('；') }
         return mutateBoard(fs, (board: any) => {
           const hit = (() => {
             for (const col of board.columns || []) {

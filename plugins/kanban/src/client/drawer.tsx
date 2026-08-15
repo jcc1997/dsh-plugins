@@ -6,6 +6,7 @@ import { IconCloseOutline16, fmtTime } from '@dsh-plugins/ui'
 import { KanbanCard, KanbanColumn, KanbanBlock } from '@dsh-plugins/ui'
 import { RichTextEditor } from './rich-text'
 import { DrawerSide } from './drawer-side'
+import { CardGate } from '@dsh-plugins/ui'
 
 /** contentEditable 单行/多行文本（非受控 DOM，聚焦不回写避免光标跳动；单行 Enter 失焦） */
 function EditableLine(props: {
@@ -70,6 +71,8 @@ export function CardDetail(props: {
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
   onOpenSession: (sessionId: string) => void
+  onAddGate?: (gate: CardGate) => void
+  onRemoveGate?: (gateId: string) => void
   actionHost?: (() => React.ReactNode) | null
 }) {
   const [title, setTitle] = useState(props.card.title)
@@ -170,7 +173,7 @@ export function CardDetail(props: {
         </section>
       </div>
 
-      {/* ══ 右列（drawer-side.tsx）：状态 + 标签 + 关联卡片 + 变更记录 ══ */}
+      {/* ══ 右列（drawer-side.tsx）：状态 + 标签 + 关联卡片 + 门禁 + 变更记录 ══ */}
       <DrawerSide
         card={props.card}
         columns={props.columns}
@@ -181,6 +184,8 @@ export function CardDetail(props: {
         onAddRef={props.onAddRef}
         onRemoveRef={props.onRemoveRef}
         onOpenSession={props.onOpenSession}
+        onAddGate={props.onAddGate}
+        onRemoveGate={props.onRemoveGate}
         actionHost={props.actionHost}
       />
     </div>
@@ -201,6 +206,8 @@ export function CardDrawer(props: {
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
   onOpenSession: (sessionId: string) => void
+  onAddGate?: (gate: CardGate) => void
+  onRemoveGate?: (gateId: string) => void
   actionHost?: (() => React.ReactNode) | null
 }) {
   return (
@@ -225,6 +232,8 @@ export function CardDrawer(props: {
           onAddRef={props.onAddRef}
           onRemoveRef={props.onRemoveRef}
           onOpenSession={props.onOpenSession}
+          onAddGate={props.onAddGate}
+          onRemoveGate={props.onRemoveGate}
           actionHost={props.actionHost}
         />
       </aside>

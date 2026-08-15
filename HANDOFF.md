@@ -1,6 +1,13 @@
 ## 文档结构更新（2026-08）
 
 - **skill 重组**：`.agents/skills/dsh-dynamic-plugin-dev/SKILL.md` 已切换为正式 bundle 形态知识（包结构/host+client 接入/构建/HMR/发布/踩坑清单 P-H-C-B）；动态插件专用知识（受限环境/模板/SDK 零粘贴/动态踩坑/运行模型）隔离到同目录 `legacy-dynamic-plugin.md`，cordis 工具（define/run/inspect）仍可用但正式功能不依赖。
+## kanban 门禁 + 创建模板（v4，2026-08）
+
+- **门禁**：卡片挂行为门禁（move/tags/archive 触发，不通过拒绝动作）。条件类型 mr-merged（查 GitHub API + GITHUB_TOKEN）/ tag-required / field-nonempty。host 引擎 `plugins/kanban/src/host/gate.ts`；工具层 card.ts/archive.ts 动作前检查；UI 动作前调 /kanban-api/gate-check（board-hook gateCheck），抽屉「门禁」区块增删。
+- **创建模板**：board.templates（description/tags/content/gates 预设），kanban_create(template=) + 创建弹窗下拉预填；4 个 kanban_template_* 工具。
+- 工具总数 19 → 27（verify-dist 断言已更新）；`node scripts/smoke-gate.mjs` 端到端冒烟（模板建卡→门禁拦截→放行→显式覆盖）PASS；probe 实测 load 含 templates + gate-check 路由 200。
+- 数据模型：board version 4（normalizeBoard 兼容旧板，卡片补 gates[]、板补 templates[]）；ui 包 types.ts 加 CardGate/CardTemplate。
+
 ## 新增 pipeline 插件（dsh-pipeline，2026-08）
 
 - **位置**：`plugins/pipeline/`，正式 bundle 形态（host `lib/index.js` + client `lib/client.js` + cordis.patch.yml），与 kanban/git 同构。

@@ -1,5 +1,13 @@
 // styles/drawer.ts — 抽屉与详情样式：左右分栏、contentEditable 标题/描述、状态栏、标签、评论、变更记录、关联、Git 卡、会话工作台
 export const drawerCss = `
+/* ══ 门禁卡（v4）：挂在此卡上的行为门禁 ══ */
+.kbnb-gates-card{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.kbnb-gate-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0}
+.kbnb-gate-name{font-weight:600;color:var(--dsw-alias-label-primary);flex:none;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kbnb-gate-meta{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary)}
+.kbnb-gate-summary{flex:1;min-width:0;color:var(--dsw-alias-label-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kbnb-gate-add{display:flex;flex-direction:column;gap:8px}
+
 /* ══ 抽屉 ══ */
 .kbnb-drawer-mask{position:fixed;inset:0;background:var(--dsw-alias-bg-mask-1);z-index:70;pointer-events:auto;display:flex;justify-content:flex-end}
 .kbnb-drawer{background:var(--dsw-alias-bg-base);border-left:1px solid var(--dsw-alias-border-l2);width:980px;max-width:96vw;height:100%;display:flex;flex-direction:column;box-shadow:var(--dsw-shadow-lv3)}

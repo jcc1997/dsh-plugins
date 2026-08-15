@@ -22,6 +22,7 @@ const ctx = {
     if (name === 'fs') return fsMock
     if (name === 'tools') return { register: (def) => { registered.push(def && def.name); return () => {} } }
     if (name === 'webServer') return { register: (rr) => { routes.push(rr.path); return () => {} } }
+    if (name === 'credentials') return { resolve: async () => undefined }
     return undefined
   },
   provide: (name, value) => { provided[name] = value },
@@ -29,8 +30,8 @@ const ctx = {
 }
 mod.apply(ctx)
 console.log('host: 工具', registered.length, '| 路由', routes.length, '| 服务', Object.keys(provided).join(','))
-if (registered.length !== 19) throw new Error('工具注册数错误: ' + registered.length)
-for (const p of ['/kanban-api/load', '/kanban-api/save', '/kanban-api/set-data-dir', '/kanban-api/git-sync']) {
+if (registered.length !== 27) throw new Error('工具注册数错误: ' + registered.length)
+for (const p of ['/kanban-api/load', '/kanban-api/save', '/kanban-api/set-data-dir', '/kanban-api/git-sync', '/kanban-api/gate-check']) {
   if (!routes.includes(p)) throw new Error('路由缺失: ' + p)
 }
 if (!provided['kanban'] || typeof provided['kanban'].getCard !== 'function') throw new Error('kanban 服务未提供')
