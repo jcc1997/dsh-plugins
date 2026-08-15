@@ -3,7 +3,7 @@
 //   §1 类型与工具函数(块参数解析 / 引用项 / 文档信息)
 //   §2 MdDocCard — 对话流中的工具卡(打开按钮 + 提交摘要)
 //   §3 MdViewer — 大浮窗:左栏(md 内容上 / 总评输入下)+ 右栏(审批内容清单)
-//   §4 AnnotationPopover — 划词后跟随选区弹出的批注浮窗(引用文字#行号 + compact 输入)
+//   §4 AnnotationEditor — 划词后内嵌在对应块下方的批注框(引用文字#行号 + compact 输入)
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Composer, IconCheckOutline16, IconCloseOutline16 } from '@dsh-plugins/ui'
 import { parseMarkdownBlocks, renderBlocks } from './md'
@@ -135,7 +135,7 @@ export function MdDocCard(props: ToolViewProps) {
 export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { quotes: QuoteItem[]; comment: string }) => Promise<{ ok: boolean; error?: string }> }) {
   const [quotes, setQuotes] = useState<QuoteItem[]>([])
   const [comment, setComment] = useState('')
-  const [anchor, setAnchor] = useState<{ key: string; text: string; line?: number; rel: { top: number; bottom: number; left: number } } | null>(null)
+  const [anchor, setAnchor] = useState<{ key: string; text: string; line?: number } | null>(null)
   const [note, setNote] = useState('')
   const [hint, setHint] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -143,33 +143,19 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
   const contentRef = useRef<HTMLDivElement | null>(null)
   const blocks = useMemo(() => parseMarkdownBlocks(props.doc.markdown || ''), [props.doc])
 
-  /* ── Esc:优先关批注浮窗,再关浮层(components.md §九-2) ── */
+  /* ── Esc 关闭浮层(components.md §九-2) ── */
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return
-      if (anchor) setAnchor(null)
-      else props.onClose()
+      if (e.key === 'Escape') props.onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [anchor, props.onClose])
-
-  /* ── 批注浮窗关闭:点击浮窗外(components.md §九);滚动=浮窗跟随选区,不关闭 ── */
-  useEffect(() => {
-    if (!anchor) return
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as HTMLElement
-      if (t && t.closest && t.closest('.mdr-popover')) return
-      setAnchor(null)
-    }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
-  }, [anchor])
+  }, [props.onClose])
 
   /* ── 划词:单块内选区 → 在该块下方嵌入批注框;跨块/mermaid 区域拒绝 ── */
   function onMouseUp(e: React.MouseEvent) {
     const target = e.target as HTMLElement
-    if (target && target.closest && target.closest('[data-mdr-popover]')) return
+    if (target && target.closest && target.closest('[data-mdr-editor]')) return
     const sel = window.getSelection()
     if (!sel || sel.isCollapsed) return
     const range = sel.getRangeAt(0)
@@ -195,10 +181,7 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
     const text = sel.toString().trim()
     if (!text) return
     const lineNum = Number(startBlock.getAttribute('data-mdr-line') || 0) || undefined
-    const rect = range.getBoundingClientRect()
-    const cr = el.getBoundingClientRect()
-    // 锚点存相对内容区的 top/bottom/left(滚动跟随;bottom 用于浮窗避开选区文字)
-    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400), line: lineNum, rel: { top: rect.top - cr.top + el.scrollTop, bottom: rect.bottom - cr.top + el.scrollTop, left: rect.left - cr.left + el.scrollLeft } })
+    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400), line: lineNum })
     setNote('')
     setHint('')
     sel.removeAllRanges()
@@ -221,6 +204,14 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
     setSubmitting(false)
   }
 
+  const extra = useMemo(() => {
+    const m = new Map<string, React.ReactNode>()
+    if (anchor) {
+      m.set(anchor.key, <AnnotationEditor text={anchor.text} line={anchor.line} note={note} onNote={setNote} onAdd={addQuote} onCancel={() => setAnchor(null)} />)
+    }
+    return m
+  }, [anchor, note])
+
   const canSubmit = !submitting && (quotes.length > 0 || comment.trim() !== '')
 
   return (
@@ -240,21 +231,8 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
           {/* 左栏:上 md 内容 / 下 总评输入 */}
           <div className="mdr-main">
             <div className="mdr-content" ref={contentRef} onMouseUp={onMouseUp}>
-              {renderBlocks(blocks)}
+              {renderBlocks(blocks, extra)}
             </div>
-            {anchor ? (
-              <AnnotationPopover
-                key={anchor.key}
-                text={anchor.text}
-                line={anchor.line}
-                rel={anchor.rel}
-                contentRef={contentRef}
-                note={note}
-                onNote={setNote}
-                onAdd={addQuote}
-                onCancel={() => setAnchor(null)}
-              />
-            ) : null}
             <div className="mdr-main-input">
               <Composer
                 value={comment}
@@ -297,46 +275,17 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
 
 /* ═══════════ §4 划词批注框(嵌段落下方;左:选中原文 / 右:批注输入+icon 按钮) ═══════════ */
 
-/** 批注浮窗:跟随选区弹出并随内容滚动(锚点=相对内容区坐标,滚动重算视口位置);关闭走点击外部/Esc */
-function AnnotationPopover(props: { text: string; line?: number; rel: { top: number; bottom: number; left: number }; contentRef: React.RefObject<HTMLDivElement | null>; note: string; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
+/** 批注框:内嵌在对应块下方(文档流,无层级/遮挡问题);灰底 bluish-50 + 行号纯文字 + compact 输入 */
+function AnnotationEditor(props: { text: string; line?: number; note: string; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
   const ref = useRef<HTMLDivElement | null>(null)
-  const [placed, setPlaced] = useState<{ top: number; left: number } | null>(null)
-  const compute = () => {
-    const el = ref.current
-    const content = props.contentRef.current
-    if (!el || !content) return
-    const cr = content.getBoundingClientRect()
-    const w = el.offsetWidth
-    const h = el.offsetHeight
-    const vw = window.innerWidth
-    const vh = window.innerHeight
-    const anchorTop = props.rel.top - content.scrollTop + cr.top
-    const anchorBottom = props.rel.bottom - content.scrollTop + cr.top
-    const anchorLeft = props.rel.left - content.scrollLeft + cr.left
-    // 浮窗永不遮挡选区文字:优先选区下方;下方放不下且上方能完整放下 → 翻上;否则贴视口底部(仍在选区下方)
-    let top = anchorBottom + 8
-    if (top + h > vh - 8) {
-      if (anchorTop - h - 8 >= 8) top = anchorTop - h - 8
-      else top = Math.max(8, vh - h - 8)
-    }
-    const left = Math.max(8, Math.min(anchorLeft, vw - w - 8))
-    setPlaced({ top, left })
-  }
-  useEffect(() => { compute() }, [])
   useEffect(() => {
-    // scroll 不冒泡:用 window capture 捕获所有滚动容器(content / demo wrap / 外层)
-    window.addEventListener('scroll', compute, { capture: true, passive: true })
-    window.addEventListener('resize', compute)
-    return () => {
-      window.removeEventListener('scroll', compute, { capture: true })
-      window.removeEventListener('resize', compute)
-    }
+    if (ref.current) ref.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [])
   return (
-    <div className="mdr-popover" data-mdr-popover ref={ref} style={placed ? { top: placed.top, left: placed.left } : { visibility: 'hidden' }}>
-      <div className="mdr-popover-quote">
+    <div className="mdr-editor" data-mdr-editor ref={ref}>
+      <div className="mdr-editor-quote">
         {props.text}
-        {props.line ? <span className="mdr-popover-line">#{'L' + props.line}</span> : null}
+        {props.line ? <span className="mdr-editor-line">#{'L' + props.line}</span> : null}
       </div>
       <Composer
         value={props.note}

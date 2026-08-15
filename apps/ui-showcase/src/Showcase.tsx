@@ -108,15 +108,13 @@ export function Showcase() {
           <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
         </>} />
       </Section>
-      <Section title="划词批注浮窗(跟随选区;引用文字#行号 + 紧凑输入)">
-        <div className="sc-popover-demo">
-          <div className="mdr-popover" style={{ position: 'relative', zIndex: 'auto', boxShadow: 'none' }}>
-            <div className="mdr-popover-quote">选中原文示例:这是一段被划词选中的文字,带行号定位。<span className="mdr-popover-line">#L12</span></div>
-            <Composer value="" onChange={() => {}} placeholder="对这段的批注…" compact actions={<>
-              <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
-              <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
-            </>} />
-          </div>
+      <Section title="划词批注框(内嵌文档流;淡灰底拉满 + 引用文字#行号 + 紧凑输入)">
+        <div className="mdr-editor">
+          <div className="mdr-editor-quote">选中原文示例:这是一段被划词选中的文字,带行号定位。<span className="mdr-editor-line">#L12</span></div>
+          <Composer value="" onChange={() => {}} placeholder="对这段的批注…" compact actions={<>
+            <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
+            <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
+          </>} />
         </div>
       </Section>
       <Section title="markdown 渲染(标题/列表/表格/代码/mermaid/图片)">

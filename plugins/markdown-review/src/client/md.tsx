@@ -188,8 +188,8 @@ function MermaidBlock(props: { code: string }) {
   )
 }
 
-/** 块 → React 节点;块带 data-mdr-block/data-mdr-key/data-mdr-line 供划词定位(批注为浮窗,不注入文档流) */
-export function renderBlocks(blocks: MdBlock[]): React.ReactNode[] {
+/** 块 → React 节点;extra 按块 key 在对应块下方注入节点(划词批注框内嵌文档流) */
+export function renderBlocks(blocks: MdBlock[], extra?: Map<string, React.ReactNode>): React.ReactNode[] {
   const out: React.ReactNode[] = []
   let liSeq = 0
   const renderItems = (items: ListItem[], blockKey: string): React.ReactNode[] => {
@@ -204,6 +204,8 @@ export function renderBlocks(blocks: MdBlock[]): React.ReactNode[] {
       const content: React.ReactNode[] = renderInline(item.text, liKey)
       if (children.length > 0) content.push(renderItems(children, blockKey))
       result.push(<li key={liKey} className="mdr-li" data-mdr-block data-mdr-key={liKey} data-mdr-line={item.line}>{content}</li>)
+      const ex = extra && extra.get(liKey)
+      if (ex) result.push(<div key={liKey + '-ex'} className="mdr-editor-slot">{ex}</div>)
       idx = j
     }
     return result
@@ -245,6 +247,8 @@ export function renderBlocks(blocks: MdBlock[]): React.ReactNode[] {
     }
     if (node) {
       out.push(node)
+      const ex = extra && extra.get(b.key)
+      if (ex) out.push(<div key={b.key + '-ex'} className="mdr-editor-slot">{ex}</div>)
     }
   }
   return out
