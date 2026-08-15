@@ -33,12 +33,26 @@ export function apply(ctx: PipelineCtx) {
   /* ── llm 节点：接入宿主 agents 服务（评审 agent 执行）；未接入时引擎侧 fail-closed ── */
   const agents = ctx.get('agents') as any
   const liveAgents = new Map<string, any>()   // 评审会话常驻表：sessionId -> AgentHandle（失败轮次保留供续评）
+  /** 从消息 content（块数组或字符串）提取纯文本 */
+  const blockText = (content: unknown): string => {
+    if (typeof content === 'string') return content
+    if (Array.isArray(content)) {
+      return content
+        .filter((b: any) => b && b.type === 'text' && typeof b.text === 'string')
+        .map((b: any) => b.text)
+        .join('\n')
+    }
+    return ''
+  }
   const readLastAssistantText = (agent: any): string => {
     try {
       const msgs = agent && agent.session && typeof agent.session.deriveMessages === 'function' ? agent.session.deriveMessages() : []
       for (let i = msgs.length - 1; i >= 0; i--) {
         const m = msgs[i]
-        if (m && m.role === 'assistant' && typeof m.content === 'string' && m.content.trim()) return m.content
+        if (m && m.role === 'assistant') {
+          const t = blockText(m.content)
+          if (t.trim()) return t
+        }
       }
       return ''
     } catch { return '' }
@@ -84,7 +98,13 @@ export function apply(ctx: PipelineCtx) {
             if (!agent) throw new Error('agent 创建失败')
             const timer = setTimeout(() => { try { agent.cancel('timeout') } catch { /* ignore */ } }, timeoutMs)
             try {
-              agent.followup({ role: 'user', content: prompt })
+              // Message 契约：id + role + content 块数组 + source（缺一即被 inbox 拒收，agent 不启动）
+              agent.followup({
+                id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+                role: 'user',
+                content: [{ type: 'text', text: prompt }],
+                source: { kind: 'plugin', plugin: 'pipeline' },
+              })
               await agent.whenIdle()
               const text = readLastAssistantText(agent)
               // 通过（ok:true）→ 闭环释放；失败/解析失败 → 保留 handle 供下一轮续评
