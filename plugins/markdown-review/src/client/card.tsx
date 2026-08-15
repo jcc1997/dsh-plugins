@@ -130,17 +130,19 @@ function AnnotationEditor(props: { text: string; note: string; onNote: (v: strin
   return (
     <div className="mdr-editor" data-mdr-editor ref={ref}>
       <div className="mdr-editor-quote">{props.text}</div>
-      <textarea
-        className="mdr-editor-input"
-        value={props.note}
-        onChange={(e) => props.onNote(e.target.value)}
-        placeholder="对这段的批注…"
-        rows={2}
-        autoFocus
-      />
-      <div className="mdr-editor-btns">
-        <button className="mdr-btn" type="button" onClick={props.onCancel}>取消</button>
-        <button className="mdr-btn mdr-btn-primary" type="button" onClick={props.onAdd}>添加批注</button>
+      <div className="mdr-editor-row">
+        <textarea
+          className="mdr-editor-input"
+          value={props.note}
+          onChange={(e) => props.onNote(e.target.value)}
+          placeholder="对这段的批注…"
+          rows={2}
+          autoFocus
+        />
+        <div className="mdr-editor-btns">
+          <button className="mdr-btn" type="button" onClick={props.onCancel}>取消</button>
+          <button className="mdr-btn mdr-btn-primary" type="button" onClick={props.onAdd}>添加批注</button>
+        </div>
       </div>
     </div>
   )

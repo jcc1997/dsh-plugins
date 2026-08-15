@@ -2,17 +2,17 @@
 // 规则:直引宿主 --dsw-* tokens;圆角 小控件6/按钮输入8/卡片12/浮层14;间距 4n;正文 13px;
 // 主按钮蓝底白字(hover deepseek-600,暗色 500);输入 focus 不改边框 + 2px accent ring;动效 150ms/浮层 240ms。
 export const mdrCss = `
-/* ══ 工具卡(对话流) ══ */
-.mdr-card{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 16px;background:var(--dsw-alias-bg-base);font-size:13px;color:var(--dsw-alias-label-primary)}
+/* ══ 工具卡(对话流,与 pipeline 工具卡同款几何:padding 10/12 + margin 4 0 4 4 + gap 8) ══ */
+.mdr-card{border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-base);padding:10px 12px;margin:4px 0 4px 4px;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--dsw-alias-label-primary);min-width:0}
 .mdr-card-head{display:flex;align-items:center;gap:8px;min-width:0}
 .mdr-card-icon{flex:none;color:var(--dsw-alias-state-business-primary)}
 .mdr-card-title{font-weight:600;flex:none}
 .mdr-card-file{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
 .mdr-card-status{flex:none;font-size:11px;border-radius:999px;padding:1px 8px;border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-secondary)}
-.mdr-card-context{margin-top:8px;font-size:12px;color:var(--dsw-alias-label-secondary)}
-.mdr-card-error{margin-top:8px;font-size:12px;color:var(--dsw-alias-state-error-primary)}
+.mdr-card-context{font-size:12px;color:var(--dsw-alias-label-secondary)}
+.mdr-card-error{font-size:12px;color:var(--dsw-alias-state-error-primary)}
 .mdr-card-muted{font-size:12px;color:var(--dsw-alias-label-tertiary)}
-.mdr-card-summary{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.mdr-card-summary{display:flex;flex-direction:column;gap:8px}
 .mdr-card-quote{background:var(--dsw-alias-bg-layer-2);border-left:3px solid var(--dsw-alias-state-business-primary);border-radius:8px;padding:8px 12px}
 .mdr-card-quote-text{font-size:12px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word}
 .mdr-card-quote-note{font-size:12px;color:var(--dsw-alias-label-secondary);margin-top:4px;white-space:pre-wrap;word-break:break-word}
@@ -51,10 +51,12 @@ body[data-ds-dark-theme] .mdr-btn-primary:hover{background:var(--dsw-static-deep
 /* ══ 划词批注(嵌入对应段落下方) ══ */
 .mdr-editor-slot{display:block}
 .mdr-editor{margin:12px 0;padding:12px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:8px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:8px}
+.mdr-editor-row{display:flex;align-items:flex-end;gap:8px}
+.mdr-editor-row .mdr-editor-input{flex:1}
 .mdr-editor-quote{font-size:12px;color:var(--dsw-alias-label-secondary);border-left:3px solid var(--dsw-alias-state-business-primary);padding-left:8px;max-height:96px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
 .mdr-editor-input{box-sizing:border-box;width:100%;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:13px;padding:6px 8px;resize:none;font-family:inherit}
 .mdr-editor-input:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(65,118,230,.18)}
-.mdr-editor-btns{display:flex;justify-content:flex-end;gap:8px}
+.mdr-editor-btns{display:flex;flex-direction:column;gap:8px;flex:none}
 
 /* ══ 底部总评 ══ */
 .mdr-viewer-foot{display:flex;align-items:flex-end;gap:12px;padding:12px 16px;border-top:1px solid var(--dsw-alias-border-l2);flex:none}
