@@ -182,7 +182,7 @@ export function apply(ctx: GitCtx) {
         const kanban = kanbanSvc()
         if (!kanban) return { ok: false, error: 'kanban service unavailable（先激活 kanban 插件）' }
         const kind = spec && spec.kind ? String(spec.kind).trim() : ''
-        const ext = spec && spec.external_id !== undefined ? String(spec.external_id).trim() : ''
+        const ext = spec && (spec.external_id !== undefined ? String(spec.external_id) : spec.externalId !== undefined ? String(spec.externalId) : '').trim() || ''
         if (!kind) return { ok: false, error: 'kind is required' }
         if (!ext) return { ok: false, error: 'external_id is required' }
         if (kind === 'local-repo' && fs) {
