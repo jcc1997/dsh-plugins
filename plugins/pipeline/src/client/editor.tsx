@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import type { HostLike } from './page'
 import { NodeGraph, NODE_LABEL, NODE_DEFAULT_CONFIG, NODE_TYPES, TYPE_DESC } from './graph'
 import type { GraphNode } from './graph'
+import { IconChevronUpOutline14, IconChevronDownOutline14, IconChevronRightOutline14 } from '@dsh-plugins/ui'
 
 export interface EditorPipeline {
   id: string; name: string; description: string; kind: string; tags: string[]
@@ -209,7 +210,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
       <div className="plp-editor-basic">
         <button type="button" className="plp-basic-toggle" onClick={() => setShowBasic(!showBasic)}>
           <span>基本信息</span>
-          <svg width={12} height={12} viewBox="0 0 14 14" fill="none" style={{ transform: showBasic ? 'rotate(180deg)' : 'none' }}><path d="M2.15 5.5l.43-.42L5.3 2.35c.26-.26.48-.43.69-.51.22-.09.4-.09.62 0 .21.08.43.25.69.51l2.72 2.73.43.42-.85.85-.43-.42-2.72-2.73c-.28-.28-.43-.45-.56-.59a1 1 0 0 0-.18-.13.62.62 0 0 0-.14-.05.5.5 0 0 0-.14.05c-.06.04-.12.08-.18.13-.13.14-.28.31-.56.59L2.57 5.93l-.42.42-.85-.85z" fill="currentColor"/></svg>
+          {showBasic ? <IconChevronUpOutline14 /> : <IconChevronDownOutline14 />}
         </button>
         {showBasic ? (
           <div className="plp-basic-grid">
@@ -254,7 +255,9 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
           <aside className="plp-editor-side">
             <div className="plp-side-head">
               <span className="plp-side-title">{sel ? '节点编辑' : '面板'}</span>
-              <button className="plp-icon-btn" type="button" title="收起面板" onClick={() => setSideOpen(false)}>×</button>
+              <button className="plp-icon-btn" type="button" title="收起面板" aria-label="收起面板" onClick={() => setSideOpen(false)}>
+                <IconChevronRightOutline14 />
+              </button>
             </div>
             <div className="plp-side-body">
               {sel ? (
