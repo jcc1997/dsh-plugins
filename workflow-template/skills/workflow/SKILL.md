@@ -79,7 +79,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 3. **RD 设计**:用 `grill-me` skill 拷问方案到共识 → 按 `workflow-template/templates/rd.md` 模板产出 `docs/<taskId>/rd.md`(与分支一起演进);
 4. **RD 确认**:`md_doc_open(path: "…/docs/<taskId>/rd.md")` 展示给人审阅(划词批注 + 总评)→ 通过 → `kanban_tags(card_id, add: ["rd-confirmed"])`;
 5. **建 MR**:RD 确认后 `git_create_mr(card_id)` 提交 MR(标题带 `[taskId]` 自动关联)→ `kanban_move(card_id, "TD")`;
-6. **逐阶段推进**:TD(写 td.md → 审阅 → td-confirmed)→ UC(验收用例 → uc-confirmed)→ In Dev(开发)→ 1st Review(评审 → review-1-done + agent 评审 pipeline 通过)→ Testing(测试 → tests-passed)→ 2nd review(复审 → review-2-done)→ Stage;
+6. **逐阶段推进**:TD(写 td.md → md_doc_open 审阅 → td-confirmed)→ UC(验收用例 → md_doc_open → uc-confirmed)→ In Dev(开发)→ 1st Review(ask_user_question + MR 链接评审 → review-1-done + agent 评审 pipeline 通过)→ Testing(测试 → tests-passed)→ 2nd review(复审 → review-2-done)→ Stage;
 7. **收尾**:`git_merge_pr` 合并 MR(自动进 Done);文档与代码随 MR 一起演进,合并即归档。
 
 > 每个确认点都先 `md_doc_open` 给人看再拍板;不通过则把意见整理进卡评论/MR,卡停在当前列。
@@ -104,7 +104,9 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | `tests-passed` | 测试通过 | 2nd review |
 | `review-2-done` | 2nd review 通过 | Stage |
 
-**人工审批:先展示文档再拍板**(依赖 dsh-markdown-review 插件)。流程里每次需要人确认(RD/TD/UC 确认、1st/2nd review),先把要审的文档展示给人:
+**人工审批分两类**:
+- **文档确认（RD/TD/UC）**:用 `md_doc_open`(依赖 dsh-markdown-review 插件)把要审的文档展示给人,划词批注 + 总评;
+- **代码评审（1st/2nd review）**:**不用 md_doc_open**,直接用 `ask_user_question` 提问,把 **MR 链接**和变更摘要发给用户,选项「通过/不通过」;通过即打对应确认标签。
 
 - agent 调 `md_doc_open(path: "<仓库路径>/docs/<taskId>/<doc>.md", context: "…请审阅…")` → 对话流出现「打开文档」卡片;
 - 用户点开大浮窗,划词批注 + 底部总评,点「提交」;
