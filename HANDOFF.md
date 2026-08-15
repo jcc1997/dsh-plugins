@@ -1,6 +1,13 @@
 ## 文档结构更新（2026-08）
 
 - **skill 重组**：`.agents/skills/dsh-dynamic-plugin-dev/SKILL.md` 已切换为正式 bundle 形态知识（包结构/host+client 接入/构建/HMR/发布/踩坑清单 P-H-C-B）；动态插件专用知识（受限环境/模板/SDK 零粘贴/动态踩坑/运行模型）隔离到同目录 `legacy-dynamic-plugin.md`，cordis 工具（define/run/inspect）仍可用但正式功能不依赖。
+## code checker 升级 codeRuntime bindings（沙箱内调插件打通 2026-08）
+
+- **调研结论**：宿主两个现有机制——bash-sandbox shell 的 stdin 数据注入（hooks bridges 用法,无服务调用通道）;codeRuntime 的 bindings（run_code 同款 worker 沙箱,全局对象注入宿主函数,经消息端口桥接）。
+- **实现**：code checker 首选 codeRuntime,注入 gate 命名空间——card()/getCard(id)/runPipeline(id,inputs)/call(service,method,args) 通用服务桥;bash-sandbox 降级。提交 05d9fcc。
+- **真实验证**：门禁代码在 worker 里 gate.call 调 git.isConfigured（返回真实配置 repo=jcc1997/dsh-plugins）+ gate.card 读卡 + 判定,移卡放行。
+- **SDK 协议踩坑**：binding 只桥接单个实参（对象传参）;无参调用被拒必须传 {};返回值必须 lossless JSON。详见 skill §3.5。
+
 ## 门禁 v5 抽象（checker 统一检查单元，真实实例验证 2026-08）
 
 - **门禁 = checker**:gate={id,name,on(move/tags/archive),to?(限目标列),checker:{type,config}}。6 种 type:tag-required / field-nonempty / mr-linked / mr-merged / code / pipeline。注册表 checkerRegistry(host/gate.ts)可扩展。

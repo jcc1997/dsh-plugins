@@ -246,6 +246,26 @@ function MyToolCard(props: { callId: string; toolName: string; block: any; inspe
 
 **省 token 检索法**：先 `grep -rn "槽位名/关键词" <包>/lib/types` 定位 .d.ts（类型即契约），再看 `lib/client.js` 里 grep 到的官方注册例子抄结构。client.js 是打包产物但可读（未压缩）。
 
+### 沙箱内调用宿主能力：codeRuntime bindings（实测协议，kanban code 门禁已打通）
+
+想给「沙箱里跑的代码」注入宿主/插件能力（如门禁代码里调 pipeline、git 服务），用宿主 `ctx.get('codeRuntime')`（run_code 同款 worker 沙箱）：
+
+```ts
+const rt = ctx.get('codeRuntime')
+const result = await rt.run({
+  program: 'const c = await gate.card({}); return { ok: true }',  // TS 风格,top-level await/return
+  bindings: [{ global: 'gate', functions: {
+    card: async (args) => lossless(card),     // 宿主函数,返回值必须 lossless JSON
+    call: async (args) => lossless(await svc[args.method](...args.args)),
+  } }],
+})
+// result: { value?, logs: string[], error?: { kind, message } }——失败是字段不是 rejection
+```
+
+**协议踩坑（worker.cjs 实测）**：①binding 只桥接**单个实参**——`gate.call('git','m')` 第二个参数会丢,一律**对象传参** `gate.call({service,method,args})`;②**无参调用被拒**（"binding arguments must be lossless JSON"）——`gate.card()` 必须写 `gate.card({})`;③binding 的 args 与返回值都必须是 lossless JSON;④隔离语义 = "containment not security"（worker 空环境 + heap/busy-time/wall-time 预算 + 可硬杀同步死循环）。
+- 官方类型：`@deepseek-ai/dsh-code-runtime/lib/types/types.d.ts`（CodeRunRequest/CodeBindingFunction/CodeRunResult）；实现 `dsh-code-runtime-worker-thread/lib/worker.cjs`（SDK 桥接在 makeNamespaces）。
+- bash-sandbox 的 shell spec 支持 `stdin`（载荷注入,hooks bridges 同款用法）/ `env` / `dshEnv`,但**没有**调宿主服务通道（沙箱网络受限）——需要「沙箱内调插件」就用 codeRuntime,不要用 bash。
+
 ## 四、架构决策记录
 
 - 看板入口：`sidebar.footer.action`（按钮 + 全屏页单组件），不用 overlay 槽位（hooks/联动问题）；页内左侧边栏（看板/归档/设置）。
