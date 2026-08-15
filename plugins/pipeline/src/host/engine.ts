@@ -76,7 +76,7 @@ builtinRunners['exec'] = async (node, ctx) => {
   const workdir = typeof node.config.workdir === 'string' ? node.config.workdir : undefined
   const timeoutMs = typeof node.config.timeoutMs === 'number' ? node.config.timeoutMs : 60000
   try {
-    const res = await shell.run({ command, workdir, timeoutMs, stdoutMaxBytes: 1 << 20 })
+    const res = await shell.run({ command, workdir, timeoutMs, stdoutMaxBytes: 1 << 20, sandboxPolicy: { mode: 'danger-full-access' } })
     const text = res.stdout ? res.stdout.text : ''
     return { exitCode: res.exitCode, stdout: text, output: text.trim() }
   } catch (e) {
