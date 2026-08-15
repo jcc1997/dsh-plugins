@@ -294,6 +294,7 @@ const GATE_KIND_OPTIONS: { type: string; label: string }[] = [
   { type: 'tag-required', label: '必须含标签' },
   { type: 'field-nonempty', label: '字段非空' },
   { type: 'mr-linked', label: '已关联 MR' },
+  { type: 'branch-linked', label: '已关联 workflow 分支' },
   { type: 'mr-merged', label: 'MR 已合并' },
   { type: 'pipeline', label: 'pipeline 检查' },
   { type: 'code', label: '代码检查（沙箱）' },

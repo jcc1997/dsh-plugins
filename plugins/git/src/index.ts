@@ -556,6 +556,119 @@ export function apply(ctx: GitCtx) {
           },
           output: outputOf('合并结果'),
         },
+        {
+          name: 'git_create_branch',
+          description: '为卡片创建 workflow 分支（进 RD 前置，workflow 流程）：本地仓库须干净且在默认分支(main/master)上 → 切出 workflow/<taskId> 并推送到远端(GitHub token 或本机凭据)；成功后自动给卡片关联 github-branch。',
+          parameters: P({ card_id: STR('卡片 id（认领 taskId 并命名分支 workflow/<taskId>）') }, ['card_id']),
+          execute: async (args: any) => {
+            const cardId = String(args.card_id)
+            const kanban = kanbanSvc()
+            if (!kanban) return { ok: false, error: 'kanban service unavailable' }
+            const card = await kanban.getCard(cardId)
+            if (!card) return { ok: false, error: 'card not found: ' + cardId }
+            let taskId = taskIdOf(card)
+            if (!taskId) {
+              const claimed = await claimTaskId(cardId)
+              if (!claimed || !claimed.taskId) return { ok: false, error: '无法认领 taskId：' + ((claimed && claimed.error) || '未知（先 git_configure 配 repo 或 git_link 关联 github-repo）') }
+              taskId = claimed.taskId
+            }
+            const cfg = await readConfig()
+            if (!cfg.localPath) return { ok: false, error: '未配置本地仓库路径（git_configure 设置 local_path）' }
+            if (!bash) return { ok: false, error: 'bash/shell 服务不可用' }
+            const branch = 'workflow/' + taskId
+            const repo = (() => { const r = repoFromCard(card); return r || (cfg.repo && cfg.repo.owner && cfg.repo.name ? { owner: cfg.repo.owner, name: cfg.repo.name } : null) })()
+            let token: string | undefined
+            if (credentials) {
+              try { const r = await credentials.resolve(TOKEN_REF); if (r && r.value) token = r.value } catch { token = undefined }
+            }
+            const runGit = async (cmd: string, env?: Record<string, string>) => {
+              const res = await bash!.run({ command: cmd, workdir: cfg.localPath, timeoutMs: 90000, stdoutMaxBytes: 1 << 18, env, sandboxPolicy: { mode: 'danger-full-access' } })
+              return { exitCode: res.exitCode, out: (res.stdout && res.stdout.text) || '' }
+            }
+            const status = await runGit('git status --porcelain')
+            if (status.exitCode !== 0) return { ok: false, error: 'git status 失败: ' + status.out }
+            if (status.out.trim()) return { ok: false, error: '本地仓库有未提交改动，请先提交或暂存后再建分支：' + status.out.trim().split('\n').slice(0, 5).join(' | ') }
+            const cur = await runGit('git branch --show-current')
+            const curBranch = cur.out.trim()
+            if (!curBranch || (curBranch !== 'main' && curBranch !== 'master')) return { ok: false, error: '当前不在主分支(main/master)，当前: ' + (curBranch || '(detached)') + '——workflow 分支必须从主分支切出' }
+            const has = await runGit('git branch --list ' + branch)
+            if (has.out.trim()) return { ok: false, error: '分支已存在: ' + branch + '（已创建过，直接复用；如需重新建请先删除远端分支）' }
+            const co = await runGit('git checkout -b ' + branch)
+            if (co.exitCode !== 0) return { ok: false, error: 'git checkout 失败: ' + co.out }
+            let push: { exitCode: number | null; out: string }
+            if (token && repo) {
+              const pushUrl = 'https://x-access-token:$' + '{GIT_TOKEN}@github.com/' + repo.owner + '/' + repo.name + '.git'
+              push = await runGit('git push -u ' + pushUrl + ' ' + branch, { GIT_TOKEN: token })
+            } else {
+              push = await runGit('git push -u origin ' + branch)
+            }
+            if (push.exitCode !== 0) return { ok: false, error: 'git push 失败: ' + push.out.slice(0, 400) + '（确认 GitHub token 已配置 git_configure，或本机 git 凭据可推送）' }
+            let linkRes: any = null
+            try {
+              linkRes = await linkRef(cardId, { kind: 'github-branch', externalId: branch, display: branch, meta: repo ? { repo: repo.owner + '/' + repo.name } : undefined })
+            } catch { linkRes = null }
+            return { ok: true, branch, taskId, pushed: true, linked: !!linkRes, link: linkRes || null }
+          },
+          output: outputOf('建分支结果'),
+        },
+        {
+          name: 'git_create_mr',
+          description: '为卡片创建 GitHub MR（RD 确认后，workflow 流程）：head=workflow/<taskId>（须已 git_create_branch 推送）、base 默认 main；标题自动带 [taskId]（git_sync 按此自动关联）；创建成功后自动给卡片关联 github-mr。',
+          parameters: P({ card_id: STR('卡片 id（取 taskId 与标题）'), base: STR('目标分支（默认 main）'), draft: STR('是否草稿（"true" 时创建 draft PR）') }, ['card_id']),
+          execute: async (args: any) => {
+            const cardId = String(args.card_id)
+            const kanban = kanbanSvc()
+            if (!kanban) return { ok: false, error: 'kanban service unavailable' }
+            const card = await kanban.getCard(cardId)
+            if (!card) return { ok: false, error: 'card not found: ' + cardId }
+            const taskId = taskIdOf(card)
+            if (!taskId) return { ok: false, error: '卡片没有 taskId，先 git_claim_task_id 认领' }
+            const cfg = await readConfig()
+            const repo = (() => { const r = repoFromCard(card); return r || (cfg.repo && cfg.repo.owner && cfg.repo.name ? { owner: cfg.repo.owner, name: cfg.repo.name } : null) })()
+            if (!repo) return { ok: false, error: '未解析到仓库（卡片 github-repo 关联或 git_configure repo）' }
+            const branch = 'workflow/' + taskId
+            const base = (args.base && String(args.base).trim()) || 'main'
+            let token: string | undefined
+            if (credentials) {
+              try { const r = await credentials.resolve(TOKEN_REF); if (r && r.value) token = r.value } catch { token = undefined }
+            }
+            if (!token) return { ok: false, error: '创建 MR 需要 GitHub token（git_configure 配置）' }
+            const title = '[' + taskId + '] ' + (card.title || '')
+            const body = {
+              title,
+              head: branch,
+              base,
+              body: (card.description ? card.description + '\n\n' : '') + 'Workflow 卡片: ' + cardId,
+              ...(String(args.draft) === 'true' ? { draft: true } : {}),
+            }
+            let data: any = null
+            let status = 0
+            try {
+              const res = await fetch('https://api.github.com/repos/' + encodeURIComponent(repo.owner) + '/' + encodeURIComponent(repo.name) + '/pulls', {
+                method: 'POST',
+                headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              })
+              status = res.status
+              const bodyText = await res.text()
+              try { data = bodyText ? JSON.parse(bodyText) : null } catch { data = null }
+            } catch (e) {
+              return { ok: false, error: 'create mr request failed: ' + String(e && (e as Error).message ? (e as Error).message : e) }
+            }
+            if (status >= 200 && status < 300) {
+              const number = data && data.number
+              let linkRes: any = null
+              if (number) {
+                try {
+                  linkRes = await linkRef(cardId, { kind: 'github-mr', externalId: String(number), display: '#' + number, url: data.html_url || undefined, meta: { repo: repo.owner + '/' + repo.name } })
+                } catch { linkRes = null }
+              }
+              return { ok: true, mr_number: number, url: (data && data.html_url) || null, taskId, title, linked: !!linkRes, link: linkRes || null }
+            }
+            return { ok: false, httpStatus: status, error: (data && (data.message || JSON.stringify(data))) || 'create mr failed (HTTP ' + status + ')' }
+          },
+          output: outputOf('创建 MR 结果'),
+        },
       ]
       if (tools && typeof tools.register === 'function') {
         // DSL 适配：动态形态的 parameters 是 { type, properties, required } 包装，

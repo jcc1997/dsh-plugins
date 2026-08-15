@@ -23,7 +23,7 @@ DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板�
 ```json
 {
   "id": "g...",              // 自动生成（库 id）
-  "name": "进 RD 需关联 MR",  // 展示用
+  "name": "进 RD 需建 workflow 分支",  // 展示用
   "on": "move",              // 触发行为：move / tags / archive
   "to": "RD",                // 仅 move：限定目标列名（可选；不填 = 移到任何列都触发）
   "checker": { "type": "…", "config": { } }   // 检查单元
@@ -41,6 +41,7 @@ DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板�
 | `tag-required` | 检查 `card.tags` 包含指定标签 | `{tags: ["rd-confirmed"]}` |
 | `field-nonempty` | 检查卡片字段非空 | `{field: "description"}` |
 | `mr-linked` | 检查 refs 有 github-repo + github-mr | 无 |
+| `branch-linked` | 检查 refs 有 github-repo + github-branch（workflow 分支已建） | 无 |
 | `mr-merged` | 经 `gate.call` git.sync 拿 MR 快照，检查全部 merged | 无 |
 | `code` | **手写代码**（见 §3） | `{code}` 或 `{script}`，可选 `{timeoutMs}` |
 | `pipeline` | 经 `gate.runPipeline` 现场跑并等全部成功（GitHub CI 门禁语义） | `{pipelines: [...]}`，并行执行 |

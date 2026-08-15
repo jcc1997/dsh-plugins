@@ -289,7 +289,7 @@ function TagInput(props: { onAdd: (tag: string) => void }) {
 
 /* ── 门禁卡片（v6）：门禁库勾选挂载 + 展开详情 ── */
 const GATE_ON_LABEL: Record<string, string> = { move: '移动状态', tags: '增减标签', archive: '归档' }
-const GATE_KIND_LABEL: Record<string, string> = { 'mr-merged': 'MR 已合并', 'mr-linked': '已关联 MR', 'tag-required': '必须含标签', 'field-nonempty': '字段非空', 'code': '代码检查', 'pipeline': 'pipeline 检查' }
+const GATE_KIND_LABEL: Record<string, string> = { 'mr-merged': 'MR 已合并', 'mr-linked': '已关联 MR', 'branch-linked': '已关联 workflow 分支', 'tag-required': '必须含标签', 'field-nonempty': '字段非空', 'code': '代码检查', 'pipeline': 'pipeline 检查' }
 
 /** 卡片当前门禁：gateIds → 门禁库解析；旧内联 gates 兜底（宿主已迁移，防御性保留） */
 function gateSig(g: any): string {
@@ -317,6 +317,7 @@ function gateSummary(g: CardGate): string {
   if (t === 'tag-required') return '需含标签：' + String((cfg && (cfg as any).tags || [])).replace(/,/g, ', ')
   if (t === 'field-nonempty') return '字段「' + String((cfg && (cfg as any).field) || 'description') + '」非空'
   if (t === 'mr-linked') return '必须已关联仓库与 MR'
+    if (t === 'branch-linked') return '必须已关联仓库与 workflow 分支'
   if (t === 'mr-merged') return '关联 MR 必须已合并'
   if (t === 'code') return '执行代码' + ((cfg && (cfg as any).script) ? '（' + (cfg as any).script + '）' : '（内联 JS）')
   if (t === 'pipeline') return '跑 pipeline：' + String((cfg && (cfg as any).pipelines || (cfg as any).pipelineId || ''))

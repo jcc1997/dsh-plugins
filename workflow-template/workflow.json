@@ -17,11 +17,11 @@
     ],
     "gates": [
       {
-        "name": "进入 RD 需关联 MR",
+        "name": "进入 RD 需建 workflow 分支",
         "on": "move",
         "to": "RD",
         "checker": {
-          "type": "mr-linked"
+          "type": "branch-linked"
         }
       },
       {
@@ -128,7 +128,7 @@
           "default"
         ],
         "gates": [
-          "进入 RD 需关联 MR",
+          "进入 RD 需建 workflow 分支",
           "RD 确认才能进 TD",
           "TD 确认才能进 UC",
           "验收用例确认才能开发",

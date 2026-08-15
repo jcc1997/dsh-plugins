@@ -11,10 +11,10 @@ export function gateToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     {
       // 门禁库：新建独立门禁实体
       name: 'kanban_gate_create',
-      description: '在门禁库中新建一条门禁（独立可复用实体）。checker_type：tag-required / field-nonempty / mr-linked / mr-merged / code（沙箱代码，config.code 或 config.script）/ pipeline（config.pipelines 现场跑并等全部成功）。on：move（可配 to 限目标列）/ tags / archive。创建后用 kanban_gate_add 挂到卡片，或在模板 gates 里引用。',
+      description: '在门禁库中新建一条门禁（独立可复用实体）。checker_type：tag-required / field-nonempty / mr-linked / branch-linked / mr-merged / code（沙箱代码，config.code 或 config.script）/ pipeline（config.pipelines 现场跑并等全部成功）。on：move（可配 to 限目标列）/ tags / archive。创建后用 kanban_gate_add 挂到卡片，或在模板 gates 里引用。',
       parameters: P({
         name: STR('门禁名（必填，唯一展示名）', true),
-        checker_type: STR('检查器类型：tag-required / field-nonempty / mr-linked / mr-merged / code / pipeline', true),
+        checker_type: STR('检查器类型：tag-required / field-nonempty / mr-linked / branch-linked / mr-merged / code / pipeline', true),
         on: STR('触发行为：move / tags / archive', true),
         to: STR('仅 move：限定目标列名（可选）'),
         config: OBJ('检查器配置：tag-required {tags:[...]}；field-nonempty {field}；code {code|script, timeoutMs?}；pipeline {pipelines:[...]}'),

@@ -40,8 +40,8 @@ export interface KanbanCard {
 
 /** 门禁检查器（v5 抽象）：门禁 = 统一检查单元，可以是内置条件、一段代码或一条/多条 pipeline。 */
 export interface GateChecker {
-  /** 检查器类型：tag-required / field-nonempty / mr-linked / mr-merged / code / pipeline */
-  type: 'tag-required' | 'field-nonempty' | 'mr-linked' | 'mr-merged' | 'code' | 'pipeline'
+  /** 检查器类型：tag-required / field-nonempty / mr-linked / branch-linked / mr-merged / code / pipeline */
+  type: 'tag-required' | 'field-nonempty' | 'mr-linked' | 'branch-linked' | 'mr-merged' | 'code' | 'pipeline'
   /** 类型相关配置：tag-required {tags:[]}；field-nonempty {field}；code {code?, script?, timeoutMs?}；pipeline {pipelines:[], timeoutMs?} */
   config?: Record<string, unknown>
 }

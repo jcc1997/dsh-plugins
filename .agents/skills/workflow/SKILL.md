@@ -7,6 +7,7 @@ description: 带门禁的软件开发看板工作流指南(workflow-template):10
 
 > 本文件真源:`workflow-template/skills/workflow/SKILL.md`;仓库根 `.agents/skills/workflow/SKILL.md` 为同步副本。**改动必须两处一起改。**
 > 配套配置:`workflow-template/workflow.json`(经 `kanban_import_config` 导入 dsh-kanban 后生效)。
+> workflow 模式 agent 预设:`workflow-template/agent-presets/workflow/`(复制到 `~/.dsh/.agent-presets/workflow/` 后,新建会话的预设选择器出现「workflow 模式」,agent 自动按本文「会话编排」执行)。
 
 ## 一、这是什么
 
@@ -22,7 +23,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | 列 | 含义 / 谁 | 进入门禁 | 通过方式 |
 |---|---|---|---|
 | Backlog | 需求池,任何人建卡 | 无 | 直接建卡 |
-| RD | 设计确认需求可做 | 已关联 GitHub 仓库与 MR | `kanban_link` 关联 repo/MR |
+| RD | 设计确认需求可做 | 已关联 GitHub 仓库与 workflow 分支 | `git_create_branch` 建分支自动关联 |
 | TD | 写技术设计文档 | 标签 `rd-confirmed` | RD 确认后打标签 |
 | UC | 写验收用例 | 标签 `td-confirmed` | TD 确认后打标签 |
 | In Dev | 开发实现 | 标签 `uc-confirmed` | UC 确认后打标签 |
@@ -36,7 +37,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 | 门禁名 | 触发 | 检查器 | config |
 |---|---|---|---|
-| 进入 RD 需关联 MR | move → RD | mr-linked | 无 |
+| 进入 RD 需建 workflow 分支 | move → RD | branch-linked | 无（需 github-repo + github-branch 关联） |
 | RD 确认才能进 TD | move → TD | tag-required | `{"tags":["rd-confirmed"]}` |
 | TD 确认才能进 UC | move → UC | tag-required | `{"tags":["td-confirmed"]}` |
 | 验收用例确认才能开发 | move → In Dev | tag-required | `{"tags":["uc-confirmed"]}` |
@@ -50,11 +51,26 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ## 四、Agent 操作手册
 
+### 会话编排(默认流程,每次对话都按此走)
+
+用户陈述一个功能/需求时,agent 直接进入流程,不要停在提问上:
+
+1. **确认建卡**:复述理解 → 与用户确认 → `kanban_create(title, template: "workflow")` 建卡进 Backlog(自动带入门禁与标签;必要时先 `git_claim_task_id` 认领 taskId);
+2. **进 RD**:`git_create_branch(card_id)` 建 workflow 分支(过 branch-linked 门禁)→ `kanban_move(card_id, "RD")`;
+3. **RD 设计**:用 `grill-me` skill 拷问方案到共识 → 按 `workflow-template/templates/rd.md` 模板产出 `docs/<taskId>/rd.md`(与分支一起演进);
+4. **RD 确认**:`md_doc_open(path: "…/docs/<taskId>/rd.md")` 展示给人审阅(划词批注 + 总评)→ 通过 → `kanban_tags(card_id, add: ["rd-confirmed"])`;
+5. **建 MR**:RD 确认后 `git_create_mr(card_id)` 提交 MR(标题带 `[taskId]` 自动关联)→ `kanban_move(card_id, "TD")`;
+6. **逐阶段推进**:TD(写 td.md → 审阅 → td-confirmed)→ UC(验收用例 → uc-confirmed)→ In Dev(开发)→ 1st Review(评审 → review-1-done)→ Testing(测试 → tests-passed)→ 2nd review(复审 → review-2-done)→ Stage;
+7. **收尾**:`git_merge_pr` 合并 MR(自动进 Done);文档与代码随 MR 一起演进,合并即归档。
+
+> 每个确认点都先 `md_doc_open` 给人看再拍板;不通过则把意见整理进卡评论/MR,卡停在当前列。
+
 **建卡**:`kanban_create(title, template: "workflow")` —— 自动带入 9 条门禁、预置描述与标签。
 
 **推进列**:`kanban_move(card_id, status)`。门禁不通过时返回「门禁未通过:<原因>」——向用户解释缺什么,并给出补救动作:
 
 - `mr-linked` 未过 → 引导关联仓库/MR(`kanban_link` 挂 github-repo/github-mr,或 git 插件建分支提 MR,标题带 `[taskId]` 自动关联);
+- `branch-linked` 未过 → 引导 `git_create_branch(card_id)`(自动认领 taskId、切 workflow/<taskId> 分支、推送并关联 github-branch);
 - `tag-required` 未过 → 说明该列需要对应角色确认,确认后 `kanban_tags(card_id, add: ["<标签>"])`;
 - `mr-merged` 未过 → 提示先去 Stage 用 git 插件合并 MR。
 
@@ -77,9 +93,13 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 > 文档约定放 git 仓库 `docs/<taskId>/`(rd.md / td.md / uc.md 等),随 MR 演进;没有独立文档时可打开任意本地 md,或先请用户补充文档再发起审阅。
 
-**git 配合**:卡片抽屉「+ 新增 git 关联」或 `kanban_link` 关联仓库;分支/MR 标题带 `[taskId]` 自动关联卡片;Stage 列用 `git_merge_pr`(合并前检查卡片必须处于 Stage)。
+**git 配合**(dsh-git 插件):
+- `git_create_branch(card_id)` — 进 RD 前置:自动认领 taskId、从主分支切 `workflow/<taskId>` 并推送、自动关联 github-branch(本地仓库须干净且在 main/master);
+- `git_create_mr(card_id)` — RD 确认后:head=`workflow/<taskId>`、base=main,标题自动带 `[taskId]` 并关联 github-mr;
+- `git_merge_pr` — Stage 收尾:合并前检查卡片必须处于 Stage,合并后自动进 Done;
+- 卡片抽屉「+ 新增 git 关联」或 `kanban_link` 可手动关联仓库/MR。
 
-**文档约定**:每个 task 的文档放 git 仓库 `docs/<taskId>/`,随分支 MR 演进。
+**文档约定**:每个 task 的文档放 git 仓库 `docs/<taskId>/`(rd.md / td.md / uc.md 等),随分支 MR 演进;RD/TD/UC 模板见 `workflow-template/templates/`。
 
 **配置流转**:`kanban_export_config` 导出当前形态(列+门禁+模板,不含卡片);`kanban_import_config` 整体替换配置层(旧卡挪第一列,自动备份)。完整指南见 `workflow-template/README.md`。
 

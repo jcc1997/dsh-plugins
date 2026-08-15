@@ -3,6 +3,7 @@
 //   tag-required   内置条件：卡片必须含指定标签
 //   field-nonempty 内置条件：字段非空
 //   mr-linked      内置条件：已关联仓库 + MR
+//   branch-linked  内置条件：已关联 workflow 分支（github-branch）
 //   mr-merged      内置条件：关联 MR 已合并（GitHub API）
 //   code           一段代码：沙箱 node 执行，载荷写临时文件，exit 0 且 stdout {ok:true} 通过
 //   pipeline       一条/多条 pipeline：现场启动并等待全部成功（GitHub CI 门禁语义）
@@ -110,6 +111,13 @@ const repo = refs.find(r => r.kind === 'github-repo' && r.externalId);
 const mr = refs.find(r => r.kind === 'github-mr' && r.externalId);
 return { ok: !!(repo && mr), reason: !repo ? '未关联 GitHub 仓库' : '未关联 MR' }`
   }
+  if (type === 'branch-linked') {
+    return `const c = await gate.card({});
+const refs = c.refs || [];
+const repo = refs.find(r => r.kind === 'github-repo' && r.externalId);
+const br = refs.find(r => r.kind === 'github-branch' && r.externalId);
+return { ok: !!(repo && br), reason: !repo ? '未关联 GitHub 仓库' : '未关联 workflow 分支（先 git_create_branch）' }`
+  }
   if (type === 'mr-merged') {
     return `const c = await gate.card({});
 const sync = await gate.call({service: 'git', method: 'sync', args: [c.id]});
@@ -156,6 +164,15 @@ nativeCheckers['mr-linked'] = async (card, gate) => {
   const snapMrs = snap && Array.isArray(snap.mrs) ? snap.mrs : []
   if (!repoRef || !repoRef.externalId) return { name: gate.name || 'mr-linked', type: 'mr-linked', reason: '卡片未关联 GitHub 仓库（github-repo）' }
   if (mrRefs.length === 0 && snapMrs.length === 0) return { name: gate.name || 'mr-linked', type: 'mr-linked', reason: '卡片未关联 MR（github-mr）' }
+  return null
+}
+
+nativeCheckers['branch-linked'] = async (card, gate) => {
+  const refs: any[] = Array.isArray(card.refs) ? card.refs : []
+  const repoRef = refs.find((r) => r.kind === 'github-repo')
+  const brRefs = refs.filter((r) => r.kind === 'github-branch' && r.externalId)
+  if (!repoRef || !repoRef.externalId) return { name: gate.name || 'branch-linked', type: 'branch-linked', reason: '卡片未关联 GitHub 仓库（github-repo）' }
+  if (brRefs.length === 0) return { name: gate.name || 'branch-linked', type: 'branch-linked', reason: '卡片未关联 workflow 分支（github-branch，先 git_create_branch）' }
   return null
 }
 
@@ -375,14 +392,14 @@ export async function checkGates(
 }
 
 /** 内置预设类型（全部经 code 沙箱执行） */
-export const presetTypes = ['tag-required', 'field-nonempty', 'mr-linked', 'mr-merged', 'pipeline']
+export const presetTypes = ['tag-required', 'field-nonempty', 'mr-linked', 'branch-linked', 'mr-merged', 'pipeline']
 
 /** 校验门禁定义（新增时输入合法性） */
 export function validateGate(gate: any): string | null {
   if (!gate || typeof gate !== 'object') return '门禁定义缺失'
   const c = gate.checker
   if (!c || typeof c !== 'object' || typeof c.type !== 'string') return '缺少 checker（checker: { type, config? }）'
-  if (!['tag-required', 'field-nonempty', 'mr-linked', 'mr-merged', 'code', 'pipeline'].includes(c.type)) return '未知检查器类型：' + c.type
+  if (!['tag-required', 'field-nonempty', 'mr-linked', 'branch-linked', 'mr-merged', 'code', 'pipeline'].includes(c.type)) return '未知检查器类型：' + c.type
   if (!['move', 'tags', 'archive'].includes(gate.on)) return '未知触发行为：' + gate.on
   const cfg = c.config || {}
   if (c.type === 'tag-required' && (!Array.isArray(cfg.tags) || cfg.tags.length === 0)) return 'tag-required 需要 config.tags 数组'
@@ -396,6 +413,7 @@ export function validateGate(gate: any): string | null {
 export function checkerDefaults(type: string): Record<string, unknown> {
   if (type === 'tag-required') return { tags: [] }
   if (type === 'field-nonempty') return { field: 'description' }
+  if (type === 'branch-linked') return {}
   if (type === 'code') return { code: "const c = await gate.card({});\n// 示例:标题长度必须 > 5\nreturn { ok: String(c.title || '').length > 5, reason: 'title too short' }" }
   if (type === 'pipeline') return { pipelines: [] }
   return {}
