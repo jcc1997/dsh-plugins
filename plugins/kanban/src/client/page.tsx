@@ -9,7 +9,7 @@ import { ColumnsPanel } from './columns'
 import { KanbanSettings } from './settings'
 import { safeId, safeNow, appendActivity } from '@dsh-plugins/ui'
 import { useKanbanBoard, HostLike } from './board-hook'
-import { KanbanBlock, CardGate, CardTemplate } from '@dsh-plugins/ui'
+import { KanbanBlock, CardGate, CardTemplate, KanbanBoard } from '@dsh-plugins/ui'
 import { BoardView, GroupBy } from './board-view'
 import { ArchiveView } from './archive-view'
 
@@ -26,7 +26,7 @@ export interface SessionsLike {
   open(id: string): void
 }
 
-type View = 'board' | 'archive' | 'settings'
+type View = 'board' | 'archive' | 'gates' | 'templates' | 'settings'
 
 export function KanbanPage(props: {
   host: HostLike
@@ -45,6 +45,13 @@ export function KanbanPage(props: {
   /* ── 卡片操作回调（透传给抽屉） ── */
   function openCard(columnId: string, cardId: string) {
     setDrawer({ columnId, cardId })
+  }
+  /** 门禁视图点击卡片：活动卡开抽屉；归档卡切归档视图 */
+  function openCardFromAnywhere(cardId: string) {
+    for (const col of (board ? board.columns : [])) {
+      if ((col.cards || []).some((k: any) => k.id === cardId)) { setDrawer({ columnId: col.id, cardId }); return }
+    }
+    setView('archive')
   }
   function saveCard(title: string, description: string, content: KanbanBlock[]) {
     if (!drawer) return
@@ -126,6 +133,12 @@ export function KanbanPage(props: {
   const drawerCard = drawerHit ? drawerHit.card : null
   const archived = board.archive || []
   const activeCount = board.columns.reduce((n, col) => n + col.cards.length, 0)
+  const gateCount = (() => {
+    let n = 0
+    for (const col of board.columns) for (const k of col.cards) n += (k.gates || []).length
+    for (const k of board.archive || []) n += (k.gates || []).length
+    return n
+  })()
 
   return (
     <div className="kbnb-page">
@@ -161,6 +174,24 @@ export function KanbanPage(props: {
           </button>
           <button
             type="button"
+            className={'kbnb-nav-item' + (view === 'gates' ? ' kbnb-nav-on' : '')}
+            onClick={() => setView('gates')}
+          >
+            <IconGateGlyph />
+            <span className="kbnb-nav-label">门禁</span>
+            <span className="kbnb-nav-badge">{gateCount}</span>
+          </button>
+          <button
+            type="button"
+            className={'kbnb-nav-item' + (view === 'templates' ? ' kbnb-nav-on' : '')}
+            onClick={() => setView('templates')}
+          >
+            <IconTemplateGlyph />
+            <span className="kbnb-nav-label">模板</span>
+            <span className="kbnb-nav-badge">{(board.templates || []).length}</span>
+          </button>
+          <button
+            type="button"
             className={'kbnb-nav-item' + (view === 'settings' ? ' kbnb-nav-on' : '')}
             onClick={() => setView('settings')}
           >
@@ -183,6 +214,8 @@ export function KanbanPage(props: {
             />
           ) : null}
           {view === 'archive' ? <ArchiveView board={board} kb={kb} onBackToBoard={() => setView('board')} /> : null}
+          {view === 'gates' ? <GatesView board={board} onOpenCard={(cardId) => openCardFromAnywhere(cardId)} /> : null}
+          {view === 'templates' ? <TemplatesView board={board} kb={kb} /> : null}
           {view === 'settings' ? (
             <div className="kbnb-archive">
               <KanbanSettings host={props.host} />
@@ -253,6 +286,134 @@ function IconArchiveGlyph() {
       <rect x="1.5" y="1.5" width="13" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
       <path d="M3 5v8.5c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V5" stroke="currentColor" strokeWidth="1.2" />
       <path d="M6.5 8.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+
+/* ── 门禁总览视图：列出全板带门禁的卡片与其门禁 ── */
+function GatesView(props: { board: KanbanBoard; onOpenCard: (cardId: string) => void }) {
+  const rows: Array<{ card: any; colTitle: string; archived: boolean }> = []
+  for (const col of props.board.columns || []) {
+    for (const k of col.cards || []) {
+      if ((k.gates || []).length > 0) rows.push({ card: k, colTitle: col.title, archived: false })
+    }
+  }
+  for (const k of props.board.archive || []) {
+    if ((k.gates || []).length > 0) rows.push({ card: k, colTitle: '归档', archived: true })
+  }
+  return (
+    <div className="kbnb-archive">
+      <h3 className="kbnb-settings-title">门禁总览（{rows.length} 张卡）</h3>
+      {rows.length === 0 ? <div className="kbnb-settings-empty">暂无卡片挂门禁。打开卡片抽屉 →「门禁」区块挂载，或用 agent 工具 kanban_gate_add。</div> : null}
+      {rows.map(({ card, colTitle, archived }) => (
+        <section key={card.id} className="kbnb-settings">
+          <button className="kbnb-gates-cardlink" type="button" title="打开卡片" onClick={() => props.onOpenCard(card.id)}>
+            <span className="kbnb-gates-cardtitle">{card.title}</span>
+            <span className="kbnb-gates-col">{colTitle}</span>
+          </button>
+          {(card.gates || []).map((g: any) => {
+            const t = g.checker ? g.checker.type : g.kind
+            return (
+              <div key={g.id} className="kbnb-gate-row">
+                <span className="kbnb-gate-name">{g.name}</span>
+                <span className="kbnb-gate-meta">{(g.on === 'move' ? '移动' : g.on === 'tags' ? '标签' : '归档') + (g.to ? '→' + g.to : '')} · {t}</span>
+                <span className="kbnb-gate-summary">{typeof g.checker !== 'undefined' && g.checker.config ? JSON.stringify(g.checker.config) : ''}</span>
+              </div>
+            )
+          })}
+        </section>
+      ))}
+    </div>
+  )
+}
+
+/* ── 模板视图：列表 + 新建 + 删除（预置描述/标签/门禁） ── */
+function TemplatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanBoard> }) {
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
+  const [desc, setDesc] = useState('')
+  const [tagsText, setTagsText] = useState('')
+  const [gatesText, setGatesText] = useState('')
+  const templates = props.board.templates || []
+  function create() {
+    if (!name.trim()) return
+    let gates: CardGate[] = []
+    if (gatesText.trim()) {
+      try { gates = JSON.parse(gatesText) } catch { gates = [] }
+    }
+    props.kb.mutate((b) => {
+      if (!Array.isArray(b.templates)) b.templates = []
+      b.templates.push({
+        id: safeId('t'), name: name.trim(), description: desc.trim(),
+        tags: tagsText.split(/[,，\s]+/).map((x) => x.trim()).filter(Boolean),
+        content: [], gates,
+        createdAt: safeNow(), updatedAt: safeNow(),
+      })
+    })
+    setName(''); setDesc(''); setTagsText(''); setGatesText(''); setAdding(false)
+  }
+  function remove(id: string) {
+    props.kb.mutate((b) => {
+      b.templates = (b.templates || []).filter((t) => t.id !== id)
+    })
+  }
+  return (
+    <div className="kbnb-archive">
+      <div className="kbnb-settings-title-row">
+        <h3 className="kbnb-settings-title">创建模板（{templates.length}）</h3>
+        <button className="kbnb-btn kbnb-primary" type="button" onClick={() => setAdding(!adding)}>{adding ? '收起' : '+ 新建模板'}</button>
+      </div>
+      {adding ? (
+        <section className="kbnb-settings">
+          <div className="kbnb-field">
+            <label className="kbnb-field-label">名称</label>
+            <input className="kbnb-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="如：workflow" />
+          </div>
+          <div className="kbnb-field">
+            <label className="kbnb-field-label">预置描述</label>
+            <input className="kbnb-input" value={desc} onChange={(e) => setDesc(e.target.value)} />
+          </div>
+          <div className="kbnb-field">
+            <label className="kbnb-field-label">预置标签（逗号分隔）</label>
+            <input className="kbnb-input" value={tagsText} onChange={(e) => setTagsText(e.target.value)} />
+          </div>
+          <div className="kbnb-field">
+            <label className="kbnb-field-label">预置门禁（JSON 数组）</label>
+            <textarea className="kbnb-textarea" style={{ minHeight: 90, fontFamily: 'ui-monospace,SFMono-Regular,Menlo,monospace' }} value={gatesText} onChange={(e) => setGatesText(e.target.value)} placeholder='[{"on":"move","to":"Done","checker":{"type":"mr-merged"}}]' />
+          </div>
+          <button className="kbnb-btn kbnb-primary" type="button" disabled={!name.trim()} onClick={create}>创建</button>
+        </section>
+      ) : null}
+      {templates.length === 0 && !adding ? <div className="kbnb-settings-empty">暂无模板。模板预置描述/标签/内容/门禁，新建卡片时引用免重复输入（agent: kanban_template_create）。</div> : null}
+      {templates.map((t: CardTemplate) => (
+        <section key={t.id} className="kbnb-settings kbnb-tpl-row">
+          <div className="kbnb-tpl-main">
+            <span className="kbnb-tpl-name">{t.name}</span>
+            <span className="kbnb-tpl-desc">{t.description || '（无描述）'}{t.tags && t.tags.length ? ' · 标签 ' + t.tags.join(', ') : ''}{t.gates && t.gates.length ? ' · 门禁 ' + t.gates.length : ''}</span>
+          </div>
+          <button className="kbnb-btn kbnb-danger" type="button" onClick={() => remove(t.id)}>删除</button>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+/* ── 导航图标 ── */
+function IconGateGlyph() {
+  return (
+    <svg width={15} height={15} viewBox="0 0 16 16" fill="none" className="kbnb-nav-icon">
+      <path d="M8 1.5l5.5 2v4.2c0 3.1-2.2 5.6-5.5 6.8-3.3-1.2-5.5-3.7-5.5-6.8V3.5L8 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M5.8 8l1.5 1.5 2.9-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+function IconTemplateGlyph() {
+  return (
+    <svg width={15} height={15} viewBox="0 0 16 16" fill="none" className="kbnb-nav-icon">
+      <rect x="2" y="1.5" width="9" height="13" rx="1" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M5 4.5h3M5 7h3M5 9.5h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M11 4h1.5c.55 0 1 .45 1 1v8.5c0 .55-.45 1-1 1H12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
     </svg>
   )
 }

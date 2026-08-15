@@ -181,6 +181,27 @@ export function deletePipeline(doc: PipelineDoc, id: string): { ok: boolean; err
   return { ok: true }
 }
 
+/** 删除一个未发布的旧版本（草稿）；已发布版本不可变，拒绝删除 */
+export function deletePipelineVersion(doc: PipelineDoc, id: string, version: string): { ok: boolean; pipeline?: Pipeline; error?: string } {
+  const p = findPipeline(doc, id)
+  if (!p) return { ok: false, error: 'pipeline not found: ' + id }
+  const v = findVersion(p, version)
+  if (!v) return { ok: false, error: 'version not found: ' + version }
+  if (v.published) return { ok: false, error: '已发布版本不可删除（版本发布后不可变）' }
+  if (p.versions.length <= 1) return { ok: false, error: '至少保留一个版本' }
+  p.versions = p.versions.filter((x) => x.version !== version)
+  p.versions.sort((a, b) => {
+    const x = parseSemver(a.version), y = parseSemver(b.version)
+    if (!x || !y) return 0
+    return (y.major - x.major) || (y.minor - x.minor) || (y.patch - x.patch)
+  })
+  p.latestVersion = sortVersionsDesc(p.versions.map((x) => x.version))[0]
+  const published = p.versions.filter((x) => x.published)
+  p.publishedVersion = published.length ? sortVersionsDesc(published.map((x) => x.version))[0] : null
+  p.updatedAt = now()
+  return { ok: true, pipeline: p }
+}
+
 /* ── 运行记录 ── */
 
 export function enqueueRun(doc: PipelineDoc, run: PipelineRun): PipelineRun {

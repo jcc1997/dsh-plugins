@@ -2,7 +2,7 @@
 // 面向 agent 的 11 个工具：查/建/改/删/发布/运行/进度/队列/目录。
 // 工具 execute 阶段接收 { fs, store 访问器, engine } 注入（避免直接依赖 ctx）。
 
-import { FsLike, readDoc, writeDoc, mutateDoc, findPipeline, findVersion, listCatalog } from './store'
+import { FsLike, readDoc, writeDoc, mutateDoc, findPipeline, findVersion, listCatalog, deletePipelineVersion } from './store'
 import { Pipeline, PipelineNode, PipelineRun } from './models'
 import { RunQueue } from './engine'
 
@@ -243,6 +243,23 @@ export function buildToolDefs(env: ToolEnv): any[] {
     output: outputOf('运行列表'),
   }
 
+  const delVer = {
+    name: 'pipeline_delete_version',
+    description: '删除一个未发布的旧版本（草稿）。已发布版本不可变、拒绝删除；至少保留一个版本。',
+    parameters: {
+      pipeline_id: STR('pipeline id', true),
+      version: STR('要删除的版本号（未发布草稿）', true),
+    },
+    execute: async (args: any) => {
+      return mutateDoc(fs, (doc) => {
+        const r = deletePipelineVersion(doc, String(args.pipeline_id), String(args.version))
+        if (!r.ok) return r
+        return { ok: true, pipeline_id: args.pipeline_id, deleted_version: String(args.version), latest_version: (r.pipeline as any).latestVersion }
+      })
+    },
+    output: outputOf('删除版本结果'),
+  }
+
   const catalog = {
     name: 'pipeline_catalog',
     description: '列出可复用的已发布单元（catalog）：所有已发布的 pipeline 版本。combined pipeline 可用这些版本作为子节点引用。',
@@ -255,7 +272,7 @@ export function buildToolDefs(env: ToolEnv): any[] {
     output: outputOf('可复用单元目录'),
   }
 
-  const defs = [list, get, create, update, publish, del, run, status, runs, catalog]
+  const defs = [list, get, create, update, publish, del, delVer, run, status, runs, catalog]
   // dsh-tools 要求 execute 返回 canonical value 为 lossless JSON（含 undefined 会被拒绝）。
   // run 未完成时 output/error 等字段为 undefined → 统一做一次 JSON 清洗（undefined 属性被丢弃）。
   const lossless = (v: any): any => (v === undefined ? null : JSON.parse(JSON.stringify(v)))

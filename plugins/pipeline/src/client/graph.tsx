@@ -56,6 +56,7 @@ function configSummary(n: GraphNode): string {
 interface PlpNodeData {
   node: GraphNode
   selected: boolean
+  readonly?: boolean
   onDelete: (id: string) => void
   onMove: (id: string, dir: -1 | 1) => void
   canUp: boolean
@@ -74,17 +75,23 @@ function PlpNode(props: NodeProps) {
         <span className={'plp-graph-type plp-graph-type-' + n.type}>{NODE_LABEL[n.type] || n.type}</span>
         <span className="plp-rf-node-title" title={n.title}>{n.title}</span>
         <span className="plp-rf-node-spacer" />
-        <button type="button" className="plp-graph-del" title="删除节点"
-          onClick={(e) => { e.stopPropagation(); d.onDelete(n.id) }}>×</button>
+        {!d.readonly ? (
+          <button type="button" className="plp-graph-del" title="删除节点"
+            onClick={(e) => { e.stopPropagation(); d.onDelete(n.id) }}>×</button>
+        ) : null}
       </div>
       <div className="plp-rf-node-summary" title={configSummary(n)}>{configSummary(n) || '未配置'}</div>
       <div className="plp-rf-node-foot">
         <span className="plp-graph-deps">{n.inputs && n.inputs.length ? '依赖 ' + n.inputs.join(', ') : '串联上游'}</span>
         <span className="plp-rf-node-spacer" />
-        <button type="button" className="plp-graph-move" title="上移" disabled={!d.canUp}
-          onClick={(e) => { e.stopPropagation(); d.onMove(n.id, -1) }}>↑</button>
-        <button type="button" className="plp-graph-move" title="下移" disabled={!d.canDown}
-          onClick={(e) => { e.stopPropagation(); d.onMove(n.id, 1) }}>↓</button>
+        {!d.readonly ? (
+          <button type="button" className="plp-graph-move" title="上移" disabled={!d.canUp}
+            onClick={(e) => { e.stopPropagation(); d.onMove(n.id, -1) }}>↑</button>
+        ) : null}
+        {!d.readonly ? (
+          <button type="button" className="plp-graph-move" title="下移" disabled={!d.canDown}
+            onClick={(e) => { e.stopPropagation(); d.onMove(n.id, 1) }}>↓</button>
+        ) : null}
       </div>
       <span className="plp-rf-port plp-rf-port-out" />
       <Handle type="source" position={Position.Bottom} className="plp-rf-handle" />
@@ -99,11 +106,13 @@ function PlpEdge(props: EdgeProps) {
     <>
       <BaseEdge id={props.id} path={path} markerEnd={props.markerEnd} />
       <EdgeLabelRenderer>
-        <button type="button" className="plp-rf-edge-add nodrag nopan" title="在此新增节点"
-          style={{ position: 'absolute', transform: 'translate(-50%,-50%) translate(' + labelX + 'px,' + labelY + 'px)', pointerEvents: 'all' }}
-          onClick={(e) => { e.stopPropagation(); const d = props.data as unknown as { onAddBetween?: (f: string, t: string) => void } | undefined; if (d && d.onAddBetween) d.onAddBetween(props.source, props.target) }}>
-          <svg width={10} height={10} viewBox="0 0 16 16" fill="none"><path d="M8.6 1.5V7.4H14.5V8.6H8.6V14.5H7.4V8.6H1.5V7.4H7.4V1.5H8.6z" fill="currentColor"/></svg>
-        </button>
+        {!(props.data as unknown as { readonly?: boolean }).readonly ? (
+          <button type="button" className="plp-rf-edge-add nodrag nopan" title="在此新增节点"
+            style={{ position: 'absolute', transform: 'translate(-50%,-50%) translate(' + labelX + 'px,' + labelY + 'px)', pointerEvents: 'all' }}
+            onClick={(e) => { e.stopPropagation(); const d = props.data as unknown as { onAddBetween?: (f: string, t: string) => void } | undefined; if (d && d.onAddBetween) d.onAddBetween(props.source, props.target) }}>
+            <svg width={10} height={10} viewBox="0 0 16 16" fill="none"><path d="M8.6 1.5V7.4H14.5V8.6H8.6V14.5H7.4V8.6H1.5V7.4H7.4V1.5H8.6z" fill="currentColor"/></svg>
+          </button>
+        ) : null}
       </EdgeLabelRenderer>
     </>
   )
@@ -115,6 +124,8 @@ const edgeTypes = { plp: PlpEdge }
 export function NodeGraph(props: {
   nodes: GraphNode[]
   selectedId: string | null
+  /** 只读模式（查看历史版本）：隐藏新增/删除/移动/边中点按钮 */
+  readonly?: boolean
   onSelect: (id: string) => void
   /** 在 sorted[afterIndex] 之后插入 type 类型节点 */
   onAdd: (afterIndex: number, type: string) => void
@@ -124,6 +135,7 @@ export function NodeGraph(props: {
   onMove: (id: string, dir: -1 | 1) => void
   onAddTail: (type: string) => void
 }) {
+  const readonly = props.readonly === true
   const sorted = useMemo(() => [...props.nodes].sort((a, b) => a.order - b.order), [props.nodes])
   // 顶部「新增节点」类型选择浮层
   const [picker, setPicker] = useState(false)
@@ -132,7 +144,7 @@ export function NodeGraph(props: {
     id: n.id,
     type: 'plp',
     position: { x: 0, y: i * GRAPH_STEP },
-    data: { node: n, selected: props.selectedId === n.id, onDelete: props.onDelete, onMove: props.onMove, canUp: i > 0, canDown: i < sorted.length - 1 },
+    data: { node: n, selected: props.selectedId === n.id, readonly, onDelete: props.onDelete, onMove: props.onMove, canUp: i > 0, canDown: i < sorted.length - 1 },
   })), [sorted, props.selectedId, props.onDelete, props.onMove])
 
   const rfEdges = useMemo(() => {
@@ -149,7 +161,7 @@ export function NodeGraph(props: {
           target: n.id,
           type: 'plp',
           markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14 },
-          data: { onAddBetween: props.onAddEdge },
+          data: { readonly, onAddBetween: props.onAddEdge },
         })
       }
       prev = n
@@ -178,11 +190,13 @@ export function NodeGraph(props: {
         <Background gap={24} size={1} />
         <Controls showInteractive={false} position="bottom-left" />
         <Panel position="top-left">
-          <button type="button" className="plp-btn plp-primary" onClick={() => setPicker(true)}>
-            <svg width={14} height={14} viewBox="0 0 16 16" fill="none"><path d="M8.64 1.5V7.35H14.5V8.65H8.64V14.5H7.34V8.65H1.5V7.35H7.34V1.5h1.3z" fill="currentColor"/></svg>
-            新增节点
-          </button>
-          <span className="plp-rf-hint">点击节点编辑 · 边中点 + 插入 · 卡片 × 删除</span>
+          {!readonly ? (
+            <button type="button" className="plp-btn plp-primary" onClick={() => setPicker(true)}>
+              <svg width={14} height={14} viewBox="0 0 16 16" fill="none"><path d="M8.64 1.5V7.35H14.5V8.65H8.64V14.5H7.34V8.65H1.5V7.35H7.34V1.5h1.3z" fill="currentColor"/></svg>
+              新增节点
+            </button>
+          ) : null}
+          <span className="plp-rf-hint">{readonly ? '只读版本 · 查看历史节点' : '点击节点编辑 · 边中点 + 插入 · 卡片 × 删除'}</span>
         </Panel>
       </ReactFlow>
       {picker ? (

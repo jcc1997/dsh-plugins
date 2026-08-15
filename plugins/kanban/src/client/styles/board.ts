@@ -38,7 +38,7 @@ export const boardCss = `
 
 /* ══ 卡片（title + 标签 + 一句话描述，单行省略） ══ */
 .kbnb-cards{display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;min-height:40px;padding:6px 0 4px}
-.kbnb-card{background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;cursor:pointer;user-select:none;transition:border-color 150ms cubic-bezier(.4, 0, .2, 1),box-shadow 150ms cubic-bezier(.4, 0, .2, 1)}
+.kbnb-card{width:100%;box-sizing:border-box;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;cursor:pointer;user-select:none;transition:border-color 150ms cubic-bezier(.4, 0, .2, 1),box-shadow 150ms cubic-bezier(.4, 0, .2, 1)}
 .kbnb-card:hover{border-color:var(--dsw-alias-state-business-primary)}
 .kbnb-card-active{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary),0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04)}
 .kbnb-card-drag{opacity:.5;transform:none}

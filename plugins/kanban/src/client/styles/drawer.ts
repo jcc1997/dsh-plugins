@@ -1,5 +1,24 @@
 // styles/drawer.ts — 抽屉与详情样式：左右分栏、contentEditable 标题/描述、状态栏、标签、评论、变更记录、关联、Git 卡、会话工作台
 export const drawerCss = `
+/* ══ 门禁/模板视图 ══ */
+.kbnb-gates-cardlink{display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;margin-bottom:6px;text-align:left}
+.kbnb-gates-cardtitle{font-size:14px;font-weight:600;color:var(--dsw-alias-state-business-primary)}
+.kbnb-gates-col{font-size:11px;color:var(--dsw-alias-label-tertiary)}
+.kbnb-settings-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.kbnb-settings-empty{padding:24px 0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.8}
+.kbnb-tpl-row{display:flex;align-items:center;gap:12px;justify-content:space-between}
+.kbnb-tpl-main{min-width:0}
+.kbnb-tpl-name{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}
+.kbnb-tpl-desc{display:block;font-size:12px;color:var(--dsw-alias-label-secondary);margin-top:2px}
+
+/* ══ 门禁详情(点击行展开) ══ */
+.kbnb-gate-row-click{cursor:pointer;border-radius:6px;padding:4px 6px;margin:0 -6px}
+.kbnb-gate-row-click:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.kbnb-gate-detail{background:var(--dsw-alias-bg-layer-2);border-radius:8px;padding:10px 12px;margin:2px 0 6px;display:flex;flex-direction:column;gap:6px}
+.kbnb-gate-detail-row{display:flex;gap:8px;font-size:12px;color:var(--dsw-alias-label-primary)}
+.kbnb-gate-detail-k{color:var(--dsw-alias-label-tertiary);min-width:40px;flex:none}
+.kbnb-gate-detail-pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:160px;overflow-y:auto}
+
 /* ══ 门禁卡（v4）：挂在此卡上的行为门禁 ══ */
 .kbnb-gates-card{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
 .kbnb-gate-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0}

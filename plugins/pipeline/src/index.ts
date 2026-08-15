@@ -7,7 +7,7 @@
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import {
   FsLike, readDoc, writeDoc, mutateDoc, findPipeline, findVersion, listCatalog,
-  createPipeline, updatePipeline, publishPipeline, deletePipeline, enqueueRun,
+  createPipeline, updatePipeline, publishPipeline, deletePipeline, deletePipelineVersion, enqueueRun,
 } from './host/store'
 import { Pipeline, PipelineNode, PipelineRun, now, safeId, defaultPipeline } from './host/models'
 import { RunQueue, ShellLike, executePipeline } from './host/engine'
@@ -94,6 +94,14 @@ export function apply(ctx: PipelineCtx) {
     return mutateDoc(fs, (doc) => {
       const r = deletePipeline(doc, String(args.pipeline_id))
       return r
+    })
+  })
+  // 删除未发布旧版本（已发布拒绝）
+  route('/pipeline-api/delete-version', async (args: any) => {
+    return mutateDoc(fs, (doc) => {
+      const r = deletePipelineVersion(doc, String(args.pipeline_id), String(args.version))
+      if (!r.ok) return r
+      return { ok: true, deleted_version: args.version, latest_version: (r.pipeline as any).latestVersion }
     })
   })
   // 运行（异步入队）

@@ -29,7 +29,7 @@ const ctx = {
 }
 mod.apply(ctx)
 console.log('host: 工具', registered.length, '| 路由', routes.length, '| 服务', Object.keys(provided).join(','))
-if (registered.length !== 10) throw new Error('工具注册数错误: ' + registered.length)
+if (registered.length !== 11) throw new Error('工具注册数错误: ' + registered.length)
 for (const p of ['/pipeline-api/load', '/pipeline-api/create', '/pipeline-api/update', '/pipeline-api/publish', '/pipeline-api/delete', '/pipeline-api/run', '/pipeline-api/run-status', '/pipeline-api/get']) {
   if (!routes.includes(p)) throw new Error('路由缺失: ' + p)
 }

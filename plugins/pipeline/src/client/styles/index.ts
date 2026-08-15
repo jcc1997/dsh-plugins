@@ -80,7 +80,15 @@ export const plpCss = `
 .plp-node-remove{align-self:center}
 
 /* ══ 版本条 ══ */
-.plp-ver-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;margin-bottom:8px}
+.plp-ver-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;margin-bottom:8px;cursor:pointer;flex-wrap:nowrap;min-width:0;transition:border-color 150ms cubic-bezier(.4,0,.2,1)}
+.plp-ver-row:hover{border-color:var(--dsw-alias-state-business-primary)}
+.plp-ver-row-sel{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary)}
+.plp-ver-row .plp-ver-chip{flex:none}
+.plp-ver-row .plp-ver-latest{flex:none;white-space:nowrap}
+.plp-ver-row .plp-ver-meta{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plp-ver-row .plp-icon-btn{flex:none;padding:3px}
+.plp-ver-banner{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:10px;background:var(--dsw-alias-interactive-bg-hover-accent);font-size:12px;margin-bottom:12px}
+.plp-graph-inner{position:absolute;inset:0;padding-top:44px}
 .plp-ver-chip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:600}
 .plp-ver-published{color:var(--dsw-alias-state-success-primary)}
 .plp-ver-draft{color:var(--dsw-alias-label-tertiary)}
@@ -165,7 +173,8 @@ export const plpCss = `
 .plp-basic-toggle:hover{color:var(--dsw-alias-label-primary)}
 .plp-basic-grid{display:grid;grid-template-columns:1fr 2fr 200px 1fr;gap:16px;padding:8px 0 12px}
 .plp-editor-body{flex:1;position:relative;min-height:0}
-.plp-graph-scroll{position:absolute;inset:0;overflow:auto;padding:16px}
+.plp-graph-scroll{position:absolute;inset:0;overflow:auto;padding:16px;display:flex;flex-direction:column}
+.plp-graph-scroll .plp-rf-wrap{flex:1;min-height:480px}
 .plp-editor-side{position:absolute;top:12px;right:12px;bottom:12px;width:320px;z-index:5;display:flex;flex-direction:column;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:14px;box-shadow:var(--dsw-shadow-lv3);overflow:hidden}
 .plp-side-head{display:flex;align-items:center;justify-content:space-between;padding:12px 12px 10px 16px;border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
 .plp-side-title{font-size:13px;font-weight:600}

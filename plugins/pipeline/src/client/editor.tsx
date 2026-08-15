@@ -50,6 +50,10 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
   const [edgeInsert, setEdgeInsert] = useState<{ from: string; to: string } | null>(null)
   // 右侧浮窗开关（编辑画布全幅时浮于其上）
   const [sideOpen, setSideOpen] = useState(true)
+  // 版本查看：null = 最新草稿（可编辑）；非 null = 查看该版本（只读）
+  const [viewVersion, setViewVersion] = useState<string | null>(null)
+  // 删除版本确认
+  const [confirmDelVer, setConfirmDelVer] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -65,6 +69,8 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
       setTags((pl.tags || []).join(', '))
       const latest = pl.versions.find((v) => v.version === pl.latestVersion)
       setNodes(latest ? JSON.parse(JSON.stringify(latest.nodes)) : [])
+      setViewVersion(null)
+      setConfirmDelVer(null)
       setSelectedId('')
       setLoading(false)
     } catch (e) {
@@ -84,6 +90,17 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
         nodes,
       })
       if (r.ok) { await load(); props.onChanged() } else setError(r.error || '保存失败')
+    } catch (e) {
+      setError(String(e && (e as Error).message ? (e as Error).message : e))
+    } finally { setBusy(false) }
+  }
+
+  async function deleteVersion() {
+    if (!p || !confirmDelVer) return
+    setBusy(true)
+    try {
+      const r = await props.host.call('delete-version', { pipeline_id: p.id, version: confirmDelVer })
+      if (r.ok) { setConfirmDelVer(null); await load(); props.onChanged() } else setError(r.error || '删除版本失败')
     } catch (e) {
       setError(String(e && (e as Error).message ? (e as Error).message : e))
     } finally { setBusy(false) }
@@ -184,7 +201,10 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
   if (!p) return <div className="plp-loading">{error || '流水线不存在'}</div>
 
   const sel = selectedId ? nodes.find((n) => n.id === selectedId) || null : null
-  const sortedNodes = [...nodes].sort((a, b) => a.order - b.order)
+  const viewVer = viewVersion ? (p.versions.find((v) => v.version === viewVersion) || null) : null
+  const graphNodes = viewVer ? JSON.parse(JSON.stringify(viewVer.nodes)) : nodes
+  const sortedNodes = [...graphNodes].sort((a, b) => a.order - b.order)
+  const readonlyView = viewVer !== null
 
   return (
     <div className="plp-editor">
@@ -240,16 +260,25 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
       {/* ── 主区：画布全幅（浮窗侧栏覆盖其上） ── */}
       <div className="plp-editor-body">
         <div className="plp-graph-scroll">
-          <NodeGraph
-            nodes={nodes}
-            selectedId={selectedId}
-            onSelect={(id) => setSelectedId(id)}
-            onAdd={(afterIndex, type) => { const a = sortedNodes[afterIndex] || null; insertNode(a ? a.id : null, type) }}
-            onAddEdge={(from, to) => setEdgeInsert({ from, to })}
-            onDelete={deleteNode}
-            onMove={moveNode}
-            onAddTail={(type) => { const last = sortedNodes[sortedNodes.length - 1] || null; insertNode(last ? last.id : null, type) }}
-          />
+          {readonlyView ? (
+            <div className="plp-ver-banner">
+              <span>正在查看版本 <b>{viewVersion}</b>（{viewVer && viewVer.published ? '已发布' : '草稿'}，只读）</span>
+              <button className="plp-btn" type="button" onClick={() => setViewVersion(null)}>回到最新草稿</button>
+            </div>
+          ) : null}
+          <div className="plp-graph-inner">
+            <NodeGraph
+              nodes={graphNodes}
+              readonly={readonlyView}
+              selectedId={selectedId}
+              onSelect={(id) => setSelectedId(id)}
+              onAdd={(afterIndex, type) => { const a = sortedNodes[afterIndex] || null; insertNode(a ? a.id : null, type) }}
+              onAddEdge={(from, to) => setEdgeInsert({ from, to })}
+              onDelete={deleteNode}
+              onMove={moveNode}
+              onAddTail={(type) => { const last = sortedNodes[sortedNodes.length - 1] || null; insertNode(last ? last.id : null, type) }}
+            />
+          </div>
         </div>
         {sideOpen ? (
           <aside className="plp-editor-side">
@@ -273,11 +302,24 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
               <div className="plp-ver-block">
                 <div className="plp-section-title">版本（semver）</div>
                 {(p.versions || []).map((v) => (
-                  <div key={v.version} className="plp-ver-row">
+                  <div
+                    key={v.version}
+                    className={'plp-ver-row' + (viewVersion === v.version ? ' plp-ver-row-sel' : '')}
+                    onClick={() => setViewVersion(viewVersion === v.version ? null : v.version)}
+                    title={viewVersion === v.version ? '回到最新草稿' : '点击查看该版本节点'}
+                  >
                     <span className={'plp-ver-chip ' + (v.published ? 'plp-ver-published' : 'plp-ver-draft')}>{v.version}</span>
                     {v.version === p.latestVersion ? <span className="plp-ver-latest">最新</span> : null}
                     {v.version === p.publishedVersion ? <span className="plp-ver-latest">已发布</span> : null}
                     <span className="plp-ver-meta">{v.published ? (v.changelog || '已发布') : '草稿'}</span>
+                    {!v.published && v.version !== p.latestVersion ? (
+                      <button
+                        className="plp-icon-btn"
+                        type="button"
+                        title="删除该草稿版本"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDelVer(v.version) }}
+                      >×</button>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -296,6 +338,27 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
       ) : null}
 
       {/* ── 发布弹窗 ── */}
+      {/* ── 删除版本确认弹窗 ── */}
+      {confirmDelVer ? (
+        <div className="plp-mask">
+          <div className="plp-modal" style={{ width: 400 }}>
+            <div className="plp-modal-head">
+              <span className="plp-modal-title">删除版本</span>
+              <button className="plp-icon-btn" type="button" onClick={() => setConfirmDelVer(null)}>×</button>
+            </div>
+            <div className="plp-modal-body">
+              <p style={{ fontSize: 13, lineHeight: 1.8 }}>
+                确认删除草稿版本 <span className="plp-version">{confirmDelVer}</span>？删除后不可恢复（已发布版本不可删除）。
+              </p>
+            </div>
+            <div className="plp-modal-foot" style={{ padding: '0 16px 16px' }}>
+              <button className="plp-btn" type="button" onClick={() => setConfirmDelVer(null)}>取消</button>
+              <button className="plp-btn plp-danger" type="button" onClick={deleteVersion} disabled={busy}>删除</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {showPublish ? (
         <div className="plp-mask">
           <div className="plp-modal">
