@@ -69,6 +69,14 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | `tests-passed` | 测试通过 | 2nd review |
 | `review-2-done` | 2nd review 通过 | Stage |
 
+**人工审批:先展示文档再拍板**(依赖 dsh-markdown-review 插件)。流程里每次需要人确认(RD/TD/UC 确认、1st/2nd review),先把要审的文档展示给人:
+
+- agent 调 `md_doc_open(path: "<仓库路径>/docs/<taskId>/<doc>.md", context: "…请审阅…")` → 对话流出现「打开文档」卡片;
+- 用户点开大浮窗,划词批注 + 底部总评,点「提交」;
+- 工具返回 `{quotes:[{text,note}], comment}`,agent 据此行动:批注整理进卡评论/MR 评论;通过 → `kanban_tags` 打对应确认标签并 `kanban_move` 推进;不通过 → 把意见回给相关人,卡停在当前列。
+
+> 文档约定放 git 仓库 `docs/<taskId>/`(rd.md / td.md / uc.md 等),随 MR 演进;没有独立文档时可打开任意本地 md,或先请用户补充文档再发起审阅。
+
 **git 配合**:卡片抽屉「+ 新增 git 关联」或 `kanban_link` 关联仓库;分支/MR 标题带 `[taskId]` 自动关联卡片;Stage 列用 `git_merge_pr`(合并前检查卡片必须处于 Stage)。
 
 **文档约定**:每个 task 的文档放 git 仓库 `docs/<taskId>/`,随分支 MR 演进。

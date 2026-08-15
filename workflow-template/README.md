@@ -14,6 +14,7 @@
 - 插件 **dsh-kanban**(必选,看板 + 门禁 + 配置导入导出)
 - 插件 **dsh-git**(推荐:门禁 `mr-linked` / `mr-merged` 依赖它读 GitHub 仓库/MR)
 - 插件 **dsh-pipeline**(可选:把「测试通过」门禁换成真实 pipeline 检查)
+- 插件 **dsh-markdown-review**(推荐:人工审批时在对话流中打开文档大浮窗,划词批注 + 总评,提交即回传 agent 自动继续)
 
 ## 安装(导入)
 
@@ -65,7 +66,8 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 2. **关联 git**:卡片抽屉「+ 新增 git 关联」填 repo;开分支提 MR(标题带 `[taskId]` 会自动关联)。
 3. **推进列**:满足门禁后把卡拖到下一列;不满足会被拒绝并提示原因。
 4. **确认 = 打标签**:`rd-confirmed` / `td-confirmed` / `uc-confirmed` / `review-1-done` / `tests-passed` / `review-2-done`,由相应角色确认后打上(agent 可代劳)。
-5. **收尾**:Stage 列里由 git 插件合并 MR,卡片自动进 Done。
+5. **人工审批 = 打开文档审阅**:到审批点时 agent 用 `md_doc_open` 把 `docs/<taskId>/` 的文档展示在对话流里,你划词批注 + 总评,点「提交」后 agent 自动继续(打标签/推进列/回意见)。
+6. **收尾**:Stage 列里由 git 插件合并 MR,卡片自动进 Done。
 
 ## 配置导入导出(通用能力)
 

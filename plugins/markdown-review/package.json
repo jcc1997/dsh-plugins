@@ -1,0 +1,51 @@
+{
+  "name": "dsh-markdown-review",
+  "version": "0.1.0",
+  "description": "DSH markdown 文档审阅插件:对话流中打开本地 markdown 大浮窗审阅——划词批注 + 总评,提交即作为工具结果回传、agent 自动继续",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit && node build.mjs && node scripts/verify-dist.mjs"
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-tools": "0.1.0-rc.6",
+    "@types/react": "^18.3.0",
+    "esbuild": "^0.24.0",
+    "react": "^18.3.1",
+    "typescript": "^5.6.0"
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.6"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "markdown",
+    "review",
+    "deepseek-harness",
+    "cordis"
+  ]
+}

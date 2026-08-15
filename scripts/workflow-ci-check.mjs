@@ -1,12 +1,12 @@
 // scripts/workflow-ci-check.mjs — 工作流 Testing 阶段的仓库级验证脚本
-// 跑三个插件的正式形态验证(verify-dist:host 工具/路由/服务 + client ModuleLoader 真实执行)。
+// 跑全部插件的正式形态验证(verify-dist:host 工具/路由/服务 + client ModuleLoader 真实执行)。
 // 由 pipeline「三插件验证」的 exec 节点调用;也可本地直接 node 执行。
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
 const root = dirname(fileURLToPath(import.meta.url)) + '/..'
-const plugins = ['kanban', 'git', 'pipeline']
+const plugins = ['kanban', 'git', 'pipeline', 'markdown-review']
 
 const results = []
 let failed = false
