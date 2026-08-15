@@ -131,7 +131,7 @@ export function MdDocCard(props: ToolViewProps) {
 /* ═══════════ §3 大浮窗 ═══════════ */
 
 /** 布局:左栏 = md 内容(上,滚动)+ 总评输入(下,固定);右栏 = 审批内容(引用+批注清单)。蒙层点击不关闭。 */
-function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { quotes: QuoteItem[]; comment: string }) => Promise<{ ok: boolean; error?: string }> }) {
+export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { quotes: QuoteItem[]; comment: string }) => Promise<{ ok: boolean; error?: string }> }) {
   const [quotes, setQuotes] = useState<QuoteItem[]>([])
   const [comment, setComment] = useState('')
   const [anchor, setAnchor] = useState<{ key: string; text: string } | null>(null)

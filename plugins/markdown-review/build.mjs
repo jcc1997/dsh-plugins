@@ -47,3 +47,14 @@ try {
   const { execSync } = await import('node:child_process')
   execSync('npx tsc -p tsconfig.json --declaration --emitDeclarationOnly --outDir lib/types 2>/dev/null || true', { cwd: root })
 } catch { /* ignore */ }
+// showcase(开发预览页):iife 单文件,react/mermaid 打进包,design-platform.css 以 text 引入
+await build({
+  ...base,
+  entryPoints: [join(root, 'src', 'client', 'showcase.tsx')],
+  format: 'iife',
+  globalName: 'MdShowcase',
+  platform: 'browser',
+  jsx: 'automatic',
+  loader: { '.css': 'text' },
+  outfile: join(root, 'lib', 'showcase.js'),
+})
