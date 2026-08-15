@@ -2,8 +2,7 @@
 // 交互：节点卡片（类型徽章/标题/删除/端口点）；边中点 + 新增节点；点节点选中（右侧编辑面板）。
 // 不支持拖拽节点（nodesDraggable=false）；画布可平移/缩放；连线规则与 host 引擎一致（显式 inputs 优先，否则串联上一个）。
 import React, { useMemo, useState } from 'react'
-import { IconCloseOutline16, IconPlusOutline16 } from '@dsh-plugins/ui'
-import { useEscClose } from './nav'
+import { IconCloseOutline16, IconPlusOutline16, useEscClose } from '@dsh-plugins/ui'
 import { ReactFlow, Background, Controls, Panel, BaseEdge, EdgeLabelRenderer, getBezierPath, MarkerType, Handle, Position, type EdgeProps, type NodeProps } from '@xyflow/react'
 
 export interface GraphNode {

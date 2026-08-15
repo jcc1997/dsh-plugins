@@ -1,8 +1,7 @@
 // client/page.tsx — Pipeline 主界面：顶栏 + 左侧导航（流水线 / 运行 / 设置）+ 主区视图切换
 // 数据操作全部走 HostLike（fetch → /pipeline-api/*）；视图组件在 views.tsx。
 import React, { useState, useEffect, useCallback } from 'react'
-import { IconChevronLeftOutline14, IconCloseOutline16, IconPlusOutline16 } from '@dsh-plugins/ui'
-import { useEscClose } from './nav'
+import { IconChevronLeftOutline14, IconCloseOutline16, IconPlusOutline16, useEscClose } from '@dsh-plugins/ui'
 import { EditorView } from './editor'
 
 export interface HostLike { call(method: string, args?: unknown): Promise<any> }

@@ -1,8 +1,7 @@
 // client/editor.tsx — 流水线编辑器（独立页面视图）：左 NodeGraph 图 + 右面板（节点编辑/版本列表）
 // 交互：点节点选中 → 右侧编辑（标题/依赖/配置 JSON）；边中点 + 与面板按钮新增；卡片 × 删除；↑↓ 调整顺序。
 import React, { useState, useEffect, useCallback } from 'react'
-import { IconChevronLeftOutline14, IconCloseOutline16 } from '@dsh-plugins/ui'
-import { useEscClose } from './nav'
+import { IconChevronLeftOutline14, IconCloseOutline16, useEscClose } from '@dsh-plugins/ui'
 import type { HostLike } from './page'
 import { NodeGraph, NODE_LABEL, NODE_DEFAULT_CONFIG, NODE_TYPES, TYPE_DESC } from './graph'
 import type { GraphNode } from './graph'

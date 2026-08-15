@@ -1,6 +1,6 @@
 // client/drawer-side.tsx — 抽屉右侧栏：状态切换 + 归档/删除 + 标签 + Git 关联卡片 + 外部关联 + 门禁 + 变更记录
 import React, { useState } from 'react'
-import { fmtTime } from '@dsh-plugins/ui'
+import { IconCloseOutline16, fmtTime } from '@dsh-plugins/ui'
 import { KanbanCard, KanbanColumn, CardGate } from '@dsh-plugins/ui'
 
 /** 关联类型定义（新增/展示按类型；git 关联 + 会话关联） */
@@ -69,7 +69,7 @@ export function DrawerSide(props: {
         {(props.card.tags || []).map((tg) => (
           <span key={tg} className="kbnb-tag kbnb-tag-removable" title={'移除标签 ' + tg} onClick={() => props.onUpdateTags([], [tg])}>
             {tg}
-            <span className="kbnb-tag-x">×</span>
+            <span className="kbnb-tag-x"><IconCloseOutline16 size={12} /></span>
           </span>
         ))}
         <TagInput onAdd={(t) => props.onUpdateTags([t], [])} />
@@ -169,7 +169,7 @@ function GitCard(props: {
           ) : (
             <span className="kbnb-git-repo-name">{repoRef.externalId}</span>
           )}
-          <span className="kbnb-ref-x" title="移除仓库关联" onClick={() => props.onRemoveRef(repoRef.id)}>×</span>
+          <span className="kbnb-ref-x" title="移除仓库关联" onClick={() => props.onRemoveRef(repoRef.id)}><IconCloseOutline16 size={12} /></span>
         </div>
       ) : null}
 
@@ -177,7 +177,7 @@ function GitCard(props: {
         <div key={b.id} className="kbnb-git-repo">
           <span className="kbnb-git-repo-label">分支</span>
           <span className="kbnb-git-repo-name">{b.externalId}</span>
-          <span className="kbnb-ref-x" title="移除分支关联" onClick={() => props.onRemoveRef(b.id)}>×</span>
+          <span className="kbnb-ref-x" title="移除分支关联" onClick={() => props.onRemoveRef(b.id)}><IconCloseOutline16 size={12} /></span>
         </div>
       ))}
 
@@ -200,7 +200,7 @@ function GitCard(props: {
                 )}
                 {m.updatedAt ? <span className="kbnb-git-mr-updated">{fmtTime(m.updatedAt)}</span> : null}
                 {linkedRef ? (
-                  <span className="kbnb-ref-x" title="移除 MR 关联" onClick={() => props.onRemoveRef(linkedRef.id)}>×</span>
+                  <span className="kbnb-ref-x" title="移除 MR 关联" onClick={() => props.onRemoveRef(linkedRef.id)}><IconCloseOutline16 size={12} /></span>
                 ) : null}
               </div>
             )
@@ -251,7 +251,7 @@ function SessionCard(props: {
           <button className="kbnb-ref-link kbnb-ref-session" type="button" title={'打开会话 ' + r.externalId} onClick={() => props.onOpenSession(String(r.externalId))}>
             {r.display || r.externalId}
           </button>
-          <span className="kbnb-ref-x" title="移除会话关联" onClick={() => props.onRemoveRef(r.id)}>×</span>
+          <span className="kbnb-ref-x" title="移除会话关联" onClick={() => props.onRemoveRef(r.id)}><IconCloseOutline16 size={12} /></span>
         </div>
       ))}
       {adding ? (
@@ -361,7 +361,7 @@ function GateCard(props: {
               <span className="kbnb-gate-name" title={g.name}>{g.name}</span>
               <span className="kbnb-gate-meta">{GATE_ON_LABEL[g.on]} · {GATE_KIND_LABEL[g.checker ? g.checker.type : (g as any).kind]}</span>
               <span className="kbnb-gate-summary" title={gateSummary(g)}>{gateSummary(g)}</span>
-              <span className="kbnb-ref-x" title="摘除门禁（仅本卡，不删门禁）" onClick={(e) => { e.stopPropagation(); props.onRemoveGate(g.id) }}>×</span>
+              <span className="kbnb-ref-x" title="摘除门禁（仅本卡，不删门禁）" onClick={(e) => { e.stopPropagation(); props.onRemoveGate(g.id) }}><IconCloseOutline16 size={12} /></span>
             </div>
             {expanded ? (
               <div className="kbnb-gate-detail">

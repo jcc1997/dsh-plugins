@@ -93,7 +93,7 @@ export const drawerCss = `
 .kbnb-activity{display:flex;gap:4px;font-size:12px;padding:5px 0;color:var(--dsw-alias-label-secondary);align-items:baseline;border-bottom:1px dashed var(--dsw-alias-border-l2)}
 .kbnb-activity:last-child{border-bottom:none}
 .kbnb-activity-time{flex:none;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
-.kbnb-activity-actor{flex:none;color:var(--dsw-alias-state-business-primary);background:rgba(65, 118, 230, .08);border-radius:6px;padding:0 5px;font-size:11px;white-space:nowrap}
+.kbnb-activity-actor{flex:none;color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover-accent);border-radius:6px;padding:0 5px;font-size:11px;white-space:nowrap}
 .kbnb-activity-text{min-width:0;word-break:break-word}
 
 /* ══ 列配置 ══ */

@@ -2,7 +2,7 @@
 // 标题/描述用 contentEditable（Notion 式，无 input 边框）；内容用块富文本编辑器（含图片）
 // 蒙层点击自动关闭；改动自动保存（无防抖，切换卡片首帧跳过）
 import React, { useEffect, useRef, useState } from 'react'
-import { IconCloseOutline16, fmtTime } from '@dsh-plugins/ui'
+import { IconCloseOutline16, fmtTime, useEscClose } from '@dsh-plugins/ui'
 import { KanbanCard, KanbanColumn, KanbanBlock } from '@dsh-plugins/ui'
 import { RichTextEditor } from './rich-text'
 import { DrawerSide } from './drawer-side'
@@ -216,14 +216,9 @@ export function CardDrawer(props: {
   onOpenGatesView?: () => void
   actionHost?: (() => React.ReactNode) | null
 }) {
+  useEscClose(true, props.onClose)
   return (
-    <div
-      className="kbnb-drawer-mask"
-      onClick={(evt) => {
-        // 点击蒙层（非抽屉内部）自动关闭
-        if (evt.target === evt.currentTarget) props.onClose()
-      }}
-    >
+    <div className="kbnb-drawer-mask">
       <aside className="kbnb-drawer">
         <CardDetail
           card={props.card}

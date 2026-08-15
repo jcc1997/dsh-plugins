@@ -1,19 +1,6 @@
-// client/nav.ts — 面板内跳转总线 + 浮层 Esc 关闭 hook
+// client/nav.ts — 面板内跳转总线
 // conversation.view 槽位的「流水线」tab 卡片点击 → 侧边栏主面板打开并定位到对应 run。
-import { useEffect } from 'react'
-
-/** 浮层 Esc 关闭(components.md §九-2):active 时监听 Esc 触发 onClose */
-export function useEscClose(active: boolean, onClose: () => void): void {
-  useEffect(() => {
-    if (!active) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [active, onClose])
-}
-
+// (useEscClose 已提升至 @dsh-plugins/ui 共享,勿在此重复定义)
 type OpenHandler = (runId: string) => void
 
 let handler: OpenHandler | null = null
