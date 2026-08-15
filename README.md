@@ -5,9 +5,9 @@
 - [**kanban**](plugins/kanban/README.md):嵌入侧边栏的全功能看板——31 个 agent 工具、行为**门禁**(内置条件 / 代码 / pipeline 三种检查单元,门禁库独立实体复用)、创建模板、归档、分组、富文本内容、**配置导入导出**(kanban_export_config / kanban_import_config)。
 - [**git**](plugins/git/README.md):task 关联 GitHub 仓库/分支/MR + 7 个 `git_*` 工具 + [ID] 自动关联 + MR 同步/合并(方案见 [PLAN.md](plugins/git/PLAN.md))。
 - [**pipeline**](plugins/pipeline/README.md):类 dify 的可复用 AI 流水线——atomic 基础单元 + combined 组合流水线、npm 风格 semver 版本(v1.0.1)、React Flow 节点图编辑、运行队列与进度、11 个 `pipeline_*` 工具。
-- [**workflow-template**](workflow-template/README.md):**开发流程配置样例包**——10 列(Backlog → RD → TD → UC → In Dev → review → Testing → 2nd review → Stage → Done)+ 9 条门禁 + 创建模板,一份 `workflow.json` + 完整使用指南。看板配置可导入导出:别人导出自己的形态、你导入即可使用;本包即这套机制的一个官方样例,复制出去改成自己的流程。
+- [**workflow-template**](workflow-template/README.md):**开发流程配置样例包**——10 列(Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd review → Stage → Done)+ 9 条门禁 + 创建模板,一份 `workflow.json` + 完整使用指南。看板配置可导入导出:别人导出自己的形态、你导入即可使用;本包即这套机制的一个官方样例,复制出去改成自己的流程。
 
-前三个插件 + workflow-template 组合成一套**带门禁的开发工作流**:Backlog → RD → TD → 验收用例 → 开发 → review → Testing(pipeline 跑测试)→ 2nd review → Stage → MR 合并 → 自动 Done,详见 [workflow-template 使用指南](workflow-template/README.md) 与 [kanban 的 Agent 门禁指南](plugins/kanban/README.md#面向-agent-的门禁指南)。
+前三个插件 + workflow-template 组合成一套**带门禁的开发工作流**:Backlog → RD → TD → 验收用例 → 开发 → 1st Review → Testing(pipeline 跑测试)→ 2nd review → Stage → MR 合并 → 自动 Done,详见 [workflow-template 使用指南](workflow-template/README.md) 与 [kanban 的 Agent 门禁指南](plugins/kanban/README.md#面向-agent-的门禁指南)。
 
 ## 快速开始
 

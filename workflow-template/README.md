@@ -2,7 +2,7 @@
 
 一套基于 [dsh-kanban](../plugins/kanban/README.md) 门禁的**软件开发工作流配置样例**。它把一条完整研发流程沉淀为一个可移植的配置文件:
 
-- 10 个阶段列:**Backlog → RD → TD → UC → In Dev → review → Testing → 2nd review → Stage → Done**
+- 10 个阶段列:**Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd review → Stage → Done**
 - 9 条行为门禁:进入下一列必须满足条件(关联 MR / 确认标签 / MR 合并),不满足则动作被拒绝
 - 1 个创建模板 `workflow`:建卡时自动带入描述、标签与全部门禁
 
@@ -26,7 +26,7 @@
 ## 工作流总览
 
 ```
-Backlog ──> RD ──> TD ──> UC ──> In Dev ──> review ──> Testing ──> 2nd review ──> Stage ──> Done
+Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ──> Testing ──> 2nd review ──> Stage ──> Done
  需求池     设计     技术设计  验收用例   开发       代码评审     测试       上线前复审      预发布    完成
 ```
 
@@ -37,8 +37,8 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> review ──> T
 | TD | 写技术设计文档 | 打标签 `rd-confirmed` | 确认后 `kanban_tags(add: ["rd-confirmed"])` |
 | UC | 写验收用例 | 打标签 `td-confirmed` | 同上 |
 | In Dev | 开发实现 | 打标签 `uc-confirmed` | 同上 |
-| review | 代码评审(首轮) | 已关联 MR | 关联 MR |
-| Testing | 测试(可用 pipeline 自动跑) | 打标签 `review-1-done` | 评审通过后打标签 |
+| 1st Review | 代码评审(首轮) | 已关联 MR | 关联 MR |
+| Testing | 测试(可用 pipeline 自动跑) | 打标签 `review-1-done` | 1st Review 通过后打标签 |
 | 2nd review | 上线前复审(第二轮) | 打标签 `tests-passed` | 测试通过后打标签 |
 | Stage | 预发布/待合并 | 打标签 `review-2-done` | 复审通过后打标签 |
 | Done | 完成 | **MR 已合并** | git 插件合并 MR 后自动放行 |
@@ -51,8 +51,8 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> review ──> T
 | 2 | RD 确认才能进 TD | move → TD | tag-required | `{"tags":["rd-confirmed"]}` |
 | 3 | TD 确认才能进 UC | move → UC | tag-required | `{"tags":["td-confirmed"]}` |
 | 4 | 验收用例确认才能开发 | move → In Dev | tag-required | `{"tags":["uc-confirmed"]}` |
-| 5 | 进入 review 需关联 MR | move → review | mr-linked | 无 |
-| 6 | review 通过才能测试 | move → Testing | tag-required | `{"tags":["review-1-done"]}` |
+| 5 | 进入评审需关联 MR | move → 1st Review | mr-linked | 无 |
+| 6 | 1st review 通过才能测试 | move → Testing | tag-required | `{"tags":["review-1-done"]}` |
 | 7 | 测试通过才能进 2nd review | move → 2nd review | tag-required | `{"tags":["tests-passed"]}` |
 | 8 | 2nd review 通过才能 Stage | move → Stage | tag-required | `{"tags":["review-2-done"]}` |
 | 9 | MR 已合并才能进 Done | move → Done | mr-merged | 无 |

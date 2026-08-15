@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "dsh-workflow-template",
-  "description": "软件开发工作流配置样例:Backlog → RD → TD → UC → In Dev → review → Testing → 2nd review → Stage → Done(10 列 + 9 门禁 + workflow 模板)。导入后即可获得一套完整的带门禁研发流程。",
+  "description": "软件开发工作流配置样例:Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd review → Stage → Done(10 列 + 9 门禁 + workflow 模板)。导入后即可获得一套完整的带门禁研发流程。",
   "kanban": {
     "columns": [
       "Backlog",
@@ -9,7 +9,7 @@
       "TD",
       "UC",
       "In Dev",
-      "review",
+      "1st Review",
       "Testing",
       "2nd review",
       "Stage",
@@ -64,15 +64,15 @@
         }
       },
       {
-        "name": "进入 review 需关联 MR",
+        "name": "进入评审需关联 MR",
         "on": "move",
-        "to": "review",
+        "to": "1st Review",
         "checker": {
           "type": "mr-linked"
         }
       },
       {
-        "name": "review 通过才能测试",
+        "name": "1st review 通过才能测试",
         "on": "move",
         "to": "Testing",
         "checker": {
@@ -122,7 +122,7 @@
     "templates": [
       {
         "name": "workflow",
-        "description": "标准开发工作流:Backlog→RD→TD→UC→In Dev→review→Testing→2nd review→Stage→Done。进入下一列需过门禁;确认=打 confirm 标签。文档在 git 仓库 docs/<taskId>/ 随分支 MR 演进。",
+        "description": "标准开发工作流:Backlog→RD→TD→UC→In Dev→1st Review→Testing→2nd review→Stage→Done。进入下一列需过门禁;确认=打 confirm 标签。文档在 git 仓库 docs/<taskId>/ 随分支 MR 演进。",
         "tags": [
           "workflow",
           "default"
@@ -132,8 +132,8 @@
           "RD 确认才能进 TD",
           "TD 确认才能进 UC",
           "验收用例确认才能开发",
-          "进入 review 需关联 MR",
-          "review 通过才能测试",
+          "进入评审需关联 MR",
+          "1st review 通过才能测试",
           "测试通过才能进 2nd review",
           "2nd review 通过才能 Stage",
           "MR 已合并才能进 Done"
