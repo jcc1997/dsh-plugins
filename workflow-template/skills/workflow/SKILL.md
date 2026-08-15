@@ -61,7 +61,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
   - agent 输出尾行 verdict：`REVIEW_VERDICT:{"ok":true|false,"issues":[...]}`；`ok:true` 才放行；
   - 未通过：门禁拒绝 + **评审问题自动落卡评论**（与最后一条相同不重复写）+ 拒绝原因带问题摘要。
 - **fail-closed**：llm 节点未接入 agent 服务 / verdict 解析失败 → pipeline 失败 → 门禁拒绝（宁可拒绝不可假放行）。
-- **续评**：`sessionKey=review-{card.id}` 按卡稳定；失败轮次保留 agent 会话，下次 move 恢复上一轮 session 接着评（记得上轮 findings、核验修复）；ok:true 后释放。
+- **续评（上下文注入式）**：每轮评审为全新 agent，但 llm 节点会读取卡片上一条「评审未通过」评论，作为【上一轮评审意见】注入本轮 prompt——agent 逐条核验上轮 findings 是否已修复（未修复继续列为未解决问题），功能等价于「接着上次评」。
 
 ### 导入与验证
 

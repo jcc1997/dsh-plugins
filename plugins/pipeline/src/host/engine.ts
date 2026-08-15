@@ -347,12 +347,12 @@ function resolveNodeRefObj(conf: Record<string, unknown>): { pipelineId: string;
 /** llm 节点：通过注入的 runLlm（宿主 agent 服务）执行；未注入时 fail-closed（拒绝而非占位成功） */
 async function runLlmNode(node: PipelineNode, ctx: NodeExecContext): Promise<Record<string, unknown>> {
   const prompt = typeof node.config.prompt === 'string' ? interpolate(node.config.prompt, ctx) : truncate(JSON.stringify(ctx.up))
-  // 可选 sessionKey：按 key 复用/续评 agent 会话（如 "review-{input.card.id}"）
-  const conf: Record<string, unknown> = { ...node.config }
-  if (typeof node.config.sessionKey === 'string' && node.config.sessionKey.trim()) {
-    conf.sessionKey = interpolate(node.config.sessionKey, ctx)
-  }
   // 调用上下文透传（spawn 子 agent 需要 parent/signal）
+  const conf: Record<string, unknown> = { ...node.config }
+  // 续评上下文：cardId 用于注入上轮评审意见（runLlm 接线侧消费）
+  if (typeof node.config.cardIdPath === 'string' && node.config.cardIdPath.trim()) {
+    conf.cardId = interpolate(node.config.cardIdPath, ctx)
+  }
   conf.parentAgent = ctx.parentAgent
   conf.externalSignal = ctx.externalSignal
   const card = (ctx.inputs && (ctx.inputs as any).card) || null

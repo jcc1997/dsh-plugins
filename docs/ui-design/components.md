@@ -48,7 +48,7 @@
 .btn-toolbar:hover:not(:disabled){background:var(--dsw-alias-button-tool-bar-hover)}
 ```
 
-- focus-visible: `outline:none;box-shadow:0 0 0 2px rgba(65,118,230,.18)`(全部变体)。
+- focus-visible: `outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)`(全部变体;token 派生 ring,明暗主题自适应)。
 - 危险操作: 不用独立 danger 变体(宿主无),用 ghost + 危险色文字 `--dsw-alias-state-error-primary`,hover 用 `interactive-bg-hover-danger`(⚠旧 .btn-danger 漂移)。
 - 图标+文字: 图标 glyph 16,前置(左),gap 4。
 - 禁用: opacity .4 + not-allowed;**不改变布局**。
@@ -61,7 +61,7 @@
 .icon-btn{width:28px;height:28px;border:none;background:none;cursor:pointer;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary);transition:background 150ms cubic-bezier(.4,0,.2,1)}
 .icon-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .icon-btn:disabled{opacity:.5;cursor:default;pointer-events:none}
-.icon-btn:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(65,118,230,.18)}
+.icon-btn:focus-visible{outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}
 ```
 
 - glyph 一律 16(`Icon*Outline16` 系列);confirm 变体文字色 `--dsw-alias-state-business-primary`。

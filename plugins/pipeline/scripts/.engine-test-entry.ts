@@ -81,15 +81,15 @@ async function runPipeline(runLlm: any, nodes: any[], inputs: Record<string, unk
   assert(!!out.error && String(out.error).includes('verdict 解析失败'), 'A-4 无 verdict 尾行 → failed（fail-closed）', out)
 }
 
-// A-6 sessionKey 插值 + config 传递
+// A-6 cardIdPath 插值 + config 传递
 {
   let capturedConf: any = null
   const out = await runPipeline(
     async (_p: string, _up: any, conf: any) => { capturedConf = conf; return 'REVIEW_VERDICT:{"ok":true,"issues":[]}' },
-    llmNodes('prompt', { sessionKey: 'review-{input.card.id}' }),
+    llmNodes('prompt', { cardIdPath: '{input.card.id}' }),
     { card: { id: 'k9', title: 'T' } },
   )
-  assert(capturedConf && capturedConf.sessionKey === 'review-k9', 'A-6 sessionKey 插值（review-k9）', capturedConf)
+  assert(capturedConf && capturedConf.cardId === 'k9', 'A-6 cardIdPath 插值（k9）', capturedConf)
   assert(!out.error, 'A-6 插值后正常通过', out)
 }
 

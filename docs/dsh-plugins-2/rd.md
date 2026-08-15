@@ -97,14 +97,11 @@
 ```
 - 模板 gates 列表同步追加该门禁名。
 
-#### 4.2.5 评审会话连续性（review agent 接着上次 session 评审）
+#### 4.2.5 评审连续性（上下文注入式续评，评审 agent 接着上轮意见评）
 
-- 评审 pipeline 的 llm 节点配置 `sessionKey: "review-{input.card.id}"`（按卡稳定）；runLlm 接线据此实现会话复用：
-  1. 本轮运行：若该 session 已有**常驻 agent**（本进程 registry）→ 直接 `followup` 驱动；
-  2. 否则尝试 `agents.resume({ resumeSessionId })` 恢复上一轮持久化 session（宿主重启后依然有效）→ 恢复成功则续评；
-  3. 都没有 → `agents.create` 全新评审。
-- 续评 prompt 语义：上一轮评审的未解决问题应当已被修复，agent 凭自身会话历史记住上轮 findings，验证修复 + 查新问题；仍存在未解决项则继续列出并给 NOT OK。
-- 生命周期：评审 **ok:true（通过）→ dispose 并释放**（评审闭环，后续改动视为新一轮）；**ok:false（不通过）→ 保持 agent 常驻**（会话持久化，供下一轮续评）。常驻 agent 由插件持有 Map（sessionId → handle），通过后移除；后续可加空闲清理（本期不做，风险表登记）。
+- **实现**：每轮评审通过 `subagents.start('spawn')` 启动全新评审 agent（宿主标准子 agent 通道）；llm 节点把 `card.id` 传给接线层（`cardIdPath`），接线层读取卡片上一条「评审未通过」评论，作为【上一轮评审意见】注入本轮 prompt。
+- 续评语义：agent 凭注入的上轮 findings 逐条核验修复情况——未修复继续列为未解决问题（NOT OK），已修复不再列入；实现等价于「拿上次 session 继续评」，且无常驻 agent 生命周期负担（每轮用完即 dispose）。
+- 备选（session 级续评）：宿主 `subagents` 的 continuable 通道可做真实会话续评（startContinuable + followup），留作后续演进（当前实现已满足 B-3 验收口径）。
 
 #### 4.2.6 评审意见落卡评论（plugins/kanban/src/host/gate.ts 小改）
 

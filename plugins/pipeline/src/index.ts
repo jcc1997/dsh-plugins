@@ -57,6 +57,21 @@ export function apply(ctx: PipelineCtx) {
     } catch { /* 非法 JSON → null（fail-closed） */ }
     return null
   }
+  /** 读取卡片上一条「评审未通过」评论（续评上下文：让本轮评审核验上轮 findings 是否已修复） */
+  const lastReviewComment = async (cardId: string): Promise<string> => {
+    try {
+      const kanban = ctx.get('kanban') as any
+      if (!kanban || typeof kanban.getCard !== 'function') return ''
+      const card = await kanban.getCard(cardId)
+      const comments = card && Array.isArray(card.comments) ? card.comments : []
+      for (let i = comments.length - 1; i >= 0; i--) {
+        const text = comments[i] && comments[i].text ? String(comments[i].text) : ''
+        if (text.includes('评审未通过')) return text.slice(0, 3000)
+      }
+      return ''
+    } catch { return '' }
+  }
+
   const runLlm: ((prompt: string, up: Record<string, unknown>, conf: Record<string, unknown>) => Promise<string>) | undefined =
     subagents && typeof subagents.start === 'function'
       ? async (prompt, up, conf) => {
@@ -70,13 +85,24 @@ export function apply(ctx: PipelineCtx) {
           const reviewPersona = typeof conf.persona === 'string' && conf.persona.trim()
             ? conf.persona
             : '你是代码评审 agent。只评审、不改码、不提交。严格按收到的评审指令与仓库内 workflow-template/prompts/review.md 执行，最终输出以最后一行 REVIEW_VERDICT:{"ok":true|false,"issues":[...]} 结尾。'
+          // 续评：把上一轮评审意见注入本轮 prompt（agent 逐条核验修复情况，未修复继续列为未解决问题）
+          let fullPrompt = prompt
+          if (conf.cardId) {
+            const prev = await lastReviewComment(String(conf.cardId))
+            if (prev) fullPrompt = '【上一轮评审意见（请逐条核验是否已修复；未修复的继续列为未解决问题，已修复的不再列入）】\n' + prev + '\n\n【本轮评审任务】\n' + prompt
+          }
+          // 精简工具集（token 节省）：仅读文件 + grep/glob + bash（git diff）；不暴露写工具与无关能力
+          const toolFilter = Array.isArray(conf.toolFilter) && conf.toolFilter.length
+            ? { allow: conf.toolFilter.map(String) }
+            : { allow: ['read', 'glob', 'grep', 'bash'] }
           const run = await subagents.start('spawn', {
             label: 'review' + (conf.cardId ? '-' + conf.cardId : ''),
-            prompt: [{ type: 'text', text: prompt }],
+            prompt: [{ type: 'text', text: fullPrompt }],
             parent,
             signal: (conf.externalSignal as AbortSignal | undefined) || new AbortController().signal,
             ...(Object.keys(agentOptions).length ? { agentOptions } : {}),
             persona: reviewPersona,
+            toolFilter,
           })
           let timer: ReturnType<typeof setTimeout> | null = null
           try {
@@ -247,9 +273,19 @@ export function apply(ctx: PipelineCtx) {
       const v = version || p.publishedVersion || p.latestVersion
       return p.versions.find((x) => x.version === v) || null
     },
-    /** 同步运行（阻塞等待结果）；供其他 plugin 编排调用；opts 透传调用方 agent/signal（llm 节点用） */
+    /** 同步运行（阻塞等待结果）；供其他 plugin 编排调用；opts 透传调用方 agent/signal（llm 节点用）；评审失败自动落卡评论 */
     run: async (pipelineId: string, inputs: Record<string, unknown>, version?: string, opts?: { parentAgent?: unknown; externalSignal?: AbortSignal | undefined }) => {
-      return queue.submitSync(String(pipelineId), version || 'latest', inputs || {}, 'plugin', opts)
+      const result = await queue.submitSync(String(pipelineId), version || 'latest', inputs || {}, 'plugin', opts)
+      try {
+        const card = inputs && (inputs as any).card
+        if (result && result.error && card && typeof card.id === 'string') {
+          const kanban = ctx.get('kanban') as any
+          if (kanban && typeof kanban.addComment === 'function') {
+            await kanban.addComment(String(card.id), '评审未通过：' + String(result.error).slice(0, 2000))
+          }
+        }
+      } catch { /* 评论失败不影响运行结果 */ }
+      return result
     },
     /** 异步运行（入队），返回 runId */
     runAsync: async (pipelineId: string, inputs: Record<string, unknown>, version?: string, opts?: { parentAgent?: unknown; externalSignal?: AbortSignal | undefined }) => {

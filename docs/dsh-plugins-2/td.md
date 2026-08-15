@@ -39,38 +39,17 @@ move→Testing（kanban gate）
   - 具体读取：`ctx.get('sessionQuery')` 提供查询接口（dsh-session types 中 `sessionQuery` 服务存在）；若不可用，退路：用 `agent.session` 的 log 事件（`session/event`）在 whenIdle 前累积最后一条 `assistant` 消息。
   - 实现顺序：先接 `sessionQuery`，单测用 mock；宿主侧联调时按实际 d.ts 微调（RD §5 已列风险与缓解）。
 
-### 3.2 评审会话连续性（按卡复用 agent session）
+### 3.2 评审连续性（上下文注入式续评）
 
-- 设计（RD §4.2.4）：llm 节点可配 `sessionKey`（engine 对 `config.sessionKey` 与 prompt 一样做占位符插值）；runLlm 接线按 sessionKey 决定会话策略：
-  ```ts
-  const liveAgents = new Map<string, AgentHandle>()   // sessionId -> handle（插件级，跨 run 常驻）
-  // 每轮：
-  //   1. liveAgents.get(sessionId) 存在 → followup 续评
-  //   2. 否则 agents.resume({ resumeSessionId: sessionId }) 成功 → followup 续评（宿主重启后恢复）
-  //   3. 否则 agents.create({ sessionId, meta:{ origin:'subagent' } }) → followup 首评
-  // 收尾：ok:true → dispose + liveAgents.delete（闭环）；ok:false → 保留 handle（不 dispose，会话持久化）
-  // 无 sessionKey → 每轮全新 agent，结束即 dispose（兼容通用 llm 节点）
-  ```
-- resume 前置：create 的 session 需已持久化（dsh-session 持久化是宿主默认行为；dispose 会删除 session，故失败轮次**不 dispose** 是续评的前提——与 RD 生命周期一致）。
-- 读最终文本 `readLastAssistantText`：优先 `ctx.get('sessionQuery')`；不可用时监听 `agent/turn-stopping` 累积最后一条 assistant 消息（退路）。
-- 本轮 followup 内容：由 pipeline prompt 表达「上一轮未解决问题应当已修复，验证修复并查新问题」；agent 会话历史自带上轮 findings。
+- 设计（RD §4.2.5）：每轮用 `ctx.subagents.start('spawn', { label, prompt, parent, signal, persona, toolFilter })` 启动全新评审 agent（宿主标准子 agent 通道，复用其工具/模型路由/输出装配，替代早期 agents.create 手搓驱动——后者缺 setup 组合无法启动）；llm 节点配置 `cardIdPath`（占位符插值出 card.id），接线层据此读取卡片上一条「评审未通过」评论，作为【上一轮评审意见】注入 prompt——agent 凭注入的 findings 逐条核验修复情况（未修复继续列为未解决问题），功能等价于会话续评。
+- 输出：`run.result` 直接给最终 assistant 输出（ContentBlock[]）+ `stopReason`；`stopReason !== 'completed'` 视为失败；`run.dispose()` 收尾（无常驻生命周期）。
+- 调用上下文：parent/signal 经 kanban_move exec → checkGates execCtx → pipeline 检查器 → pipeline 服务 run(opts) → RunQueue → 引擎 → llm 节点 conf 全链路透传；pipeline_run 工具路径同构。
 
-### 3.3 review 精简预设（token 节省，workflow-template/agent-presets/review/agent.cordis.yml）
+### 3.3 review 精简上下文（token 节省）
 
-- **评审上下文（必须给足）**：① 仓库源码与文档——agent 在仓库工作目录（`meta.cwd` = 仓库路径，当前检出的 `workflow/<taskId>` 分支）用 fs/bash 直接读源码、docs/ui-design、review.md、AGENTS.md，并跑 `git diff origin/main...HEAD` 看 MR 变更；② 卡片信息——repo/branch/mr 关联 + 标题经 prompt 注入。这两样是评审对象本身，绝不裁剪。
-- **裁掉的是无关能力（token 节省）**：skills 目录（`tool-skill`/skill-filesystem）、`tool-web`、`tool-subagent*`、`tool-workflow`、`tool-goal`、plan-mode、大段 persona/指令文档——这些与评审无关，挂上只会白白吃上下文。
-- 组成（对照 workflow 预设裁剪）：
-  - persona：一段话身份（代码评审 agent + verdict 要求），不引用 workflow 会话编排等大段内容；
-  - 工具：`tool-fs`、`tool-fs-search`、`tool-bash`（跑 git diff）——**不注册** skill-filesystem/tool-skill、tool-web、tool-subagent*、tool-workflow、tool-goal、plan-mode 等；
-  - 系统 prompt 段落：不挂 agent-instructions 大文档；评审规范由 agent 自行 fs 读仓库文件（review.md / docs/ui-design / AGENTS.md）。
-- llm 节点 config `agentPreset: "review"`；宿主要求 preset 文件可被 agents.create 的 meta.agentPreset 解析（若不支持自定义 preset 解析，退路：runLlm 的 setup 回调里按 agentCtx 只注册 fs/bash 两个工具，等价效果）。
-
-- 目的：review agent 只拿到评审所需上下文，不挂 skills/web/subagent/workflow 等无关能力（用户批注：token 节省）。
-- 组成（对照 workflow 预设裁剪）：
-  - persona：一段话身份（代码评审 agent + verdict 要求），不引用 workflow 会话编排等大段内容；
-  - 工具：`tool-fs`、`tool-fs-search`、`tool-bash`（跑 git diff）——**不注册** skill-filesystem/tool-skill、tool-web、tool-subagent*、tool-workflow、tool-goal、plan-mode 等；
-  - 系统 prompt 段落：不挂 agent-instructions 大文档；评审规范由 agent 自行 fs 读仓库文件（review.md / docs/ui-design / AGENTS.md）。
-- llm 节点 config `agentPreset: "review"`；宿主要求 preset 文件可被 agents.create 的 meta.agentPreset 解析（若不支持自定义 preset 解析，退路：runLlm 的 setup 回调里按 agentCtx 只注册 fs/bash 两个工具，等价效果）。
+- **评审上下文（必须给足）**：① 仓库源码与文档——agent 在仓库工作目录（继承父 agent cwd，仓库路径另有卡片 refs local-repo 兜底）用 read/glob/grep/bash 直接读源码、docs/ui-design、review.md、AGENTS.md，并跑 `git diff origin/main...HEAD` 看 MR 变更；② 卡片信息——repo/branch/mr 关联 + 标题经 prompt 注入。这两样是评审对象本身，绝不裁剪。
+- **裁掉无关能力（token 节省）**：subagents.start 的 `toolFilter: { allow: ["read","glob","grep","bash"] }`（spawn provider 支持；只读 + git，无写工具、无 kanban/git/pipeline/web/skill/subagent 等）＋ persona 阴影覆盖部署 persona（一段话，不挂 agent-instructions 大文档）。评审规范由 agent 自行 fs 读仓库文件（review.md / docs/ui-design / AGENTS.md）。
+- `workflow-template/agent-presets/review/` 预设文件保留作参考（continuable 会话续评路径将来可能使用）。
 
 ### 3.4 runLlm 实现（index.ts 注入）
 

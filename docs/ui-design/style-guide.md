@@ -29,7 +29,7 @@
   - 边框: border-l1(最轻)/l2(常规)/l3(hover 强)/l4(选中最强)
   - 背景: bg-base(页面/浮层)/bg-layer-2(代码块/气泡/清单项)/interactive-bg-hover(悬停底)
   - 状态: state-business-*(主操作/选中/caret)/state-error-*(错误)/state-success-*(成功)/state-warn-*(警告)
-- 暗色红线: 禁静态浅色底做 hover/常态背景;focus ring 仅按钮,用 `rgba(65,118,230,.18)`。
+- 暗色红线: 禁静态浅色底做 hover/常态背景;focus ring 仅按钮,用 `color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)`(token 派生)。
 
 ## 四、间距节奏 Spacing
 

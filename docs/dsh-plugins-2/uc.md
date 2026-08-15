@@ -58,7 +58,7 @@
 ### B-3 修完问题续评通过（会话连续性）
 - 前置：B-2 失败后，修复违规并提交推送（不重启 dsh）。
 - 步骤：再次 move → Testing。
-- 期望：评审 agent **续评**（记得上轮 findings，可对比其输出/评论确认不是全新评审）；本轮无未解决问题 → REVIEW_VERDICT ok:true → 门禁通过 → 进 Testing。
+- 期望：评审 agent **续评**——本轮 prompt 携带上轮【上一轮评审意见】（可从其输出确认逐条核验了上轮 findings，未修复项被继续列出）；修复后本轮无未解决问题 → REVIEW_VERDICT ok:true → 门禁通过 → 进 Testing。
 - 关联：RD §4.2.5。
 
 ### B-4 通过后不刷「评审通过」评论
