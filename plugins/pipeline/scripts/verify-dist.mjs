@@ -56,4 +56,31 @@ if (!exported || exported.name !== 'pipeline') throw new Error('client factory �
 if (typeof exported.apply !== 'function') throw new Error('client 未导出 apply')
 if (!Array.isArray(exported.inject) || !exported.inject.includes('slots')) throw new Error('client inject 声明错误')
 console.log('client: ModuleLoader 真实执行 OK（name=' + exported.name + ', inject=' + exported.inject.join(',') + '）')
+
+// ── client apply 真实执行：slots mock 断言槽位注册形状（防真实环境注册抛错） ──
+const slotRegs = []
+const slotsMock = {
+  inject: (name, fn) => { const r = fn(); slotRegs.push({ slot: name, options: r && r.options, hasComponent: typeof (r && r.component) === 'function' }); return r },
+  register: (options, component) => ({ options, component }),
+}
+let domHead = null
+try {
+  domHead = { children: [], appendChild(c) { this.children.push(c) } }
+  globalThis.document = {
+    querySelector: () => null,
+    createElement: () => ({ dataset: {}, set textContent(v) { this._text = v }, get textContent() { return this._text } }),
+    head: domHead,
+  }
+  exported.apply({ get: (name) => (name === 'slots' ? slotsMock : undefined) })
+} finally {
+  delete globalThis.document
+}
+console.log('client apply: 槽位注册', slotRegs.map((s) => s.slot + (s.options && s.options.key ? '[' + s.options.key + ']' : '[' + (s.options && s.options.id) + ']')).join(', '))
+const footer = slotRegs.find((s) => s.slot === 'sidebar.footer.action' && s.options && s.options.id === 'pipeline')
+if (!footer || !footer.hasComponent) throw new Error('sidebar.footer.action 槽位注册缺失')
+const toolview = slotRegs.filter((s) => s.slot === 'tool.call.toolview')
+const toolKeys = toolview.map((s) => s.options && s.options.key).sort()
+if (toolKeys.join(',') !== 'pipeline_run,pipeline_run_status') throw new Error('tool.call.toolview 注册错误: ' + toolKeys.join(','))
+if (!toolview.every((s) => s.hasComponent)) throw new Error('tool.call.toolview 组件缺失')
+console.log('client apply: tool.call.toolview key=' + toolKeys.join('/') + ' OK')
 console.log('ALL OK: pipeline 正式形态产物验证通过')

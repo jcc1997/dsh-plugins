@@ -3,7 +3,7 @@
 import React from 'react'
 import { plpCss } from './styles'
 import { PipelinePage } from './page'
-import { SessionRunsPanel } from './session-runs'
+import { PipelineCallCard } from './call-card'
 import { registerOpenHandler } from './nav'
 
 export const name = 'pipeline'
@@ -90,11 +90,12 @@ export function apply(ctx: { get(name: string): unknown }) {
     ),
   )
 
-  // 会话「流水线」tab：对话中查看运行卡片（进度/状态），点击跳转主面板详情
-  slots.inject('conversation.view', () =>
-    slots.register(
-      { name: 'conversation.view', id: 'pipeline-runs', order: 30, label: () => '流水线' },
-      (props: { sessionId?: string }) => React.createElement(SessionRunsPanel, { sessionId: props.sessionId, host }),
-    ),
+  // 对话流工具卡片：接管 pipeline_run / pipeline_run_status 的渲染
+  // （tool.call.toolview keyed 槽位，key = 工具名；实时进度 + 点击跳转主面板详情）
+  slots.inject('tool.call.toolview', () =>
+    slots.register({ name: 'tool.call.toolview', key: 'pipeline_run', locale: 'conversation' }, PipelineCallCard),
+  )
+  slots.inject('tool.call.toolview', () =>
+    slots.register({ name: 'tool.call.toolview', key: 'pipeline_run_status', locale: 'conversation' }, PipelineCallCard),
   )
 }
