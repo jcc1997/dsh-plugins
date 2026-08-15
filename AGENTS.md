@@ -12,7 +12,6 @@
 | docs/ui-design/（tokens.md / style-guide.md / components.md） | 写 UI 的 agent | 设计规范：与 DSH 宿主统一、tokens 索引、风格指引、组件契约、交互细节、ADR |
 | packages/ui/host/design-platform.css | 写 UI 的 agent | DSH 官方设计 tokens 权威色板快照（sync 脚本从 vendor submodule 同步） |
 | plugins/<name>/README.md | 该插件的使用者/维护者 | 该插件当前状态：能力、目录、数据模型、已知问题。**不是开发过程流水账** |
-| HANDOFF.md（仓库根） | 跨会话接手的 agent | 当前分支/未合并 commit、重建与激活步骤、宿主签名速查、下一步要点。**会话接手先读** |
 
 ## 动态插件开发流程（热更新）
 
