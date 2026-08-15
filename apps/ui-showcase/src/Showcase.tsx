@@ -85,9 +85,30 @@ function Section(props: { title: string; children: React.ReactNode }) {
   )
 }
 
+type TabId = 'base' | 'md' | 'pipeline'
+
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'base', label: '基础组件' },
+  { id: 'md', label: 'Markdown 审阅' },
+  { id: 'pipeline', label: 'Pipeline' },
+]
+
+function Tabs(props: { value: TabId; onChange: (id: TabId) => void }) {
+  return (
+    <nav className="sc-tabs" role="tablist" aria-label="组件模块">
+      {TABS.map((t) => (
+        <button key={t.id} className={'sc-tab' + (props.value === t.id ? ' sc-tab-on' : '')} type="button" role="tab" aria-selected={props.value === t.id} onClick={() => props.onChange(t.id)}>
+          {t.label}
+        </button>
+      ))}
+    </nav>
+  )
+}
+
 export function Showcase() {
   const [note, setNote] = useState('多行模式:输入增多后按钮落到最下面一行,输入横向撑满。再来一行看看自动增高。')
   const [single, setSingle] = useState('')
+  const [tab, setTab] = useState<TabId>('base')
   // 暗黑模式:宿主 token 深色定义在 body[data-ds-dark-theme],toggle 即切换该属性
   const [dark, setDark] = useState(false)
   useEffect(() => {
@@ -103,154 +124,171 @@ export function Showcase() {
           {dark ? '浅色' : '暗色'}
         </button>
       </div>
-      <Section title="按钮(主/次/禁用)">
-        <div className="sc-row">
-          <button className="mdr-btn mdr-btn-primary">主按钮</button>
-          <button className="mdr-btn">次按钮</button>
-          <button className="mdr-btn" disabled>禁用</button>
-        </div>
-      </Section>
-      <Section title="icon 按钮(28×28 圆 + hover 背景)">
-        <div className="sc-row">
-          <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
-          <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
-          <button className="mdr-icon-btn"><IconTrashOutline16 /></button>
-          <button className="mdr-icon-btn" disabled><IconCheckOutline16 /></button>
-        </div>
-      </Section>
-      <Section title="对话流工具卡(待审阅 / 已提交摘要)">
-        <div className="sc-card-col">
-          <div className="mdr-card">
-            <div className="mdr-card-head">
-              <span className="mdr-card-title">文档审阅</span>
-              <span className="mdr-card-file">workflow-template/README.md</span>
-              <span className="mdr-card-status">待审阅</span>
+      <div className="sc-layout">
+      <Tabs value={tab} onChange={setTab} />
+      <div className="sc-content">
+      {tab === 'base' ? (
+        <>
+          <Section title="按钮(宿主胶囊契约)">
+            <div className="sc-row">
+              <button className="mdr-btn mdr-btn-primary">主按钮</button>
+              <button className="mdr-btn">次按钮</button>
+              <button className="mdr-btn" disabled>禁用</button>
             </div>
-            <div className="mdr-card-context">一句话说明为什么需要审阅</div>
-            <button className="mdr-btn mdr-btn-primary">打开文档</button>
-          </div>
-          <div className="mdr-card">
-            <div className="mdr-card-head">
-              <span className="mdr-card-title">文档审阅</span>
-              <span className="mdr-card-file">workflow-template/README.md</span>
-              <span className="mdr-card-status">已提交</span>
+          </Section>
+          <Section title="icon 按钮(28×28 圆 + hover 背景)">
+            <div className="sc-row">
+              <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
+              <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
+              <button className="mdr-icon-btn"><IconTrashOutline16 /></button>
+              <button className="mdr-icon-btn" disabled><IconCheckOutline16 /></button>
             </div>
-            <div className="mdr-card-summary">
-              <div className="mdr-card-count">3 条批注</div>
-              <div className="mdr-card-comment">总评:整体意见示例</div>
+          </Section>
+          <Section title="Composer(单行:按钮右侧同行)">
+            <Composer value={single} onChange={setSingle} placeholder="单行输入…" actions={<>
+              <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
+              <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
+            </>} />
+          </Section>
+          <Section title="Composer(多行:输入撑满,按钮落最下面一行)">
+            <Composer value={note} onChange={setNote} placeholder="多行输入…" actions={<>
+              <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
+              <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
+            </>} />
+          </Section>
+        </>
+      ) : null}
+      {tab === 'md' ? (
+        <>
+          <Section title="对话流工具卡(待审阅 / 已提交摘要)">
+            <div className="sc-card-col">
+              <div className="mdr-card">
+                <div className="mdr-card-head">
+                  <span className="mdr-card-title">文档审阅</span>
+                  <span className="mdr-card-file">workflow-template/README.md</span>
+                  <span className="mdr-card-status">待审阅</span>
+                </div>
+                <div className="mdr-card-context">一句话说明为什么需要审阅</div>
+                <button className="mdr-btn mdr-btn-primary">打开文档</button>
+              </div>
+              <div className="mdr-card">
+                <div className="mdr-card-head">
+                  <span className="mdr-card-title">文档审阅</span>
+                  <span className="mdr-card-file">workflow-template/README.md</span>
+                  <span className="mdr-card-status">已提交</span>
+                </div>
+                <div className="mdr-card-summary">
+                  <div className="mdr-card-count">3 条批注</div>
+                  <div className="mdr-card-comment">总评:整体意见示例</div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      </Section>
-      <Section title="Composer(单行:按钮右侧同行)">
-        <Composer value={single} onChange={setSingle} placeholder="单行输入…" actions={<>
-          <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
-          <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
-        </>} />
-      </Section>
-      <Section title="Composer(多行:输入撑满,按钮落最下面一行)">
-        <Composer value={note} onChange={setNote} placeholder="多行输入…" actions={<>
-          <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
-          <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
-        </>} />
-      </Section>
-      <Section title="划词批注框(内嵌文档流;淡灰底拉满 + 引用文字#行号 + 紧凑输入)">
-        <div className="mdr-editor">
-          <div className="mdr-editor-quote">选中原文示例:这是一段被划词选中的文字,带行号定位。<span className="mdr-editor-line">#L12</span></div>
-          <Composer value="" onChange={() => {}} placeholder="对这段的批注…" compact actions={<>
-            <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
-            <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
-          </>} />
-        </div>
-      </Section>
-      <Section title="markdown 渲染(标题/列表/表格/代码/mermaid/图片)">
-        <div className="mdr-content sc-md">{renderBlocks(parseMarkdownBlocks(DEMO_MD))}</div>
-      </Section>
-      <Section title="大浮窗(真实组件,可划词)">
-        <div className="sc-viewer-wrap">
-          <MdViewer
-            doc={{ ok: true, docId: 'showcase', path: '/tmp/demo.md', title: '组件展示文档', markdown: DEMO_MD }}
-            onClose={() => {}}
-            onSubmit={async (p) => { console.log('submit', p); return { ok: true } }}
-          />
-        </div>
-      </Section>
-      <Section title="Pipeline 工具卡(轮询演示,2 轮后自动完成)">
-        <div className="sc-card-col">
-          <PipelineCallCard
-            toolName="pipeline_run"
-            callId="demo-call-1"
-            block={{ kind: 'running', argsRaw: JSON.stringify({ run_id: 'demo-run-1' }) }}
-          />
-          <PipelineCallCard
-            toolName="pipeline_run"
-            callId="demo-call-2"
-            block={{ kind: 'result', isError: false, meta: { run_id: 'demo-run-2', status: 'success', done: 3, total: 3 }, call: { argsRaw: JSON.stringify({ run_id: 'demo-run-2' }) } }}
-          />
-          <PipelineCallCard
-            toolName="pipeline_run_status"
-            callId="demo-call-3"
-            block={{ kind: 'result', isError: true, meta: { run_id: 'demo-run-3', status: 'failed' }, call: { argsRaw: JSON.stringify({ run_id: 'demo-run-3' }) } }}
-          />
-        </div>
-      </Section>
-      <Section title="Pipeline 节点图(React Flow,只读模式)">
-        <div style={{ height: 480, border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 12 }}>
-          <NodeGraph
-            nodes={DEMO_GRAPH_NODES}
-            selectedId=""
-            readonly
-            onSelect={() => {}}
-            onAdd={() => {}}
-            onAddEdge={() => {}}
-            onDelete={() => {}}
-            onMove={() => {}}
-            onAddTail={() => {}}
-          />
-        </div>
-      </Section>
-      <Section title="Pipeline 控件(按钮/输入/徽章/版本行)">
-        <div className="sc-row" style={{ flexWrap: 'wrap', gap: 8 }}>
-          <button className="plp-btn plp-primary">主按钮</button>
-          <button className="plp-btn">次按钮</button>
-          <button className="plp-btn plp-danger">危险按钮</button>
-          <button className="plp-btn" disabled>禁用</button>
-          <button className="plp-icon-btn" title="图标按钮"><IconTrashOutline16 /></button>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
-          <div className="plp-field">
-            <label className="plp-field-label">输入框(零高亮)</label>
-            <input className="plp-input" placeholder="输入点什么…" />
-          </div>
-          <div className="plp-field">
-            <label className="plp-field-label">选择框</label>
-            <select className="plp-select"><option>atomic</option><option>combined</option></select>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-          <span className="plp-badge">atomic</span>
-          <span className="plp-badge plp-badge-kind">combined</span>
-          <span className="plp-version">v0.1.0</span>
-          <span className="plp-ver-latest">最新</span>
-          <span className="plp-graph-type plp-graph-type-input">input</span>
-          <span className="plp-graph-type plp-graph-type-llm">llm</span>
-          <span className="plp-graph-type plp-graph-type-pipeline">pipeline</span>
-          <span className="plp-graph-type plp-graph-type-exec">exec</span>
-          <span className="plp-graph-type plp-graph-type-fetch">fetch</span>
-          <span className="plp-graph-type plp-graph-type-output">output</span>
-        </div>
-        <div style={{ maxWidth: 560, marginTop: 12 }}>
-          <div className="plp-ver-row"><span className="plp-ver-chip plp-ver-published">v0.1.0</span><span className="plp-ver-meta">已发布</span><span className="plp-ver-latest">已发布</span></div>
-          <div className="plp-ver-row plp-ver-row-sel"><span className="plp-ver-chip plp-ver-draft">v0.2.0</span><span className="plp-ver-meta">草稿</span><span className="plp-ver-latest">最新</span></div>
-        </div>
-        <div className="plp-run" style={{ maxWidth: 560, marginTop: 12 }}>
-          <span className="plp-run-status plp-st-running" />
-          <div className="plp-run-main">
-            <div className="plp-run-title">视频转 mp3</div>
-            <div className="plp-run-meta"><span className="plp-run-id">run-abc123</span><span>节点 2/5 · 40%</span></div>
-          </div>
-        </div>
-      </Section>
+          </Section>
+          <Section title="划词批注框(内嵌文档流;淡灰底 + 引用文字#行号 + 紧凑输入)">
+            <div className="mdr-editor">
+              <div className="mdr-editor-quote">选中原文示例:这是一段被划词选中的文字,带行号定位。<span className="mdr-editor-line">#L12</span></div>
+              <Composer value="" onChange={() => {}} placeholder="对这段的批注…" compact actions={<>
+                <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
+                <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
+              </>} />
+            </div>
+          </Section>
+          <Section title="markdown 渲染(标题/列表/表格/代码/mermaid/图片)">
+            <div className="mdr-content sc-md">{renderBlocks(parseMarkdownBlocks(DEMO_MD))}</div>
+          </Section>
+          <Section title="大浮窗(真实组件,可划词)">
+            <div className="sc-viewer-wrap">
+              <MdViewer
+                doc={{ ok: true, docId: 'showcase', path: '/tmp/demo.md', title: '组件展示文档', markdown: DEMO_MD }}
+                onClose={() => {}}
+                onSubmit={async (p) => { console.log('submit', p); return { ok: true } }}
+              />
+            </div>
+          </Section>
+        </>
+      ) : null}
+      {tab === 'pipeline' ? (
+        <>
+          <Section title="工具卡(轮询演示,2 轮后自动完成)">
+            <div className="sc-card-col">
+              <PipelineCallCard
+                toolName="pipeline_run"
+                callId="demo-call-1"
+                block={{ kind: 'running', argsRaw: JSON.stringify({ run_id: 'demo-run-1' }) }}
+              />
+              <PipelineCallCard
+                toolName="pipeline_run"
+                callId="demo-call-2"
+                block={{ kind: 'result', isError: false, meta: { run_id: 'demo-run-2', status: 'success', done: 3, total: 3 }, call: { argsRaw: JSON.stringify({ run_id: 'demo-run-2' }) } }}
+              />
+              <PipelineCallCard
+                toolName="pipeline_run_status"
+                callId="demo-call-3"
+                block={{ kind: 'result', isError: true, meta: { run_id: 'demo-run-3', status: 'failed' }, call: { argsRaw: JSON.stringify({ run_id: 'demo-run-3' }) } }}
+              />
+            </div>
+          </Section>
+          <Section title="节点图(React Flow,只读模式)">
+            <div style={{ height: 480, border: '1px solid var(--dsw-alias-border-l2)', borderRadius: 12 }}>
+              <NodeGraph
+                nodes={DEMO_GRAPH_NODES}
+                selectedId=""
+                readonly
+                onSelect={() => {}}
+                onAdd={() => {}}
+                onAddEdge={() => {}}
+                onDelete={() => {}}
+                onMove={() => {}}
+                onAddTail={() => {}}
+              />
+            </div>
+          </Section>
+          <Section title="控件(按钮/输入/徽章/版本行)">
+            <div className="sc-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <button className="plp-btn plp-primary">主按钮</button>
+              <button className="plp-btn">次按钮</button>
+              <button className="plp-btn plp-danger">危险按钮</button>
+              <button className="plp-btn" disabled>禁用</button>
+              <button className="plp-icon-btn" title="图标按钮"><IconTrashOutline16 /></button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+              <div className="plp-field">
+                <label className="plp-field-label">输入框(零高亮)</label>
+                <input className="plp-input" placeholder="输入点什么…" />
+              </div>
+              <div className="plp-field">
+                <label className="plp-field-label">选择框</label>
+                <select className="plp-select"><option>atomic</option><option>combined</option></select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+              <span className="plp-badge">atomic</span>
+              <span className="plp-badge plp-badge-kind">combined</span>
+              <span className="plp-version">v0.1.0</span>
+              <span className="plp-ver-latest">最新</span>
+              <span className="plp-graph-type plp-graph-type-input">input</span>
+              <span className="plp-graph-type plp-graph-type-llm">llm</span>
+              <span className="plp-graph-type plp-graph-type-pipeline">pipeline</span>
+              <span className="plp-graph-type plp-graph-type-exec">exec</span>
+              <span className="plp-graph-type plp-graph-type-fetch">fetch</span>
+              <span className="plp-graph-type plp-graph-type-output">output</span>
+            </div>
+            <div style={{ maxWidth: 560, marginTop: 12 }}>
+              <div className="plp-ver-row"><span className="plp-ver-chip plp-ver-published">v0.1.0</span><span className="plp-ver-meta">已发布</span><span className="plp-ver-latest">已发布</span></div>
+              <div className="plp-ver-row plp-ver-row-sel"><span className="plp-ver-chip plp-ver-draft">v0.2.0</span><span className="plp-ver-meta">草稿</span><span className="plp-ver-latest">最新</span></div>
+            </div>
+            <div className="plp-run" style={{ maxWidth: 560, marginTop: 12 }}>
+              <span className="plp-run-status plp-st-running" />
+              <div className="plp-run-main">
+                <div className="plp-run-title">视频转 mp3</div>
+                <div className="plp-run-meta"><span className="plp-run-id">run-abc123</span><span>节点 2/5 · 40%</span></div>
+              </div>
+            </div>
+          </Section>
+        </>
+      ) : null}
+      </div>
+      </div>
     </div>
   )
 }
