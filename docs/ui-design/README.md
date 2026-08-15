@@ -6,13 +6,13 @@
 
 | 文档 | 内容 | 维护方式 |
 | --- | --- | --- |
-| [tokens.md](tokens.md) | tokens 语义索引: 162 个 token 按语义域分组,名称+用途+注意(**不复制值**) | 值查 `packages/ui/dsh/design-platform.css` 快照;宿主升级→sync 脚本→核对本文 |
+| [tokens.md](tokens.md) | tokens 语义索引: 162 个 token 按语义域分组,名称+用途+注意(**不复制值**) | 值查 `packages/ui/host/design-platform.css` 快照;宿主升级→sync 脚本→核对本文 |
 | [style-guide.md](style-guide.md) | 设计风格指引九维: 原则/排版/色彩/间距/圆角/阴影/动效/图标/语气 + 交互通则 | 人工维护;规则变更记 ADR |
 | [components.md](components.md) | 组件规范: 逐组件几何+色彩+状态+配方 + 交互细节契约 + ADR | 人工维护;宿主组件升级时实测更新 |
 
 ## 核心文件
 
-- **tokens 快照(唯一来源)**: `packages/ui/dsh/design-platform.css` — 由 `node scripts/sync-host-tokens.mjs` 从 `vendor/deepseek-harness` submodule(`packages/client/ui-theme/src/styles/`)同步生成,**勿手改**。
+- **tokens 快照(唯一来源)**: `packages/ui/host/design-platform.css` — 由 `node scripts/sync-host-tokens.mjs` 从 `vendor/deepseek-harness` submodule(`packages/client/ui-theme/src/styles/`)同步生成,**勿手改**。
 - **宿主组件实测来源**: `vendor/deepseek-harness/packages/client/ui-primitives/src/*.module.css`(Button/Input/Modal/Menu/Pill 等)。
 - **图标集**: `packages/ui/host/icons.ts`(直接 re-export 宿主 `ui-primitives/src/icons` 源码,70 个,零复制零漂移)。
 

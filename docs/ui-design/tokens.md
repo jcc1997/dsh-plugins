@@ -1,6 +1,6 @@
 # tokens 索引（语义域分组全量枚举）
 
-> **唯一来源**: `packages/ui/dsh/design-platform.css`(由 `node scripts/sync-host-tokens.mjs` 从 `vendor/deepseek-harness` submodule 同步,勿手改)。
+> **唯一来源**: `packages/ui/host/design-platform.css`(由 `node scripts/sync-host-tokens.mjs` 从 `vendor/deepseek-harness` submodule 同步,勿手改)。
 > 本文件只写「语义 → token 名 + 用途 + 注意」,**不复制任何值**;取值一律查快照文件。
 > 宿主升级后: 更新 submodule → 重跑 sync 脚本 → 核对本文件(新增/删除 token 时同步修订)。
 > 全部 token 共 162 个(static 73 + alias 78 + specific 11),浅色/深色由宿主 `data-ds-dark-theme` 自动切换,插件样式**一律不写媒体查询**。

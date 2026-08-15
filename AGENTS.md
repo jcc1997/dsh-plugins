@@ -10,7 +10,7 @@
 | AGENTS.md（本文件） | 在仓库内工作的 agent | 工作规则、流程、红线 |
 | .agents/skills/dsh-dynamic-plugin-dev/SKILL.md | 开发动态插件的 agent | 受限环境约束、代码模板、踩坑清单、编译管线、省 token 流程、宿主源码/跨插件联动速查（§七）。**开发前必须加载** |
 | docs/ui-design/（tokens.md / style-guide.md / components.md） | 写 UI 的 agent | 设计规范：与 DSH 宿主统一、tokens 索引、风格指引、组件契约、交互细节、ADR |
-| packages/ui/dsh/design-platform.css | 写 UI 的 agent | DSH 官方设计 tokens 权威色板（抽取自 dsh-client-ui-theme） |
+| packages/ui/host/design-platform.css | 写 UI 的 agent | DSH 官方设计 tokens 权威色板快照（sync 脚本从 vendor submodule 同步） |
 | plugins/<name>/README.md | 该插件的使用者/维护者 | 该插件当前状态：能力、目录、数据模型、已知问题。**不是开发过程流水账** |
 | HANDOFF.md（仓库根） | 跨会话接手的 agent | 当前分支/未合并 commit、重建与激活步骤、宿主签名速查、下一步要点。**会话接手先读** |
 

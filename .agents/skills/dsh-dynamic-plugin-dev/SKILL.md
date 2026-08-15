@@ -300,7 +300,7 @@ const result = await rt.run({
 - 数据通道（正式形态）：host 半 webServer 路由（/kanban-api/*）+ client 半 fetch；agent 工具 ctx.tools；跨插件 ctx.provide 服务。
 - 共享包：`packages/ui`（图标/工具函数/Modal/设计 tokens）、`packages/communication`（bus/rpc 双形态工厂，git 事件用）。
 - **看板配置导入导出（kanban v7）**：只导形态不导数据——`kanban_export_config` 输出 `{schemaVersion:1, kanban:{columns:[标题], gates:[{name,on,to?,checker}], templates:[{name,description,tags,gates:[门禁名]}]}}`（门禁/模板按**名字**引用，天然可移植，不绑实例 id）；`kanban_import_config` **整体替换配置层**（列/门禁库/模板重建、id 重生成、门禁按名重解析），旧卡片全挪新板第一列并清 gateIds，导入前自动备份 `board.json.bak-<ts>`。schemaVersion 高于当前支持则拒绝。样例包 `workflow-template/`（只 README + workflow.json，格式与导出完全一致），安装一律走 agent 导入，不再有 install 脚本。
-- 设计规范：`packages/ui/DESIGN.md`。样式直接引用宿主 `--dsw-*` tokens（明暗自动适配，禁硬编码、禁 emoji）。
+- 设计规范：`docs/ui-design/`（tokens.md / style-guide.md / components.md，DESIGN.md 已并入删除）。样式直接引用宿主 `--dsw-*` tokens（明暗自动适配，禁硬编码、禁 emoji）；tokens 快照唯一来源 `packages/ui/host/design-platform.css`（`node scripts/sync-host-tokens.mjs` 从 vendor submodule 同步，勿手改）。
 
 ## 五、动态插件（隔离）
 
