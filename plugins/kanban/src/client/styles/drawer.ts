@@ -30,7 +30,7 @@ export const drawerCss = `
 .kbnb-gate-detail-pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:160px;overflow-y:auto}
 
 /* ══ 门禁卡（v4）：挂在此卡上的行为门禁 ══ */
-.kbnb-gates-card{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.kbnb-gates-card{display:flex;flex-direction:column;gap:6px;width:100%;box-sizing:border-box;margin-bottom:16px}
 .kbnb-gate-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0}
 .kbnb-gate-name{font-weight:600;color:var(--dsw-alias-label-primary);flex:none;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kbnb-gate-meta{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary)}
@@ -126,7 +126,7 @@ button.kbnb-ref-link{background:none;border:none;padding:0;font:inherit;cursor:p
 .kbnb-ref-add .kbnb-btn{padding:4px 12px;font-size:12px;flex:none}
 /* Git 关联卡片 + 外部关联卡片 */
 .kbnb-card-actions{display:inline-flex;align-items:center;gap:8px}
-.kbnb-git-card,.kbnb-refs-card{margin-bottom:16px;padding:14px 16px;border-radius:12px;cursor:default}
+.kbnb-git-card,.kbnb-refs-card{width:100%;box-sizing:border-box;margin-bottom:16px;padding:14px 16px;border-radius:12px;cursor:default}
 .kbnb-card-sec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .kbnb-card-sec-title{font-size:13px;font-weight:600;color:var(--dsw-alias-label-secondary)}
 .kbnb-git-repo{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px}
