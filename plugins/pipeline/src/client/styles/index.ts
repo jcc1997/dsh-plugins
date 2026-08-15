@@ -87,8 +87,10 @@ export const plpCss = `
 .plp-ver-row .plp-ver-latest{flex:none;white-space:nowrap}
 .plp-ver-row .plp-ver-meta{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .plp-ver-row .plp-icon-btn{flex:none;padding:3px}
-.plp-ver-banner{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:10px;background:var(--dsw-alias-interactive-bg-hover-accent);font-size:12px;margin-bottom:12px}
+.plp-ver-banner{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:10px;background:var(--dsw-alias-interactive-bg-hover-accent);font-size:12px;margin-bottom:12px;flex:none}
 .plp-graph-inner{position:absolute;inset:0;padding-top:44px}
+/* 只读版本：banner 占正常文档流，画布区域改为 flex 撑满剩余高度，不再绝对定位遮挡 banner 下半部分 */
+.plp-graph-scroll-ro .plp-graph-inner{position:relative;inset:auto;flex:1;min-height:480px}
 .plp-ver-chip{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;font-weight:600}
 .plp-ver-published{color:var(--dsw-alias-state-success-primary)}
 .plp-ver-draft{color:var(--dsw-alias-label-tertiary)}

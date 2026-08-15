@@ -259,7 +259,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
 
       {/* ── 主区：画布全幅（浮窗侧栏覆盖其上） ── */}
       <div className="plp-editor-body">
-        <div className="plp-graph-scroll">
+        <div className={'plp-graph-scroll' + (readonlyView ? ' plp-graph-scroll-ro' : '')}>
           {readonlyView ? (
             <div className="plp-ver-banner">
               <span>正在查看版本 <b>{viewVersion}</b>（{viewVer && viewVer.published ? '已发布' : '草稿'}，只读）</span>
