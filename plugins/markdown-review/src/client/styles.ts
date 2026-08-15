@@ -61,7 +61,7 @@ export const mdrCss = `
 
 /* ══ §4 划词批注框(嵌段落下方;整体灰底 bg-layer-2 + 引用 + 胶囊输入,与正文区分) ══ */
 .mdr-editor-slot{display:block}
-.mdr-editor{margin:8px 0;display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--dsw-alias-bg-layer-2);border-radius:8px;padding:10px 12px}
+.mdr-editor{margin:8px 0;display:flex;flex-direction:column;gap:8px;min-width:0;background:var(--dsw-alias-markdown-inline-code);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:10px 12px}
 .mdr-editor .cmp-composer{min-width:0}
 .mdr-editor-quote{min-width:0;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary);border-left:2px solid var(--dsw-alias-border-l3);padding-left:8px;max-height:64px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
 

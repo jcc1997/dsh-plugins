@@ -74,7 +74,7 @@
 | token | 用途 | 注意 |
 | --- | --- | --- |
 | `--dsw-alias-bg-base` | 页面/浮层基础底 | 最常用 |
-| `--dsw-alias-bg-layer-1/2/3` | 次级底(气泡/代码块/清单项逐级加深) | layer-2 常用(代码块/评论) |
+| `--dsw-alias-bg-layer-1/2/3` | 次级底;**浅色主题下全部=白(bluish-00)**,区分嵌套内容实际用 markdown-inline-code(浅灰)/边框 | layer-2 深色主题下逐级加深(875/850/800) |
 | `--dsw-alias-bg-overlay` | 浮层覆盖底 | |
 | `--dsw-alias-bg-skeleton` | 骨架屏占位底 | |
 | `--dsw-alias-bg-mask-1/2/3` | 蒙层(1 常规遮罩,2/3 加深) | 浮层遮罩用 mask-1 |
