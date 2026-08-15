@@ -139,9 +139,9 @@ B7. **verify 必须真实执行 client bundle**（模拟 window.__ModuleLoader__
 ### 3.3 槽位 / 会话联动
 
 - 槽位：`slots.inject(key, () => slots.register({ name, id, order, label, children? }, Comp))`；子槽位声明（children）独占渲染授权（Declaring is claiming）；跨条目渲染走服务桥接（见 legacy §八）。
-- `sidebar.footer.action`（侧边栏入口）、`conversation.view`（session scope，props.sessionId）、`settings.section`、`tool.call.toolview`（keyed，key=工具名，接管对话流工具卡）等宿主槽位。
+- `sidebar.footer.action`（侧边栏入口）、`conversation.view`（session scope，props.sessionId）、`settings.section`、`tool.call.toolview`（keyed，key=工具名，接管对话流工具卡）、**`conversation.input.dock`（todo 式常驻条，Composer 上方整行——queue/goal/todo/pipeline 运行列表同款座位）** 等宿主槽位。
 - client 侧 `sessions` 服务：open(id) 切换会话；`workspaces` 服务：connectWorkspace 等。
-- **插件 UI 四种模式（全屏页 / 会话 tab / 工具卡接管 / 注入他人槽位）+ 官方源码位置 + 代码例子 → 见 3.5**（开发 UI 前必读，勿重新考古）。
+- **插件 UI 五种模式（全屏页 / 会话 tab / 工具卡接管 / 常驻 dock 条 / 注入他人槽位）+ 官方源码位置 + 代码例子 → 见 3.5**（开发 UI 前必读，勿重新考古）。
 
 ### 3.4 宿主服务目录（常用）
 
@@ -151,7 +151,8 @@ B7. **verify 必须真实执行 client bundle**（模拟 window.__ModuleLoader__
 
 > 需求分类 → 选模式：① 完整管理界面 → **A 全屏页面入口**；② 会话里持续看某数据 → **B 会话 tab**；
 > ③ agent 调用你的工具时在对话流里展示卡片 → **C 工具卡片接管**（本次新发现，最重要）；
-> ④ 往别人界面加按钮 → **D 注入他人槽位**（git 注入 kanban 的做法）。
+> ④ 需要常驻在对话流输入区上方看实时状态（todo/goal/queue/运行列表）→ **E 常驻 dock 条**（conversation.input.dock，宿主 todo 同款）；
+> ⑤ 往别人界面加按钮 → **D 注入他人槽位**（git 注入 kanban 的做法）。
 
 ### A. 全屏页面入口（sidebar.footer.action，kanban/pipeline 同款）
 
@@ -224,6 +225,26 @@ function MyToolCard(props: { callId: string; toolName: string; block: any; inspe
 
 对方插件声明子槽位并授权渲染（见下「children 声明」），你直接 `slots.inject('kanban.card.actions', () => slots.register({ name, id, order, label }, Comp))`；owner 会通过 `renderSlot('kanban.card.actions', { cardId, onSynced }, {})` 调用，props 由对方声明方定义（git 侧 owner props = `{cardId, onSynced}`）。
 
+### E. 常驻 dock 条（conversation.input.dock，todo 式；dsh-pipeline 实测沉淀）
+
+宿主 todo/goal/queue 同款座位：**Composer（输入卡）上方独占一整行**，适合「需要独占一行、承载状态列表/条状信息」的常驻内容。**小控件不要用这里**（那是 `conversation.input.left` / `.right` / `conversation.composer.dock` 的活——输入卡内部工具行 / 卡片下方 ambient 只读）。
+
+```tsx
+// client/index.ts —— 注册（list 槽位，id 自取；order 控制 dock 内顺序，宿主 todo 用 0）
+import { PipelineDock } from './dock'
+slots.inject('conversation.input.dock', () =>
+  slots.register({ name: 'conversation.input.dock', id: 'pipeline', order: 0, locale: 'conversation' }, PipelineDock),
+)
+```
+
+组件要点（dsh-pipeline/src/client/dock.tsx 实测）：
+- 组件**无 props 也成立**（不用 owner props 时）；需要会话上下文时用 session scope 的 PropsRuntime（如 `useSession`/sessionId）。
+- 数据自己 fetch（如 `/pipeline-api/dock-runs`），**轮询间隔自适应**：有 active（运行中/排队中）→ 2s；全终态 → 8s；无数据可 `return null`（条不占位）。
+- 每行 = 状态点（`plp-st-*` 色点）+ 名称 + 状态文本 + 进度 + 跳转按钮；**完成的提供「移除」**（本地隐藏即可，不删数据——sessionStorage 记 dismissed id）。
+- 条容器：`.plp-dock{border:1px solid border-l1;border-radius:10px;padding:6px 10px}`——轻量、不抢输入框焦点（宿主 todo 观感）。
+- 跳转联动：dock 里点详情 → 模块级 pub/sub（`requestOpenRun(runId)`）打开 A 模式全屏页并定位（nav.ts，client 半同 bundle 共享模块变量）。
+- **官方参考**：`@deepseek-ai/dsh-client-ui-conversation/lib/types/client/skeleton/TodoPanel.d.ts`（TodoPanel/TodoDock 声明）+ `lib/client.js` grep `conversation.input.dock` 抄注册结构；slots 契约注释在 `lib/types/client/contract/slots.d.ts`（"A full-width row of its own, stacked above the composer card"）。
+
 ### 槽位 API 速记（dsh-client-ui-slots）
 
 - **register(options, Component) → disposer**；options 按槽位 kind 不同：
@@ -240,6 +261,7 @@ function MyToolCard(props: { callId: string; toolName: string; block: any; inspe
 |---|---|
 | 槽位系统 API（SlotMap/register/PropsRuntime/SlotKind/KindOptions） | `@deepseek-ai/dsh-client-ui-slots/lib/types/index.d.ts` |
 | **tool.call.toolview 契约**（keyed 声明 + ToolCallOwnerProps） | `@deepseek-ai/dsh-client-ui-tool/lib/types/client/contract/slots.d.ts` |
+| **conversation.input.dock 契约**（todo 式 dock：TodoPanel/TodoDock + slots 注释） | `@deepseek-ai/dsh-client-ui-conversation/lib/types/client/skeleton/TodoPanel.d.ts` + `lib/types/client/contract/slots.d.ts`（grep "input.dock"） |
 | 工具卡片两态（RunningToolCall/ToolResultNode/ToolCallBlock） | `@deepseek-ai/dsh-client-runtime/lib/types/client/sessions/conversation.d.ts` |
 | defineTool 完整选项（presentCall/presentResult/presentationMeta/isConcurrencySafe） | `@deepseek-ai/dsh-tools/lib/types/schema.d.ts` |
 | ToolCallView/ToolResultView 声明式视图 | `@deepseek-ai/dsh-tools/lib/types/presentation.d.ts` |
