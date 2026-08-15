@@ -1,6 +1,8 @@
-// client/md.tsx — 极简 markdown 渲染器(自实现,无第三方依赖,不产生 dangerouslySetInnerHTML)
-// 支持:h1-h6、粗体/斜体/删除线、行内代码、代码块、引用、无序/有序列表(两层嵌套)、分隔线、表格、链接、段落。
-import React from 'react'
+// client/md.tsx — 极简 markdown 渲染器(自实现;mermaid 用官方库渲染)
+// 支持:h1-h6、粗体/斜体/删除线、行内代码、代码块、引用、无序/有序列表(两层嵌套)、分隔线、表格、链接、段落、mermaid 图。
+// 块模型:每个可锚定块带 data-mdr-block/data-mdr-key,供划词批注「嵌入对应段落下方」。
+import React, { useEffect, useRef, useState } from 'react'
+import mermaid from 'mermaid'
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -41,128 +43,198 @@ function renderInline(text: string, keyPrefix: string, depth = 0): React.ReactNo
   return out
 }
 
-/** 列表块解析:按缩进构建两层嵌套列表 */
-function renderList(lines: string[], start: number): { nodes: React.ReactNode; next: number } {
-  const items: Array<{ text: string; ordered: boolean; indent: number }> = []
-  let i = start
-  while (i < lines.length) {
-    const line = lines[i]
-    const um = /^(\s*)[-*]\s+(.*)$/.exec(line)
-    const om = /^(\s*)\d+[.)]\s+(.*)$/.exec(line)
-    if (um) items.push({ text: um[2], ordered: false, indent: um[1].length })
-    else if (om) items.push({ text: om[2], ordered: true, indent: om[1].length })
-    else break
-    i += 1
-  }
-  const build = (list: typeof items): React.ReactNode[] => {
-    const out: React.ReactNode[] = []
-    let idx = 0
-    while (idx < list.length) {
-      const item = list[idx]
-      const children: typeof items = []
-      let j = idx + 1
-      while (j < list.length && list[j].indent > item.indent) { children.push(list[j]); j += 1 }
-      const content: React.ReactNode[] = renderInline(item.text, 'li' + idx)
-      if (children.length > 0) content.push(build(children))
-      out.push(<li key={idx} className="mdr-li">{content}</li>)
-      idx = j
-    }
-    return out
-  }
-  const ordered = items.length > 0 && items[0].ordered
-  return { nodes: ordered ? <ol className="mdr-ol">{build(items)}</ol> : <ul className="mdr-ul">{build(items)}</ul>, next: i }
+export interface ListItem { text: string; ordered: boolean; indent: number }
+export interface MdBlock {
+  key: string
+  kind: 'p' | 'h' | 'pre' | 'quote' | 'list' | 'table' | 'hr' | 'mermaid'
+  text?: string
+  level?: number
+  lang?: string
+  code?: string
+  items?: ListItem[]
+  head?: string[]
+  rows?: string[][]
 }
 
-/** 表格解析(首个 | 行 + 分隔行) */
-function tryTable(lines: string[], i: number): { node: React.ReactNode; next: number } | null {
-  const first = lines[i]
-  if (!first || first.indexOf('|') < 0 || i + 1 >= lines.length) return null
-  const sep = lines[i + 1]
-  if (!/^\s*\|?[\s:|-]+\|?\s*$/.test(sep) || sep.indexOf('-') < 0) return null
-  const cells = (row: string) => row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim())
-  const head = cells(first)
-  const rows: string[][] = []
-  let j = i + 2
-  while (j < lines.length && lines[j].trim().startsWith('|')) { rows.push(cells(lines[j])); j += 1 }
-  return {
-    node: (
-      <table className="mdr-table">
-        <thead><tr>{head.map((h, k) => <th key={k} className="mdr-th">{renderInline(h, 'th' + k)}</th>)}</tr></thead>
-        <tbody>{rows.map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci} className="mdr-td">{renderInline(c, 'td' + ri + '-' + ci)}</td>)}</tr>)}</tbody>
-      </table>
-    ),
-    next: j,
-  }
-}
-
-/** markdown → React 节点 */
-export function renderMarkdown(md: string): React.ReactNode[] {
+/** markdown → 块序列(可锚定块 key 为 'b<index>') */
+export function parseMarkdownBlocks(md: string): MdBlock[] {
   const lines = md.replace(/\r\n/g, '\n').split('\n')
-  const out: React.ReactNode[] = []
+  const out: MdBlock[] = []
   let i = 0
-  let key = 0
+  let idx = 0
   let para: string[] = []
   const flushPara = () => {
     if (para.length > 0) {
-      const text = para.join(' ')
-      out.push(<p key={'p' + key++} className="mdr-p">{renderInline(text, 'p' + key)}</p>)
+      out.push({ key: 'b' + idx++, kind: 'p', text: para.join(' ') })
       para = []
     }
   }
+  const cellsOf = (row: string) => row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim())
   while (i < lines.length) {
     const line = lines[i]
-    // 代码块
+    // 代码块(含 mermaid)
     if (line.trimStart().startsWith('```')) {
       flushPara()
-      const lang = line.trimStart().slice(3).trim()
+      const lang = line.trimStart().slice(3).trim().toLowerCase()
       const buf: string[] = []
       i += 1
       while (i < lines.length && !lines[i].trimStart().startsWith('```')) { buf.push(lines[i]); i += 1 }
       i += 1
-      if (lang) {
-        out.push(<pre key={'pre' + key++} className="mdr-pre"><div className="mdr-pre-lang">{esc(lang)}</div><code>{buf.join('\n')}</code></pre>)
-      } else {
-        out.push(<pre key={'pre' + key++} className="mdr-pre"><code>{buf.join('\n')}</code></pre>)
-      }
+      if (lang === 'mermaid') out.push({ key: 'b' + idx++, kind: 'mermaid', code: buf.join('\n') })
+      else out.push({ key: 'b' + idx++, kind: 'pre', lang, code: buf.join('\n') })
       continue
     }
     // 标题
     const hm = /^(#{1,6})\s+(.*)$/.exec(line)
-    if (hm) {
-      flushPara()
-      const level = hm[1].length
-      const Tag = ('h' + level) as 'h1'
-      out.push(<Tag key={'h' + key++} className={'mdr-h mdr-h' + level}>{renderInline(hm[2], 'h' + key)}</Tag>)
-      i += 1
-      continue
-    }
+    if (hm) { flushPara(); out.push({ key: 'b' + idx++, kind: 'h', level: hm[1].length, text: hm[2] }); i += 1; continue }
     // 分隔线
-    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { flushPara(); out.push(<hr key={'hr' + key++} className="mdr-hr" />); i += 1; continue }
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { flushPara(); out.push({ key: 'b' + idx++, kind: 'hr' }); i += 1; continue }
     // 引用
     if (/^\s*>/.test(line)) {
       flushPara()
       const buf: string[] = []
       while (i < lines.length && /^\s*>/.test(lines[i])) { buf.push(lines[i].replace(/^\s*>\s?/, '')); i += 1 }
-      out.push(<blockquote key={'q' + key++} className="mdr-quote">{renderInline(buf.join(' '), 'q' + key)}</blockquote>)
+      out.push({ key: 'b' + idx++, kind: 'quote', text: buf.join(' ') })
       continue
     }
     // 表格
-    const tbl = tryTable(lines, i)
-    if (tbl) { flushPara(); out.push(<div key={'tbl' + key++} className="mdr-table-wrap">{tbl.node}</div>); i = tbl.next; continue }
+    if (line.indexOf('|') >= 0 && i + 1 < lines.length) {
+      const sep = lines[i + 1]
+      if (/^\s*\|?[\s:|-]+\|?\s*$/.test(sep) && sep.indexOf('-') >= 0) {
+        flushPara()
+        const head = cellsOf(line)
+        const rows: string[][] = []
+        let j = i + 2
+        while (j < lines.length && lines[j].trim().startsWith('|')) { rows.push(cellsOf(lines[j])); j += 1 }
+        out.push({ key: 'b' + idx++, kind: 'table', head, rows })
+        i = j
+        continue
+      }
+    }
     // 列表
     if (/^\s*([-*]\s+|\d+[.)]\s+)/.test(line)) {
       flushPara()
-      const lst = renderList(lines, i)
-      out.push(<div key={'l' + key++} className="mdr-list">{lst.nodes}</div>)
-      i = lst.next
+      const items: ListItem[] = []
+      while (i < lines.length) {
+        const um = /^(\s*)[-*]\s+(.*)$/.exec(lines[i])
+        const om = /^(\s*)\d+[.)]\s+(.*)$/.exec(lines[i])
+        if (um) items.push({ text: um[2], ordered: false, indent: um[1].length })
+        else if (om) items.push({ text: om[2], ordered: true, indent: om[1].length })
+        else break
+        i += 1
+      }
+      out.push({ key: 'b' + idx++, kind: 'list', items })
       continue
     }
     // 空行 → 段落结束
     if (line.trim() === '') { flushPara(); i += 1; continue }
-    // 普通文本行 → 段落
     para.push(line.trim())
     i += 1
   }
   flushPara()
+  return out
+}
+
+/** mermaid 代码块:官方库渲染,失败降级为原文 + 错误提示 */
+function MermaidBlock(props: { code: string }) {
+  const [svg, setSvg] = useState('')
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let stopped = false
+    const dark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+    const id = 'mdr-mmd-' + Math.random().toString(36).slice(2, 10)
+    try {
+      mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' })
+      mermaid.render(id, props.code).then((res) => {
+        if (stopped) return
+        setSvg(res.svg)
+        setError('')
+      }).catch((e) => {
+        if (stopped) return
+        setError(String(e && e.message ? e.message : e))
+      })
+    } catch (e) {
+      if (!stopped) setError(String((e as Error).message || e))
+    }
+    return () => { stopped = true }
+  }, [props.code])
+  return (
+    <div className="mdr-mermaid" data-mdr-noselect>
+      <div className="mdr-pre-lang">mermaid</div>
+      {svg ? <div className="mdr-mermaid-svg" dangerouslySetInnerHTML={{ __html: svg }} /> : null}
+      {error ? (
+        <div className="mdr-mermaid-err">
+          <div className="mdr-card-error">mermaid 渲染失败:{error}</div>
+          <pre className="mdr-pre"><code>{props.code}</code></pre>
+        </div>
+      ) : null}
+      {!svg && !error ? <div className="mdr-card-muted">渲染图中…</div> : null}
+    </div>
+  )
+}
+
+/** 块 → React 节点;extra 按块 key 在对应块下方注入节点(划词批注输入框) */
+export function renderBlocks(blocks: MdBlock[], extra?: Map<string, React.ReactNode>): React.ReactNode[] {
+  const out: React.ReactNode[] = []
+  let liSeq = 0
+  const renderItems = (items: ListItem[], blockKey: string): React.ReactNode[] => {
+    const result: React.ReactNode[] = []
+    let idx = 0
+    while (idx < items.length) {
+      const item = items[idx]
+      const liKey = blockKey + '-li' + liSeq++
+      const children: ListItem[] = []
+      let j = idx + 1
+      while (j < items.length && items[j].indent > item.indent) { children.push(items[j]); j += 1 }
+      const content: React.ReactNode[] = renderInline(item.text, liKey)
+      if (children.length > 0) content.push(renderItems(children, blockKey))
+      result.push(<li key={liKey} className="mdr-li" data-mdr-block data-mdr-key={liKey}>{content}</li>)
+      const ex = extra && extra.get(liKey)
+      if (ex) result.push(<div key={liKey + '-ex'} className="mdr-editor-slot">{ex}</div>)
+      idx = j
+    }
+    return result
+  }
+  for (const b of blocks) {
+    let node: React.ReactNode = null
+    if (b.kind === 'p') {
+      node = <p key={b.key} className="mdr-p" data-mdr-block data-mdr-key={b.key}>{renderInline(b.text || '', b.key)}</p>
+    } else if (b.kind === 'h') {
+      const Tag = ('h' + (b.level || 1)) as 'h1'
+      node = <Tag key={b.key} className={'mdr-h mdr-h' + (b.level || 1)} data-mdr-block data-mdr-key={b.key}>{renderInline(b.text || '', b.key)}</Tag>
+    } else if (b.kind === 'pre') {
+      node = (
+        <pre key={b.key} className="mdr-pre" data-mdr-block data-mdr-key={b.key}>
+          {b.lang ? <div className="mdr-pre-lang">{esc(b.lang)}</div> : null}
+          <code>{b.code || ''}</code>
+        </pre>
+      )
+    } else if (b.kind === 'quote') {
+      node = <blockquote key={b.key} className="mdr-quote" data-mdr-block data-mdr-key={b.key}>{renderInline(b.text || '', b.key)}</blockquote>
+    } else if (b.kind === 'list') {
+      const ordered = (b.items || []).length > 0 && b.items![0].ordered
+      node = ordered
+        ? <ol key={b.key} className="mdr-ol">{renderItems(b.items || [], b.key)}</ol>
+        : <ul key={b.key} className="mdr-ul">{renderItems(b.items || [], b.key)}</ul>
+    } else if (b.kind === 'table') {
+      node = (
+        <div key={b.key} className="mdr-table-wrap" data-mdr-block data-mdr-key={b.key}>
+          <table className="mdr-table">
+            <thead><tr>{(b.head || []).map((h, k) => <th key={k} className="mdr-th">{renderInline(h, 'th' + k)}</th>)}</tr></thead>
+            <tbody>{(b.rows || []).map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci} className="mdr-td">{renderInline(c, 'td' + ri + '-' + ci)}</td>)}</tr>)}</tbody>
+          </table>
+        </div>
+      )
+    } else if (b.kind === 'hr') {
+      node = <hr key={b.key} className="mdr-hr" />
+    } else if (b.kind === 'mermaid') {
+      node = <MermaidBlock key={b.key} code={b.code || ''} />
+    }
+    if (node) {
+      out.push(node)
+      const ex = extra && extra.get(b.key)
+      if (ex) out.push(<div key={b.key + '-ex'} className="mdr-editor-slot">{ex}</div>)
+    }
+  }
   return out
 }

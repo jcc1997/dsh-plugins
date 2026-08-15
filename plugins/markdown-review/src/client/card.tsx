@@ -1,8 +1,9 @@
 // client/card.tsx — 对话流中的 markdown 文档审阅卡片(tool.call.toolview keyed 槽位)
-// 运行中:显示「打开文档」按钮;点开 → 大浮窗渲染 markdown,划词 → 弹批注 input,底部总评,提交/取消。
+// 运行中:显示「打开文档」按钮;点开 → 大浮窗渲染 markdown(含 mermaid);
+// 划词 → 批注输入框嵌入对应段落下方;右侧引用清单;底部总评;提交/取消。
 // 提交:POST /md-api/submit → 宿主 resolve 挂起的 md_doc_open 工具执行 → agent 自动继续;卡片就地展示提交内容。
-import React, { useMemo, useRef, useState } from 'react'
-import { renderMarkdown } from './md'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { parseMarkdownBlocks, renderBlocks } from './md'
 
 /** 宿主 owner props 形状(与 dsh-client-ui-tool 契约一致,同 pipeline 工具卡) */
 export interface ToolViewProps {
@@ -112,37 +113,78 @@ export function MdDocCard(props: ToolViewProps) {
   )
 }
 
-/** 大浮窗:左正文(划词 → 批注)+ 右引用清单 + 底部总评/提交 */
+/** 嵌入段落下方的批注输入框(划词锚定块之后) */
+function AnnotationEditor(props: { text: string; note: string; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (ref.current) ref.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [])
+  return (
+    <div className="mdr-editor" data-mdr-editor ref={ref}>
+      <div className="mdr-editor-quote">{props.text}</div>
+      <textarea
+        className="mdr-editor-input"
+        value={props.note}
+        onChange={(e) => props.onNote(e.target.value)}
+        placeholder="对这段的批注…"
+        rows={2}
+        autoFocus
+      />
+      <div className="mdr-editor-btns">
+        <button className="mdr-btn" type="button" onClick={props.onCancel}>取消</button>
+        <button className="mdr-btn mdr-btn-primary" type="button" onClick={props.onAdd}>添加批注</button>
+      </div>
+    </div>
+  )
+}
+
+/** 大浮窗:左正文(划词 → 段落下方批注)+ 右引用清单 + 底部总评/提交 */
 function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { quotes: QuoteItem[]; comment: string }) => void }) {
   const [quotes, setQuotes] = useState<QuoteItem[]>([])
   const [comment, setComment] = useState('')
-  const [pop, setPop] = useState<{ x: number; y: number; text: string } | null>(null)
+  const [anchor, setAnchor] = useState<{ key: string; text: string } | null>(null)
   const [note, setNote] = useState('')
+  const [hint, setHint] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const contentRef = useRef<HTMLDivElement | null>(null)
+  const blocks = useMemo(() => parseMarkdownBlocks(props.doc.markdown || ''), [props.doc])
 
-  function onMouseUp() {
+  function onMouseUp(e: React.MouseEvent) {
+    const target = e.target as HTMLElement
+    if (target && target.closest && target.closest('[data-mdr-editor]')) return
     const sel = window.getSelection()
     if (!sel || sel.isCollapsed) return
+    const range = sel.getRangeAt(0)
+    const el = contentRef.current
+    if (!el || !el.contains(range.startContainer)) return
+    // 选区不得落在不可引用的区域(mermaid 图等)
+    if (range.startContainer.nodeType === 1 && (range.startContainer as HTMLElement).closest && (range.startContainer as HTMLElement).closest('[data-mdr-noselect]')) return
+    if (range.endContainer.nodeType === 1 && (range.endContainer as HTMLElement).closest && (range.endContainer as HTMLElement).closest('[data-mdr-noselect]')) return
+    const nodeOf = (n: Node): HTMLElement | null => {
+      const e = n.nodeType === 1 ? (n as HTMLElement) : n.parentElement
+      return e && e.closest ? e.closest('[data-mdr-block]') : null
+    }
+    const startBlock = nodeOf(range.startContainer)
+    const endBlock = nodeOf(range.endContainer)
+    if (!startBlock || !endBlock) { setAnchor(null); return }
+    if (startBlock !== endBlock) {
+      setAnchor(null)
+      setHint('划词请保持在同一段落内(不能跨段落/跨块/跨表格)')
+      return
+    }
     const text = sel.toString().trim()
     if (!text) return
-    const el = contentRef.current
-    if (!el) return
-    // 选区必须落在正文容器内
-    const range = sel.getRangeAt(0)
-    if (!el.contains(range.startContainer)) return
-    const rect = range.getBoundingClientRect()
-    setPop({ x: Math.max(12, rect.left + rect.width / 2 - 130), y: rect.bottom + 10, text: text.slice(0, 400) })
+    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400) })
     setNote('')
+    setHint('')
+    sel.removeAllRanges()
   }
 
   function addQuote() {
-    if (!pop) return
-    setQuotes((prev) => [...prev, { id: 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text: pop.text, note: note.trim() }])
-    setPop(null)
+    if (!anchor) return
+    setQuotes((prev) => [...prev, { id: 'q' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), text: anchor.text, note: note.trim() }])
+    setAnchor(null)
     setNote('')
-    const sel2 = window.getSelection()
-    if (sel2) sel2.removeAllRanges()
   }
 
   async function doSubmit() {
@@ -153,6 +195,14 @@ function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { qu
     setSubmitting(false)
   }
 
+  const extra = useMemo(() => {
+    const m = new Map<string, React.ReactNode>()
+    if (anchor) {
+      m.set(anchor.key, <AnnotationEditor text={anchor.text} note={note} onNote={setNote} onAdd={addQuote} onCancel={() => setAnchor(null)} />)
+    }
+    return m
+  }, [anchor, note])
+
   return (
     <div className="mdr-mask" onClick={(e) => { if (e.target === e.currentTarget) props.onClose() }}>
       <div className="mdr-viewer">
@@ -162,9 +212,10 @@ function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { qu
           <span className="mdr-viewer-hint">选中正文即可划词批注</span>
           <button className="mdr-icon-btn" type="button" title="关闭" onClick={props.onClose}>×</button>
         </header>
+        {hint ? <div className="mdr-hint">{hint}</div> : null}
         <div className="mdr-viewer-body">
           <div className="mdr-content" ref={contentRef} onMouseUp={onMouseUp}>
-            {renderMarkdown(props.doc.markdown || '')}
+            {renderBlocks(blocks, extra)}
           </div>
           <aside className="mdr-quotes">
             <div className="mdr-quotes-title">引用批注 {quotes.length}</div>
@@ -178,16 +229,6 @@ function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { qu
             ))}
           </aside>
         </div>
-        {pop ? (
-          <div className="mdr-pop" style={{ left: pop.x, top: pop.y }}>
-            <div className="mdr-pop-text">{pop.text}</div>
-            <textarea className="mdr-pop-input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="对这段的批注…" rows={2} />
-            <div className="mdr-pop-btns">
-              <button className="mdr-btn" type="button" onClick={() => setPop(null)}>取消</button>
-              <button className="mdr-btn mdr-btn-primary" type="button" onClick={addQuote}>添加批注</button>
-            </div>
-          </div>
-        ) : null}
         <footer className="mdr-viewer-foot">
           <textarea className="mdr-comment-input" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="总评(可选):整体意见…" rows={2} />
           <button className="mdr-btn" type="button" onClick={props.onClose}>取消</button>

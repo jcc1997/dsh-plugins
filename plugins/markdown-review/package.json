@@ -47,5 +47,8 @@
     "review",
     "deepseek-harness",
     "cordis"
-  ]
+  ],
+  "dependencies": {
+    "mermaid": "^11.16.1"
+  }
 }

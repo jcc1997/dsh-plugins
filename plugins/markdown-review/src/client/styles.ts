@@ -38,11 +38,13 @@ export const mdrCss = `
 .mdr-quote-note{font-size:12px;color:var(--dsw-alias-state-business-primary);margin-top:4px;white-space:pre-wrap;word-break:break-word}
 .mdr-quote-x{position:absolute;top:4px;right:4px}
 
-/* ══ 划词弹出批注 ══ */
-.mdr-pop{position:fixed;z-index:130;width:260px;background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:10px;box-shadow:var(--dsw-shadow-lv3);display:flex;flex-direction:column;gap:8px}
-.mdr-pop-text{font-size:12px;color:var(--dsw-alias-label-secondary);border-left:3px solid var(--dsw-alias-state-business-primary);padding-left:8px;max-height:72px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
-.mdr-pop-input{box-sizing:border-box;width:100%;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:12px;padding:6px 8px;resize:none;font-family:inherit}
-.mdr-pop-btns{display:flex;justify-content:flex-end;gap:8px}
+/* ══ 划词批注(嵌入对应段落下方) ══ */
+.mdr-hint{padding:6px 16px;font-size:12px;color:var(--dsw-alias-state-warn-primary);border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
+.mdr-editor-slot{display:block}
+.mdr-editor{margin:8px 0;padding:10px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:10px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:8px;max-width:720px}
+.mdr-editor-quote{font-size:12px;color:var(--dsw-alias-label-secondary);border-left:3px solid var(--dsw-alias-state-business-primary);padding-left:8px;max-height:96px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.mdr-editor-input{box-sizing:border-box;width:100%;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:12px;padding:6px 8px;resize:none;font-family:inherit}
+.mdr-editor-btns{display:flex;justify-content:flex-end;gap:8px}
 
 /* ══ 底部总评 ══ */
 .mdr-viewer-foot{display:flex;align-items:flex-end;gap:10px;padding:12px 16px;border-top:1px solid var(--dsw-alias-border-l2);flex:none}
@@ -64,6 +66,12 @@ export const mdrCss = `
 .mdr-a{color:var(--dsw-alias-state-business-primary);text-decoration:none}
 .mdr-a:hover{text-decoration:underline}
 .mdr-table-wrap{overflow-x:auto;margin:10px 0}
+
+/* ══ mermaid 图 ══ */
+.mdr-mermaid{margin:10px 0;background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:10px;padding:12px 14px;overflow-x:auto}
+.mdr-mermaid-svg{display:flex;justify-content:center}
+.mdr-mermaid-svg svg{max-width:100%;height:auto}
+.mdr-mermaid-err .mdr-pre{margin:6px 0 0}
 .mdr-table{border-collapse:collapse;width:100%;font-size:13px}
 .mdr-th,.mdr-td{border:1px solid var(--dsw-alias-border-l2);padding:6px 10px;text-align:left}
 .mdr-th{background:var(--dsw-alias-bg-layer-2);font-weight:600}
