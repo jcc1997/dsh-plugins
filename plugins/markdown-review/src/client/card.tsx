@@ -210,8 +210,8 @@ function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { qu
           <span className="mdr-viewer-title">{props.doc.title || '文档'}</span>
           <span className="mdr-viewer-path" title={props.doc.path || ''}>{props.doc.path || ''}</span>
           <span className="mdr-viewer-hint">选中正文即可划词批注</span>
-          <button className="mdr-icon-btn mdr-close-btn" type="button" title="关闭" aria-label="关闭" onClick={props.onClose}>
-            <IconCloseOutline16 size={20} />
+          <button className="mdr-icon-btn" type="button" title="关闭" aria-label="关闭" onClick={props.onClose}>
+            <IconCloseOutline16 />
           </button>
         </header>
         {hint ? <div className="mdr-hint">{hint}</div> : null}

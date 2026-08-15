@@ -27,9 +27,11 @@ export const mdrCss = `
 .mdr-btn-primary{background:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);color:#fff}
 .mdr-btn-primary:hover{background:var(--dsw-static-deepseek-600);border-color:var(--dsw-static-deepseek-600)}
 body[data-ds-dark-theme] .mdr-btn-primary:hover{background:var(--dsw-static-deepseek-500);border-color:var(--dsw-static-deepseek-500)}
-.mdr-icon-btn{border:none;background:none;cursor:pointer;font-size:16px;line-height:1;color:var(--dsw-alias-label-secondary);padding:4px;border-radius:6px;transition:background 150ms cubic-bezier(.4,0,.2,1)}
+/* icon 按钮(§2.2:宿主同款 28×28 圆形 + hover 背景,glyph 16) */
+.mdr-icon-btn{width:28px;height:28px;border:none;background:none;cursor:pointer;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary);transition:background 150ms cubic-bezier(.4,0,.2,1)}
 .mdr-icon-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .mdr-icon-btn:disabled{opacity:.5;cursor:default;pointer-events:none}
+.mdr-icon-btn:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(65,118,230,.18)}
 .mdr-icon-confirm{color:var(--dsw-alias-state-business-primary)}
 .mdr-icon-confirm:hover{color:var(--dsw-alias-state-business-primary)}
 
@@ -41,7 +43,6 @@ body[data-ds-dark-theme] .mdr-btn-primary:hover{background:var(--dsw-static-deep
 .mdr-viewer-title{font-weight:600;font-size:14px;flex:none}
 .mdr-viewer-path{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--dsw-alias-label-tertiary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .mdr-viewer-hint{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary)}
-.mdr-close-btn{width:28px;height:28px;font-size:20px;display:flex;align-items:center;justify-content:center;padding:0}
 .mdr-hint{padding:8px 16px;font-size:12px;color:var(--dsw-alias-state-warn-primary);border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
 .mdr-submit-error{color:var(--dsw-alias-state-error-primary)}
 
@@ -56,7 +57,7 @@ body[data-ds-dark-theme] .mdr-btn-primary:hover{background:var(--dsw-static-deep
 .mdr-quote-item{position:relative;background:var(--dsw-alias-bg-layer-2);border-radius:8px;padding:12px 28px 12px 12px}
 .mdr-quote-text{font-size:12px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word}
 .mdr-quote-note{font-size:12px;color:var(--dsw-alias-state-business-primary);margin-top:4px;white-space:pre-wrap;word-break:break-word}
-.mdr-quote-x{position:absolute;top:6px;right:6px}
+.mdr-quote-x{position:absolute;top:4px;right:4px}
 
 /* ══ §4 划词批注框(嵌段落下方;左:选中原文 / 右:批注输入) ══ */
 .mdr-editor-slot{display:block}
