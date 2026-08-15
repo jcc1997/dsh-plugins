@@ -57,7 +57,8 @@ export function PipelinePage(props: { onClose: () => void; focusRunId?: string |
     }
   }, [props.focusRunId])
 
-  const nav = (v: 'list' | 'runs' | 'settings') => { setView(v); setEditing(null) }
+  // 导航切换即重新加载(面板数据只在打开时加载一次,不轮询;切换/重进视图触发刷新)
+  const nav = (v: 'list' | 'runs' | 'settings') => { setView(v); setEditing(null); load() }
   const openEditor = (id: string) => { setEditing(id); setView('editor') }
   const backToList = () => { setEditing(null); setView('list') }
 
