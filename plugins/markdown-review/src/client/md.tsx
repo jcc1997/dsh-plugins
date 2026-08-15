@@ -11,7 +11,7 @@ function esc(s: string): string {
 /** 行内解析:**bold** *italic* `code` ~~strike~~ [text](url);单层递归(粗体内可再解析行内) */
 function renderInline(text: string, keyPrefix: string, depth = 0): React.ReactNode[] {
   const out: React.ReactNode[] = []
-  const re = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|~~[^~]+~~|\[[^\]]+\]\([^)]+\))/g
+  const re = /(!\[[^\]]+\]\([^)]+\)|`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|~~[^~]+~~|\[[^\]]+\]\([^)]+\))/g
   let last = 0
   let m: RegExpExecArray | null
   let i = 0
@@ -19,7 +19,14 @@ function renderInline(text: string, keyPrefix: string, depth = 0): React.ReactNo
     if (m.index > last) out.push(esc(text.slice(last, m.index)))
     const tok = m[0]
     const key = keyPrefix + '-i' + i++
-    if (tok.startsWith('`')) {
+    if (tok.startsWith('![')) {
+      const im = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(tok)
+      if (im) {
+        out.push(<img key={key} className="mdr-img" src={esc(im[2])} alt={esc(im[1] || 'image')} loading="lazy" />)
+      } else {
+        out.push(esc(tok))
+      }
+    } else if (tok.startsWith('`')) {
       out.push(<code key={key} className="mdr-inline-code">{esc(tok.slice(1, -1))}</code>)
     } else if (tok.startsWith('**') || tok.startsWith('__')) {
       const inner = tok.slice(2, -2)

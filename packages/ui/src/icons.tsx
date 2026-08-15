@@ -5,7 +5,7 @@ import type { IconProps } from './icon-props'
 export const IconCheckOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path
-      d="M3.3 8.4L6.6 11.7L12.7 4.4"
+      d="M3.2 8.2L6.8 11.8L12.9 4.2"
       stroke="currentColor"
       strokeWidth="1.3"
       strokeLinecap="round"

@@ -48,11 +48,11 @@ body[data-ds-dark-theme] .mdr-btn-primary:hover{background:var(--dsw-static-deep
 
 /* 主体两栏:左 = md 内容(上)+ 总评输入(下);右 = 审批内容 */
 .mdr-viewer-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px}
-.mdr-main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.mdr-main{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
 .mdr-content{flex:1;min-height:0;overflow-y:auto;padding:24px 28px;user-select:text;cursor:text;min-width:0}
-.mdr-main-input{flex:none;padding:12px 16px;border-top:1px solid var(--dsw-alias-border-l2)}
+.mdr-main-input{flex:none;padding:12px 16px}
 .mdr-main-input .cmp-composer{width:100%}
-.mdr-quotes{border-left:1px solid var(--dsw-alias-border-l2);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.mdr-quotes{overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .mdr-quotes-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-secondary)}
 .mdr-quote-item{position:relative;background:var(--dsw-alias-bg-layer-2);border-radius:8px;padding:12px 28px 12px 12px}
 .mdr-quote-text{font-size:12px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word}
@@ -61,7 +61,7 @@ body[data-ds-dark-theme] .mdr-btn-primary:hover{background:var(--dsw-static-deep
 
 /* ══ §4 划词批注框(嵌段落下方;左:选中原文 / 右:批注输入) ══ */
 .mdr-editor-slot{display:block}
-.mdr-editor{margin:12px 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,1.05fr);align-items:start;gap:12px;min-width:0}
+.mdr-editor{margin:12px 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,1.05fr);align-items:start;gap:12px;min-width:0;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);border-radius:8px;padding:12px}
 .mdr-editor .cmp-composer{min-width:0}
 .mdr-editor-quote{min-width:0;font-size:12px;color:var(--dsw-alias-label-secondary);border-left:3px solid var(--dsw-alias-state-business-primary);padding-left:8px;max-height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
 
@@ -78,6 +78,7 @@ body[data-ds-dark-theme] .mdr-btn-primary:hover{background:var(--dsw-static-deep
 .mdr-ul,.mdr-ol{margin:8px 0;padding-left:24px;line-height:1.7}
 .mdr-li{margin:4px 0}
 .mdr-hr{border:none;border-top:1px solid var(--dsw-alias-border-l2);margin:16px 0}
+.mdr-img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);display:inline-block;vertical-align:middle}
 .mdr-a{color:var(--dsw-alias-state-business-primary);text-decoration:none}
 .mdr-a:hover{text-decoration:underline}
 .mdr-table-wrap{overflow-x:auto;margin:12px 0}
