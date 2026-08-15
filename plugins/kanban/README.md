@@ -43,7 +43,7 @@ DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板�
 
 ### 3. code checker：沙箱里有什么
 
-代码在**宿主 codeRuntime 的 worker 沙箱**中执行（与 run_code 同款隔离：空环境、heap/时间预算、可硬杀；语义为「containment not security」——代码拥有与 bash 等同的信任）。代码为 TypeScript 风格，支持 top-level await，**顶层 return 判定结果**：`return { ok: true }` 通过，`return { ok: false, reason: '…' }` 拒绝（兼容旧写法：console.log 最后一行 JSON 同样被解析）。
+代码在**宿主 codeRuntime 的 worker 沙箱**中执行（与 run_code 同款隔离：空环境、heap/时间预算、可硬杀；语义为「containment not security」——代码拥有与 bash 等同的信任）。代码为 TypeScript 风格，支持 top-level await，**判定结果一律由顶层 return 给出**：`return { ok: true }` 通过，`return { ok: false, reason: '…' }` 拒绝。
 
 沙箱内可用全局对象 **`gate`**：
 

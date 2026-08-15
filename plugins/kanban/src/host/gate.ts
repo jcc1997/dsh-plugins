@@ -171,12 +171,8 @@ async function runCodeOnRuntime(code: string, _script: string | null, card: any,
     if (result.error) {
       return { name: gate.name || 'code', type: 'code', reason: 'code 运行失败(' + result.error.kind + ')：' + result.error.message }
     }
-    // 判定：顶层 return {ok} 优先；否则 logs 最后一行 JSON
-    let verdict: any = result.value !== undefined ? result.value : null
-    if (!verdict && Array.isArray(result.logs) && result.logs.length > 0) {
-      const last = result.logs[result.logs.length - 1].trim()
-      try { verdict = last ? JSON.parse(last) : null } catch { /* 非 JSON */ }
-    }
+    // 判定：唯一通道 = 顶层 return {ok, reason?}
+    const verdict: any = result.value !== undefined ? result.value : null
     if (verdict && typeof verdict === 'object' && verdict.ok === true) return null
     if (verdict && typeof verdict === 'object' && verdict.ok === false) return { name: gate.name || 'code', type: 'code', reason: String((verdict as any).reason || '未通过') }
     if (verdict === 'ok' || verdict === true) return null
@@ -293,7 +289,7 @@ export function validateGate(gate: any): string | null {
 export function checkerDefaults(type: string): Record<string, unknown> {
   if (type === 'tag-required') return { tags: [] }
   if (type === 'field-nonempty') return { field: 'description' }
-  if (type === 'code') return { code: "const fs = await import('node:fs/promises');\nconst { card } = JSON.parse(await fs.readFile(process.argv[2], 'utf8'));\n// 示例:标题长度必须 > 5\nconsole.log(JSON.stringify({ ok: String(card.title || '').length > 5, reason: 'title too short' }))" }
+  if (type === 'code') return { code: "const c = await gate.card({});\n// 示例:标题长度必须 > 5\nreturn { ok: String(c.title || '').length > 5, reason: 'title too short' }" }
   if (type === 'pipeline') return { pipelines: [] }
   return {}
 }

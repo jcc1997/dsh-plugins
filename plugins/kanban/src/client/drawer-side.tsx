@@ -364,7 +364,7 @@ function GateCard(props: {
       if (kind === 'tag-required') config = { tags: [] }
       if (kind === 'field-nonempty') config = { field: 'description' }
       if (kind === 'pipeline') config = { pipelines: [] }
-      if (kind === 'code') config = { code: "const fs = await import('node:fs/promises');\nconst { card } = JSON.parse(await fs.readFile(process.argv[2], 'utf8'));\nconsole.log(JSON.stringify({ ok: true }))" }
+      if (kind === 'code') config = { code: "const c = await gate.card({});\nreturn { ok: true, reason: '示例' }" }
     }
     props.onAddGate({
       id: safeId('g'),
