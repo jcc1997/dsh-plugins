@@ -3,11 +3,11 @@
 // agent 工具在 host/tools.ts（11 个）。
 // 接入点（正式形态）：ctx.webServer.register 暴露 /pipeline-api/*（client UI 数据通道）；
 //       ctx.tools.register(defineTool(...)) 注册 agent 工具；ctx.provide('pipeline') 跨插件服务。
-// 沙箱/LLM 子 agent 节点延后实现：engine 留了 runLlm 注入点，当前 llm 节点返回占位。
+// llm 节点已接入宿主 agents 服务（runLlm 注入）；未接入时 fail-closed（节点失败而非占位成功）。
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import {
   FsLike, readDoc, writeDoc, mutateDoc, findPipeline, findVersion, listCatalog,
-  createPipeline, updatePipeline, publishPipeline, deletePipeline, deletePipelineVersion, enqueueRun,
+  createPipeline, updatePipeline, publishPipeline, deletePipeline, deletePipelineVersion, enqueueRun, importPipelines,
 } from './host/store'
 import { Pipeline, PipelineNode, PipelineRun, now, safeId, defaultPipeline } from './host/models'
 import { RunQueue, ShellLike, executePipeline } from './host/engine'
@@ -30,11 +30,87 @@ export function apply(ctx: PipelineCtx) {
   const tools = ctx.get('tools') as { register(def: unknown): () => void } | undefined
   const shell = ctx.get('shell') as ShellLike | undefined
 
+  /* ── llm 节点：接入宿主 agents 服务（评审 agent 执行）；未接入时引擎侧 fail-closed ── */
+  const agents = ctx.get('agents') as any
+  const liveAgents = new Map<string, any>()   // 评审会话常驻表：sessionId -> AgentHandle（失败轮次保留供续评）
+  const readLastAssistantText = (agent: any): string => {
+    try {
+      const msgs = agent && agent.session && typeof agent.session.deriveMessages === 'function' ? agent.session.deriveMessages() : []
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const m = msgs[i]
+        if (m && m.role === 'assistant' && typeof m.content === 'string' && m.content.trim()) return m.content
+      }
+      return ''
+    } catch { return '' }
+  }
+  const parseVerdict = (text: string): { ok: boolean; issues?: unknown[] } | null => {
+    if (typeof text !== 'string') return null
+    const m = text.match(/REVIEW_VERDICT:\s*(\{[\s\S]*\})\s*$/)
+    if (!m) return null
+    try {
+      const v = JSON.parse(m[1])
+      if (v && typeof v === 'object' && typeof (v as any).ok === 'boolean') {
+        return { ok: (v as any).ok, issues: Array.isArray((v as any).issues) ? (v as any).issues : [] }
+      }
+    } catch { /* 非法 JSON → null（fail-closed） */ }
+    return null
+  }
+  const cwd = typeof process !== 'undefined' && process.cwd ? process.cwd() : undefined
+  const runLlm: ((prompt: string, up: Record<string, unknown>, conf: Record<string, unknown>) => Promise<string>) | undefined =
+    agents && typeof agents.create === 'function'
+      ? async (prompt, up, conf) => {
+          const sessionKey = typeof conf.sessionKey === 'string' && conf.sessionKey.trim() ? conf.sessionKey.trim() : ''
+          const sessionId = sessionKey || safeId('a')
+          const timeoutMs = typeof conf.timeoutMs === 'number' ? conf.timeoutMs : 600000
+          const agentOptions: Record<string, unknown> = {}
+          if (typeof conf.provider === 'string' && conf.provider) agentOptions.provider = conf.provider
+          if (typeof conf.model === 'string' && conf.model) agentOptions.model = conf.model
+          if (typeof conf.maxTokens === 'number') agentOptions.maxTokens = conf.maxTokens
+          let handle: any = sessionKey ? liveAgents.get(sessionId) : null
+          try {
+            // 续评：恢复上一轮持久化 session（宿主重启后仍有效）
+            if (!handle && sessionKey && typeof agents.resume === 'function') {
+              try { handle = await agents.resume({ resumeSessionId: sessionId, agentOptions }) } catch { handle = null }
+            }
+            if (!handle) {
+              handle = await agents.create({
+                sessionId,
+                meta: { ...(cwd ? { cwd } : {}), origin: 'subagent', agentPreset: typeof conf.agentPreset === 'string' && conf.agentPreset ? conf.agentPreset : 'review' },
+                agentOptions,
+              })
+            }
+            if (sessionKey) liveAgents.set(sessionId, handle)
+            const agent = handle && handle.agent
+            if (!agent) throw new Error('agent 创建失败')
+            const timer = setTimeout(() => { try { agent.cancel('timeout') } catch { /* ignore */ } }, timeoutMs)
+            try {
+              agent.followup({ role: 'user', content: prompt })
+              await agent.whenIdle()
+              const text = readLastAssistantText(agent)
+              // 通过（ok:true）→ 闭环释放；失败/解析失败 → 保留 handle 供下一轮续评
+              const verdict = parseVerdict(text)
+              if (verdict && verdict.ok === true && sessionKey) {
+                liveAgents.delete(sessionId)
+                try { await handle.dispose() } catch { /* ignore */ }
+              }
+              return text
+            } finally {
+              clearTimeout(timer)
+            }
+          } catch (e) {
+            if (sessionKey) liveAgents.delete(sessionId)
+            try { if (handle) await handle.dispose() } catch { /* ignore */ }
+            throw e
+          }
+        }
+      : undefined
+
   /* ── 运行引擎（队列 + 注册表） ── */
   const queue = new RunQueue(fs, {
     fs,
     shell,
     onRunUpdate: async () => { /* 执行器内部自行落盘 */ },
+    ...(runLlm ? { runLlm } : {}),
   })
 
   /* ── HTTP 路由：client UI 数据通道（POST /pipeline-api/*，body JSON） ── */
@@ -108,6 +184,17 @@ export function apply(ctx: PipelineCtx) {
   route('/pipeline-api/run', async (args: any) => {
     const { runId, run } = await queue.submit(String(args.pipeline_id), args.version || 'latest', args.inputs || {}, 'ui')
     return { ok: true, run_id: runId, status: run.status }
+  })
+
+  // 导入（模板分发：按稳定 id 幂等 upsert）
+  route('/pipeline-api/import', async (args: any) => {
+    const defs = (args && args.config && Array.isArray(args.config.pipelines)) ? args.config.pipelines : []
+    if (defs.length === 0) return { ok: false, error: 'config.pipelines 为空' }
+    return mutateDoc(fs, (doc) => {
+      const r = importPipelines(doc, defs)
+      if (!r.ok) return r
+      return { ok: true, imported: r.imported }
+    })
   })
   // dock 常驻条数据:全部运行倒序(运行中置顶)+ pipeline 名称映射
   route('/pipeline-api/dock-runs', async () => {

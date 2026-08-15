@@ -335,15 +335,38 @@ function resolveNodeRefObj(conf: Record<string, unknown>): { pipelineId: string;
   return { pipelineId: ref.slice(0, at), version: ref.slice(at + 1) }
 }
 
-/** llm 节点：优先用注入的 runLlm（沙箱子 agent）；缺省返回可读的延后提示 */
+/** llm 节点：通过注入的 runLlm（宿主 agent 服务）执行；未注入时 fail-closed（拒绝而非占位成功） */
 async function runLlmNode(node: PipelineNode, ctx: NodeExecContext): Promise<Record<string, unknown>> {
   const prompt = typeof node.config.prompt === 'string' ? interpolate(node.config.prompt, ctx) : truncate(JSON.stringify(ctx.up))
-  if (ctx.runLlm) {
-    const text = await ctx.runLlm(prompt, ctx.up, node.config)
-    return { output: text }
+  // 可选 sessionKey：按 key 复用/续评 agent 会话（如 "review-{input.card.id}"）
+  const conf: Record<string, unknown> = { ...node.config }
+  if (typeof node.config.sessionKey === 'string' && node.config.sessionKey.trim()) {
+    conf.sessionKey = interpolate(node.config.sessionKey, ctx)
   }
-  // 沙箱/LLM 延后实现：返回结构化占位
-  return { output: '', note: 'LLM 节点即将支持（沙箱子 agent 延后实现，当前为占位）', prompt }
+  if (!ctx.runLlm) {
+    throw new Error('LLM 节点未接入 agent 服务（runLlm 未注入，fail-closed：宁可失败不可假放行）')
+  }
+  const text = await ctx.runLlm(prompt, ctx.up, conf)
+  const verdict = parseVerdict(text)
+  if (verdict && verdict.ok === true) return { output: text, verdict }
+  const issues = verdict && Array.isArray(verdict.issues) ? verdict.issues : []
+  const summary = issues.slice(0, 20).map((i: any) => String((i && i.file) || '') + ((i && i.location) ? ':' + i.location : '') + ' ' + String((i && i.message) || '')).join('；').trim()
+  const detail = summary || ('verdict 解析失败（输出未以 REVIEW_VERDICT:{"ok":true|false,"issues":[...]} 结尾）：' + text.slice(-200))
+  return { output: text, ...(verdict ? { verdict } : {}), error: '评审未通过：' + detail }
+}
+
+/** 解析 agent 输出尾行 verdict：REVIEW_VERDICT:{"ok":true|false,"issues":[...]} */
+function parseVerdict(text: unknown): { ok: boolean; issues?: unknown[] } | null {
+  if (typeof text !== 'string') return null
+  const m = text.match(/REVIEW_VERDICT:\s*(\{[\s\S]*\})\s*$/)
+  if (!m) return null
+  try {
+    const v = JSON.parse(m[1])
+    if (v && typeof v === 'object' && typeof (v as any).ok === 'boolean') {
+      return { ok: (v as any).ok, issues: Array.isArray((v as any).issues) ? (v as any).issues : [] }
+    }
+  } catch { /* 非法 JSON → null（fail-closed） */ }
+  return null
 }
 
 function isSoftError(node: PipelineNode, result: Record<string, unknown>): boolean {
