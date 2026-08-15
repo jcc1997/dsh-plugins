@@ -9,10 +9,10 @@ export function gateToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
   return [
     {
       name: 'kanban_gate_add',
-      description: '给卡片挂一个门禁：指定行为（move 移动状态 / tags 增减标签 / archive 归档）触发时检查，不通过则拒绝动作。kind：mr-merged（关联 MR 已合并才能动作）/ tag-required（必须含指定标签）/ field-nonempty（字段非空）。move 可配 config.to 限定目标列名。',
+      description: '给卡片挂一个门禁：指定行为（move 移动状态 / tags 增减标签 / archive 归档）触发时检查，不通过则拒绝动作。kind：mr-merged（关联 MR 已合并才能动作）/ mr-linked（必须已关联 MR）/ tag-required（必须含指定标签）/ field-nonempty（字段非空）。move 可配 config.to 限定目标列名。',
       parameters: P({
         card_id: STR('卡片 id', true),
-        kind: STR('门禁类型：mr-merged / tag-required / field-nonempty', true),
+        kind: STR('门禁类型：mr-merged / mr-linked / tag-required / field-nonempty', true),
         on: STR('触发行为：move / tags / archive', true),
         name: STR('门禁名（可选，展示用）'),
         config: OBJ('条件配置：tag-required 需 {tags:[...]}；field-nonempty 需 {field:"description"}；move 可带 {to:"列名"}'),

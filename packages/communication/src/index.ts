@@ -4,7 +4,7 @@
 //   client 半：const comm = createComm({ env: 'dynamic-client', ctx, host })
 //   部署后：const comm = createComm({ env: 'deployed-host', ctx })
 // 业务代码只 import 本包，不直接碰 harness/host.call/ctx.emit —— 开发与部署两形态由此抹平。
-import { Communication, CommEnvironment } from './types'
+import { Communication, CommEnvironment, ServiceLocator } from './types'
 import { serviceBus, cordisBus } from './bus'
 import { dynamicHostRpc, dynamicClientRpc, deployedRpc } from './rpc'
 
@@ -23,7 +23,7 @@ export interface CommOptions {
 
 export function createComm(opts: CommOptions): Communication {
   const { env, ctx, harness, host } = opts
-  const services = { get: (name: string) => (ctx ? ctx.get(name) : undefined) }
+  const services = { get: (name: string) => (ctx ? ctx.get(name) : undefined) } as ServiceLocator
 
   let bus: Communication['bus']
   if (env === 'dynamic-host' || env === 'dynamic-client') {

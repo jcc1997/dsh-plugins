@@ -41,8 +41,8 @@ export interface CardGate {
   id: string
   /** 门禁名（展示用） */
   name: string
-  /** 条件类型：mr-merged（关联 MR 已合并）/ tag-required（必须含指定标签）/ field-nonempty（字段非空） */
-  kind: 'mr-merged' | 'tag-required' | 'field-nonempty'
+  /** 条件类型：mr-merged（关联 MR 已合并）/ mr-linked（必须已关联 MR）/ tag-required（必须含指定标签）/ field-nonempty（字段非空） */
+  kind: 'mr-merged' | 'mr-linked' | 'tag-required' | 'field-nonempty'
   /** 触发行为：move（移动状态）/ tags（增减标签）/ archive（归档） */
   on: 'move' | 'tags' | 'archive'
   /** 条件配置：mr-merged 无；tag-required { tags: [] }；field-nonempty { field: 'description' }；move 可带 { to: '列名' } 限定目标 */

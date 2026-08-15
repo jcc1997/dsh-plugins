@@ -3,7 +3,7 @@
 // 接入点（正式形态）：ctx.webServer.register 暴露 /api/kanban/*（client UI 数据通道）；
 //       ctx.tools.register(defineTool(...)) 注册 agent 工具；ctx.provide('kanban') 跨插件服务。
 // v4：门禁引擎（host/gate.ts）+ 创建模板（board.templates）；credentials 供 mr-merged 门禁查 GitHub。
-import { FsLike, findCardAny, mutateBoard, readBoard, resolveDataDir, defaultBoard, appendActivity, now, normalizeBoard } from './host/board'
+import { FsLike, findCardAny, findCardGlobal, mutateBoard, readBoard, resolveDataDir, resolveColumn, defaultBoard, appendActivity, now, normalizeBoard } from './host/board'
 import { buildToolDefs } from './host/tools'
 import { checkGates, GateAction } from './host/gate'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -172,6 +172,29 @@ export function apply(ctx: KanbanCtx) {
       }
       for (const card of board.archive || []) push(card, '归档', true)
       return out
+    },
+    /** 卡片所在列名（供 git 等插件做状态检查；归档返回 status=归档） */
+    getCardStatus: async (cardId: string) => {
+      const dataDir = await resolveDataDir(fs)
+      const board = (await readBoard(fs, dataDir)) || defaultBoard()
+      const hit = findCardAny(board, String(cardId))
+      if (!hit) return null
+      return { status: hit.archived ? '归档' : (hit.col ? hit.col.title : '归档'), archived: hit.archived }
+    },
+    /** 跨列移动（程序动作，供 git 合并后自动流转；target 传列名或列 id） */
+    moveCard: async (cardId: string, target: string, activityText?: string) => {
+      return mutateBoard(fs, (board: any) => {
+        const hit = findCardGlobal(board, String(cardId))
+        if (!hit) return { ok: false, error: 'card not found（或已归档）: ' + cardId }
+        const to = resolveColumn(board, target)
+        if (!to) return { ok: false, error: 'column not found: ' + target }
+        if (to.id === hit.col.id) return { ok: true, card_id: cardId, from: to.title, to: to.title, unchanged: true }
+        hit.col.cards = hit.col.cards.filter((k: any) => k.id !== hit.card.id)
+        hit.card.updatedAt = now()
+        appendActivity(hit.card, activityText || ('状态变更：' + hit.col.title + ' → ' + to.title))
+        to.cards.push(hit.card)
+        return { ok: true, card_id: cardId, from: hit.col.title, to: to.title }
+      })
     },
   }
   ctx.provide('kanban', kanbanService)

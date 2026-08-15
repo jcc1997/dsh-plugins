@@ -318,6 +318,7 @@ function TagInput(props: { onAdd: (tag: string) => void }) {
 /* ── 门禁卡片（v4）：列表 + 添加折叠表单 ── */
 const GATE_KINDS: { kind: string; label: string }[] = [
   { kind: 'mr-merged', label: 'MR 已合并' },
+  { kind: 'mr-linked', label: '已关联 MR' },
   { kind: 'tag-required', label: '必须含标签' },
   { kind: 'field-nonempty', label: '字段非空' },
 ]
@@ -327,11 +328,12 @@ const GATE_ONS: { on: string; label: string }[] = [
   { on: 'archive', label: '归档' },
 ]
 const GATE_ON_LABEL: Record<string, string> = { move: '移动状态', tags: '增减标签', archive: '归档' }
-const GATE_KIND_LABEL: Record<string, string> = { 'mr-merged': 'MR 已合并', 'tag-required': '必须含标签', 'field-nonempty': '字段非空' }
+const GATE_KIND_LABEL: Record<string, string> = { 'mr-merged': 'MR 已合并', 'mr-linked': '已关联 MR', 'tag-required': '必须含标签', 'field-nonempty': '字段非空' }
 
 function gateSummary(g: CardGate): string {
   if (g.kind === 'tag-required') return '需含标签：' + String(((g.config && g.config.tags) || [])).replace(/,/g, ', ')
   if (g.kind === 'field-nonempty') return '字段「' + String((g.config && g.config.field) || 'description') + '」非空'
+  if (g.kind === 'mr-linked') return '必须已关联仓库与 MR'
   return '关联 MR 必须已合并'
 }
 

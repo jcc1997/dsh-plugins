@@ -30,6 +30,8 @@ interface KanbanLike {
   getCard(cardId: string): Promise<any | null>
   updateCard(cardId: string, patch: any): Promise<{ ok: boolean; error?: string }>
   listCards(): Promise<Array<{ id: string; title: string; taskId: string | null }>>
+  getCardStatus?(cardId: string): Promise<{ status: string; archived: boolean } | null>
+  moveCard?(cardId: string, target: string, activityText?: string): Promise<{ ok: boolean; error?: string }>
 }
 const TOKEN_REF = 'GITHUB_TOKEN'
 const DEFAULT_DIR = '/Users/jinchao.chen/.dsh/git'
@@ -474,9 +476,9 @@ export function apply(ctx: GitCtx) {
         },
         {
           name: 'git_merge_pr',
-          description: '合并仓库的 GitHub MR（PR）：合并后自动触发该卡 git_sync 刷新状态（state → merged）。仓库来源：卡片 github-repo 关联 > git_configure 配置。',
+          description: '合并仓库的 GitHub MR（PR）：合并前检查关联卡片必须处于 Stage 列（workflow 门禁）；合并后自动触发该卡 git_sync 刷新状态，并自动把卡片移入 Done 列。仓库来源：卡片 github-repo 关联 > git_configure 配置。',
           parameters: P({
-            card_id: STR('卡片 id（可选；用于解析仓库并自动同步）'),
+            card_id: STR('卡片 id（可选；用于解析仓库、Stage 状态检查与合并后自动流转）'),
             owner: STR('仓库 owner（可选，覆盖卡片/配置）'),
             repo: STR('仓库名（可选，覆盖卡片/配置）'),
             mr_number: STR('MR 号（必填）'),
@@ -501,6 +503,17 @@ export function apply(ctx: GitCtx) {
               if (cfg.repo && cfg.repo.owner && cfg.repo.name) { o = o || cfg.repo.owner; n = n || cfg.repo.name }
             }
             if (!o || !n) return { ok: false, error: 'no repo configured（git_configure 或卡片 github-repo 关联）' }
+            // workflow 门禁：卡片必须处于 Stage 列才允许合并
+            let stageCheck: any = null
+            if (cardId) {
+              const kanban = kanbanSvc()
+              if (kanban && typeof kanban.getCardStatus === 'function') {
+                stageCheck = await kanban.getCardStatus(cardId)
+                if (!stageCheck || stageCheck.status !== 'Stage') {
+                  return { ok: false, error: '门禁未通过：卡片必须处于 Stage 列才能合并 MR（当前：' + (stageCheck ? stageCheck.status : '未找到卡片') + '）' }
+                }
+              }
+            }
             // PUT /pulls/{number}/merge —— 走 curl+token（同 ghFetch 机制）
             const url = 'https://api.github.com/repos/' + encodeURIComponent(o) + '/' + encodeURIComponent(n) + '/pulls/' + encodeURIComponent(number) + '/merge'
             let token: string | undefined
@@ -527,10 +540,17 @@ export function apply(ctx: GitCtx) {
               return { ok: false, error: 'merge request failed: ' + String(e && (e as Error).message ? (e as Error).message : e) }
             }
             if (status >= 200 && status < 300) {
-              // 合并成功 → 自动同步该卡刷新状态
+              // 合并成功 → 自动同步该卡刷新状态 → 自动把卡片移入 Done 列（workflow 收尾）
               let syncRes: any = null
-              if (cardId) syncRes = await syncCard(cardId)
-              return { ok: true, merged: true, mergedAt: (data && data.merged_at) || null, message: (data && data.message) || 'merged', autoSynced: !!syncRes, sync: syncRes || null }
+              let moveRes: any = null
+              if (cardId) {
+                syncRes = await syncCard(cardId)
+                const kanban = kanbanSvc()
+                if (kanban && typeof kanban.moveCard === 'function') {
+                  moveRes = await kanban.moveCard(cardId, 'Done', 'MR #' + number + ' 已合并 → 自动移入 Done')
+                }
+              }
+              return { ok: true, merged: true, mergedAt: (data && data.merged_at) || null, message: (data && data.message) || 'merged', autoSynced: !!syncRes, sync: syncRes || null, autoMovedToDone: !!moveRes, move: moveRes || null }
             }
             return { ok: false, httpStatus: status, error: (data && (data.message || JSON.stringify(data))) || 'merge failed (HTTP ' + status + ')' }
           },

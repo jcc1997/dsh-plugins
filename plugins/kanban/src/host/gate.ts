@@ -50,6 +50,20 @@ async function checkOne(gate: CardGate, card: any, deps: GateCheckDeps, extra?: 
     }
     return null
   }
+  if (gate.kind === 'mr-linked') {
+    const refs: any[] = Array.isArray(card.refs) ? card.refs : []
+    const repoRef = refs.find((r) => r.kind === 'github-repo')
+    const mrRefs = refs.filter((r) => r.kind === 'github-mr' && r.externalId)
+    const snap = card.meta && card.meta.sync && card.meta.sync.github && card.meta.sync.github.snapshot
+    const snapMrs = snap && Array.isArray(snap.mrs) ? snap.mrs : []
+    if (!repoRef || !repoRef.externalId) {
+      return { name: gate.name || gate.kind, kind: gate.kind, reason: '卡片未关联 GitHub 仓库（github-repo）' }
+    }
+    if (mrRefs.length === 0 && snapMrs.length === 0) {
+      return { name: gate.name || gate.kind, kind: gate.kind, reason: '卡片未关联 MR（github-mr）——请先 git_link 建 MR 关联' }
+    }
+    return null
+  }
   if (gate.kind === 'mr-merged') {
     const refs: any[] = Array.isArray(card.refs) ? card.refs : []
     const repoRef = refs.find((r) => r.kind === 'github-repo')
@@ -105,7 +119,7 @@ export async function checkGates(
 /** 校验门禁定义（新增时输入合法性） */
 export function validateGate(gate: any): string | null {
   if (!gate || typeof gate !== 'object') return '门禁定义缺失'
-  if (!['mr-merged', 'tag-required', 'field-nonempty'].includes(gate.kind)) return '未知门禁类型：' + gate.kind
+  if (!['mr-merged', 'mr-linked', 'tag-required', 'field-nonempty'].includes(gate.kind)) return '未知门禁类型：' + gate.kind
   if (!['move', 'tags', 'archive'].includes(gate.on)) return '未知触发行为：' + gate.on
   if (gate.kind === 'tag-required' && (!gate.config || !Array.isArray(gate.config.tags) || gate.config.tags.length === 0)) return 'tag-required 需要 config.tags 数组'
   if (gate.kind === 'field-nonempty' && (!gate.config || !gate.config.field)) return 'field-nonempty 需要 config.field'
@@ -116,5 +130,7 @@ export function validateGate(gate: any): string | null {
 export function gateDefaults(kind: string): Record<string, unknown> {
   if (kind === 'tag-required') return { tags: [] }
   if (kind === 'field-nonempty') return { field: 'description' }
+  if (kind === 'mr-linked') return {}
+  if (kind === 'mr-merged') return {}
   return {}
 }
