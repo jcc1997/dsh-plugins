@@ -66,7 +66,13 @@
   3. `out`（output）：汇总输出（agent 文本 + verdict 结构）。
 - 评审通过时输出含 `verdict: {ok:true}`；不通过时 pipeline 失败（error 携带 issues 摘要）。
 
-#### 4.2.2 review prompt 真源（workflow-template/prompts/review.md）
+#### 4.2.2 review agent 精简上下文（token 节省）
+
+- review agent 用**精简预设**（`workflow-template/agent-presets/review/`）：只注册评审所需的最小工具集——fs 读写/搜索 + bash（跑 git diff），**不注册** skills、web、subagent、workflow、pipeline 等与评审无关的能力；persona 一段话，不叠多余 prompt 段。
+- llm 节点 config `agentPreset: "review"` 指定；评审所需的规范/红线知识由 agent 自己用 fs 读仓库内文件（review.md / docs/ui-design / AGENTS.md），不靠 skill 目录。
+- 卡片上下文只注入必要字段（repo/branch/mr 关联 + 标题），不整卡全量塞 prompt。
+
+#### 4.2.3 review prompt 真源（workflow-template/prompts/review.md）
 
 - 结构：
   1. 角色与目标：只评审、不改代码；最终给出严格 verdict；
@@ -77,7 +83,7 @@
   6. 输出格式：问题清单（file/location/severity/message）+ 一行 `REVIEW_VERDICT:{"ok":true|false,"issues":[...]}`；ok 仅当全部问题已解决（本轮无未解决问题）；
   7. 判定纪律：不通过 = 存在任一 severity≥medium 未解决问题；不确定的疑似问题计入 issues 并在 message 标注「待确认」。
 
-#### 4.2.3 门禁配置（workflow-template/workflow.json）
+#### 4.2.4 门禁配置（workflow-template/workflow.json）
 
 - 原「1st review 通过才能测试」（tag-required review-1-done）保留；
 - 新增（双门禁第二道）：
@@ -91,7 +97,16 @@
 ```
 - 模板 gates 列表同步追加该门禁名。
 
-#### 4.2.4 评审意见落卡评论（plugins/kanban/src/host/gate.ts 小改）
+#### 4.2.5 评审会话连续性（review agent 接着上次 session 评审）
+
+- 评审 pipeline 的 llm 节点配置 `sessionKey: "review-{input.card.id}"`（按卡稳定）；runLlm 接线据此实现会话复用：
+  1. 本轮运行：若该 session 已有**常驻 agent**（本进程 registry）→ 直接 `followup` 驱动；
+  2. 否则尝试 `agents.resume({ resumeSessionId })` 恢复上一轮持久化 session（宿主重启后依然有效）→ 恢复成功则续评；
+  3. 都没有 → `agents.create` 全新评审。
+- 续评 prompt 语义：上一轮评审的未解决问题应当已被修复，agent 凭自身会话历史记住上轮 findings，验证修复 + 查新问题；仍存在未解决项则继续列出并给 NOT OK。
+- 生命周期：评审 **ok:true（通过）→ dispose 并释放**（评审闭环，后续改动视为新一轮）；**ok:false（不通过）→ 保持 agent 常驻**（会话持久化，供下一轮续评）。常驻 agent 由插件持有 Map（sessionId → handle），通过后移除；后续可加空闲清理（本期不做，风险表登记）。
+
+#### 4.2.6 评审意见落卡评论（plugins/kanban/src/host/gate.ts 小改）
 
 - pipeline 门禁检查器（nativeCheckers['pipeline'] / presetProgram）在 pipeline 运行**失败**时，从 `out.error` 提取 issues 摘要，通过 `gate.call({service:'kanban', method:'addComment', args:[cardId, text]})` 写卡评论（失败不影响门禁判定）；通过时不写评论。
 - 简单去重：与卡最后一条评论内容相同则不重复写（避免连续 move 刷屏）。
@@ -152,6 +167,8 @@
 | 每次 move 重跑评审耗时/耗 token | move 变慢 | 中 | 双门禁下 agent 评审仅在人工确认后触发；超时（10 分钟）与 dispose 兜底 | 需求一 |
 | 导入 pipelines.json 覆盖同名/同 id pipeline | 数据覆盖 | 低 | pipeline_import_config 幂等 upsert 且返回 changed 状态；README 提示先备份 | 需求二 |
 | 评审评论刷屏（重复 move） | 卡评论噪音 | 中 | 仅失败时落评论；与最后一条评论相同不重复写 | 需求一 |
+| 评审 agent 常驻内存（失败轮次不 dispose） | 常驻 agent 累积 | 中 | 仅按卡持有（Map）；ok:true 即释放；本期不做空闲清理，README 登记 | 需求一 |
+| review agent 上下文过重（挂 skill/web 等无关能力） | token 浪费、评审变慢 | 中 | 精简 review 预设：仅 fs+bash 最小工具集，不注册 skills/web/subagent；persona 精简 | 需求一 |
 
 ## 6. 验收口径（供 UC 阶段展开）
 
@@ -166,6 +183,7 @@
 
 5. move → Testing：先缺 review-1-done 标签被拒（tag 门禁），打标签后再被评审 pipeline 拒绝（agent 评审未 OK，卡上有评审评论）；
 6. 按评论修完问题再 move → 评审通过进 Testing；
+  6a. **续评验证**：第一轮评审失败后不重启 dsh，修问题再 move——第二轮评审 agent 记得上轮 findings（可从其输出/评论对比确认是续评而非新评）；
 7. 评审 agent 确实读了设计规范（评审意见能指出 tokens/emoji 类问题——用含违规的测试分支验证一次）。
 
 ## 7. 开放问题
