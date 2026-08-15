@@ -6,11 +6,12 @@ import { composerCss } from '@dsh-plugins/ui'
 import { mdrCss } from '../../../plugins/markdown-review/src/client/styles'
 import { plpCss, xyflowThemeCss } from '../../../plugins/pipeline/src/client/styles'
 import xyflowRaw from '../../../plugins/pipeline/node_modules/@xyflow/react/dist/style.css?raw'
+import { kbnbCss } from '../../../plugins/kanban/src/client/styles'
 import { Showcase } from './Showcase'
 import { showcaseCss } from './showcase-styles'
 
 const style = document.createElement('style')
-style.textContent = tokensCss + mdrCss + composerCss + plpCss + xyflowRaw + xyflowThemeCss + showcaseCss
+style.textContent = tokensCss + mdrCss + composerCss + plpCss + xyflowRaw + xyflowThemeCss + kbnbCss + showcaseCss
 document.head.appendChild(style)
 
 createRoot(document.getElementById('root')!).render(<Showcase />)

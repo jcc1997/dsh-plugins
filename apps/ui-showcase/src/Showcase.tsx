@@ -86,12 +86,13 @@ function Section(props: { title: string; children: React.ReactNode }) {
   )
 }
 
-type TabId = 'base' | 'md' | 'pipeline'
+type TabId = 'base' | 'md' | 'pipeline' | 'kanban'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'base', label: '基础组件' },
   { id: 'md', label: 'Markdown 审阅' },
   { id: 'pipeline', label: 'Pipeline' },
+  { id: 'kanban', label: '看板' },
 ]
 
 function Tabs(props: { value: TabId; onChange: (id: TabId) => void }) {
@@ -270,6 +271,59 @@ export function Showcase() {
                 <div className="plp-run-title">视频转 mp3</div>
                 <div className="plp-run-meta"><span className="plp-run-id">run-abc123</span><span>节点 2/5 · 40%</span></div>
               </div>
+            </div>
+          </Section>
+        </>
+      ) : null}
+      {tab === 'kanban' ? (
+        <>
+          <Section title="看板列与卡片">
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              {[
+                { name: '待办', cards: [{ t: 'UI 规范对齐', d: 'tokens 快照迁移', tag: 'ui' }, { t: '批注行号', d: '划中文字#L11-13', tag: 'md' }] },
+                { name: '进行中', cards: [{ t: 'pipeline dock', d: 'todo 式常驻条', tag: 'pipeline' }] },
+                { name: '已完成', cards: [{ t: '宿主桥', d: 'icons re-export', tag: 'ui' }] },
+              ].map((col) => (
+                <div key={col.name} className="kbnb-col" style={{ width: 240 }}>
+                  <div className="kbnb-col-head">
+                    <span className="kbnb-col-title">{col.name}</span>
+                    <span className="kbnb-col-count">{col.cards.length}</span>
+                  </div>
+                  {col.cards.map((c) => (
+                    <div key={c.t} className="kbnb-card">
+                      <div className="kbnb-card-title">{c.t}</div>
+                      {c.d ? <div className="kbnb-card-desc">{c.d}</div> : null}
+                      <span className="kbnb-tag">{c.tag}</span>
+                    </div>
+                  ))}
+                  <div className="kbnb-add-card">+ 添加卡片</div>
+                </div>
+              ))}
+            </div>
+          </Section>
+          <Section title="看板控件(按钮/输入/徽章)">
+            <div className="sc-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+              <button className="kbnb-btn kbnb-primary">主按钮</button>
+              <button className="kbnb-btn">次按钮</button>
+              <button className="kbnb-btn kbnb-danger">危险按钮</button>
+              <button className="kbnb-btn" disabled>禁用</button>
+              <button className="kbnb-icon-btn" title="图标按钮"><IconTrashOutline16 /></button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+              <div className="kbnb-field">
+                <label className="kbnb-field-label">输入框(零高亮)</label>
+                <input className="kbnb-input" placeholder="卡片标题…" />
+              </div>
+              <div className="kbnb-field">
+                <label className="kbnb-field-label">文本域</label>
+                <textarea className="kbnb-textarea" style={{ minHeight: 60 }} placeholder="描述…" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+              <span className="kbnb-tag">ui</span>
+              <span className="kbnb-tag">workflow</span>
+              <span className="kbnb-arch-col">归档</span>
+              <span className="kbnb-activity-actor">agent</span>
             </div>
           </Section>
         </>
