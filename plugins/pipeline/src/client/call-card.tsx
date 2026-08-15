@@ -105,10 +105,10 @@ export function PipelineCallCard(props: ToolViewProps) {
     <div className="plp-callcard">
       <div className="plp-callcard-head">
         <svg width={14} height={14} viewBox="0 0 16 16" fill="none" className="plp-callcard-icon">
-          <rect x="1.5" y="3" width="3.4" height="3.4" rx="1" stroke="currentColor" strokeWidth="1.2" />
-          <rect x="11.1" y="9.6" width="3.4" height="3.4" rx="1" stroke="currentColor" strokeWidth="1.2" />
-          <path d="M4.9 4.7h2.6c.55 0 1 .45 1 1v1.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-          <path d="M8.5 8.8v.5c0 .55.45 1 1 1h1.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          <rect x="1.5" y="3" width="3.4" height="3.4" rx="1" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+          <rect x="11.1" y="9.6" width="3.4" height="3.4" rx="1" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+          <path d="M4.9 4.7h2.6c.55 0 1 .45 1 1v1.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          <path d="M8.5 8.8v.5c0 .55.45 1 1 1h1.6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
         </svg>
         <span className="plp-callcard-title">{label}</span>
         {runId ? <span className="plp-callcard-runid" title={runId}>{runId}</span> : null}

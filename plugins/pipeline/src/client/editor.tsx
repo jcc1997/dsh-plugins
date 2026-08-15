@@ -1,6 +1,8 @@
 // client/editor.tsx — 流水线编辑器（独立页面视图）：左 NodeGraph 图 + 右面板（节点编辑/版本列表）
 // 交互：点节点选中 → 右侧编辑（标题/依赖/配置 JSON）；边中点 + 与面板按钮新增；卡片 × 删除；↑↓ 调整顺序。
 import React, { useState, useEffect, useCallback } from 'react'
+import { IconChevronLeftOutline14, IconCloseOutline16 } from '@dsh-plugins/ui'
+import { useEscClose } from './nav'
 import type { HostLike } from './page'
 import { NodeGraph, NODE_LABEL, NODE_DEFAULT_CONFIG, NODE_TYPES, TYPE_DESC } from './graph'
 import type { GraphNode } from './graph'
@@ -54,6 +56,12 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
   const [viewVersion, setViewVersion] = useState<string | null>(null)
   // 删除版本确认
   const [confirmDelVer, setConfirmDelVer] = useState<string | null>(null)
+
+  // 浮层 Esc 关闭(components.md §九-2)
+  useEscClose(!!edgeInsert, () => setEdgeInsert(null))
+  useEscClose(!!confirmDelVer, () => setConfirmDelVer(null))
+  useEscClose(showPublish, () => setShowPublish(false))
+  useEscClose(showRun, () => setShowRun(false))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -211,7 +219,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
       {/* ── 顶栏 ── */}
       <header className="plp-header plp-editor-head">
         <button className="plp-icon-btn" type="button" title="返回列表" onClick={props.onBack}>
-          <svg width={16} height={16} viewBox="0 0 14 14" fill="none"><path d="M8.5 2.15L8.08 2.58 5.35 5.3c-.26.26-.43.48-.51.69-.09.22-.09.4 0 .62.08.21.25.43.51.69l2.73 2.72.42.43-.85.85-.42-.43-2.73-2.72c-.28-.28-.53-.56-.7-.84-.16-.27-.24-.56-.24-.88s.08-.61.24-.88c.17-.28.42-.56.7-.84l2.73-2.72.42-.43.85.85z" fill="currentColor"/></svg>
+          <IconChevronLeftOutline14 />
         </button>
         <span className="plp-title">{name}</span>
         <span className={'plp-badge' + (p.kind === 'combined' ? ' plp-badge-kind' : '')}>{p.kind}</span>
@@ -318,7 +326,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
                         type="button"
                         title="删除该草稿版本"
                         onClick={(e) => { e.stopPropagation(); setConfirmDelVer(v.version) }}
-                      >×</button>
+                      ><IconCloseOutline16 /></button>
                     ) : null}
                   </div>
                 ))}
@@ -344,7 +352,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
           <div className="plp-modal" style={{ width: 400 }}>
             <div className="plp-modal-head">
               <span className="plp-modal-title">删除版本</span>
-              <button className="plp-icon-btn" type="button" onClick={() => setConfirmDelVer(null)}>×</button>
+              <button className="plp-icon-btn" type="button" onClick={() => setConfirmDelVer(null)}><IconCloseOutline16 /></button>
             </div>
             <div className="plp-modal-body">
               <p style={{ fontSize: 13, lineHeight: 1.8 }}>
@@ -364,7 +372,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
           <div className="plp-modal">
             <div className="plp-modal-head">
               <span className="plp-modal-title">发布新版本</span>
-              <button className="plp-icon-btn" type="button" onClick={() => setShowPublish(false)}>×</button>
+              <button className="plp-icon-btn" type="button" onClick={() => setShowPublish(false)}><IconCloseOutline16 /></button>
             </div>
             <div className="plp-modal-body">
               <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)', lineHeight: 1.8 }}>
@@ -397,7 +405,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
           <div className="plp-modal">
             <div className="plp-modal-head">
               <span className="plp-modal-title">运行调试</span>
-              <button className="plp-icon-btn" type="button" onClick={() => setShowRun(false)}>×</button>
+              <button className="plp-icon-btn" type="button" onClick={() => setShowRun(false)}><IconCloseOutline16 /></button>
             </div>
             <div className="plp-modal-body">
               <p style={{ fontSize: 12, color: 'var(--dsw-alias-label-secondary)', lineHeight: 1.8 }}>
@@ -485,7 +493,7 @@ function TypePickerModal(props: { title: string; onClose: () => void; onPick: (t
       <div className="plp-modal" style={{ width: 380 }} onClick={(e) => e.stopPropagation()}>
         <div className="plp-modal-head">
           <span className="plp-modal-title">{props.title}</span>
-          <button className="plp-icon-btn" type="button" onClick={props.onClose}>×</button>
+          <button className="plp-icon-btn" type="button" onClick={props.onClose}><IconCloseOutline16 /></button>
         </div>
         <div className="plp-modal-body">
           <div className="plp-type-grid">
