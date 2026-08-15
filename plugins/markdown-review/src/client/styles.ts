@@ -54,11 +54,10 @@ export const mdrCss = `
 .mdr-main-input .cmp-composer{width:100%}
 .mdr-quotes{overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0;border-left:1px solid var(--dsw-alias-border-l2)}
 .mdr-quotes-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-secondary)}
-.mdr-quote-item{position:relative;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:12px 28px 12px 12px;transition:border-color 150ms cubic-bezier(.4,0,.2,1)}
+.mdr-quote-item{position:relative;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:10px 10px 12px;transition:border-color 150ms cubic-bezier(.4,0,.2,1)}
 .mdr-quote-item:hover{border-color:var(--dsw-alias-border-l3)}
 .mdr-quote-text{font-size:12px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word}
 .mdr-quote-note{font-size:12px;color:var(--dsw-alias-state-business-primary);margin-top:4px;white-space:pre-wrap;word-break:break-word}
-.mdr-quote-x{position:absolute;top:4px;right:4px}
 
 /* ══ §4 划词批注框(内嵌对应块下方;灰底 bluish-50 淡灰 + 上下边框,横向拉满;行号纯文字;compact 输入 ADR-10) ══ */
 .mdr-editor-slot{display:block}
