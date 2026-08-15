@@ -9,19 +9,57 @@
 
 前三个插件 + workflow-template 组合成一套**带门禁的开发工作流**:Backlog → RD → TD → 验收用例 → 开发 → 1st Review → Testing(pipeline 跑测试)→ 2nd review → Stage → MR 合并 → 自动 Done,详见 [workflow-template 使用指南](workflow-template/README.md) 与 [kanban 的 Agent 门禁指南](plugins/kanban/README.md#面向-agent-的门禁指南)。
 
-## 快速开始
+## 安装
+
+前置:已安装 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)(DSH)。
 
 ```bash
-# 1. 构建产物(新克隆后必做,lib/ 为 gitignore)
-cd plugins/kanban && pnpm run check   # 或 plugins/git、plugins/pipeline
+# 1. 构建产物(新克隆后必做,lib/ 为 gitignore;装哪个插件就构建哪个)
+cd plugins/kanban && pnpm run check      # 看板 + 门禁 + 配置导入导出
+cd ../git && pnpm run check              # 可选:MR 关联/合并门禁需要
+cd ../pipeline && pnpm run check         # 可选:AI 流水线
+
 # 2. 挂载到 web profile(官方 CLI,自动应用 bundle 的 cordis.patch.yml)
 dsh plugin --profile web add /path/to/dsh-plugins/plugins/kanban
 dsh plugin --profile web add /path/to/dsh-plugins/plugins/git
 dsh plugin --profile web add /path/to/dsh-plugins/plugins/pipeline
+
 # 3. 重启 dsh:侧边栏出现「看板」「Pipeline」入口;agent 工具 kanban_* / git_* / pipeline_* 可用
 ```
 
-> 插件路由使用自有前缀(/kanban-api、/git-api、/pipeline-api);数据落在 ~/.dsh/<plugin>/ 目录。
+| 插件 | 是否必需 | 作用 |
+|---|---|---|
+| kanban | 必选 | 看板 + 行为门禁 + 创建模板 + **配置导入导出** |
+| git | 推荐 | GitHub 仓库/分支/MR 关联、[ID] 自动认领、MR 同步与合并(门禁 `mr-linked` / `mr-merged` 依赖它) |
+| pipeline | 可选 | 可复用 AI 流水线,可把「测试通过」门禁换成真实 pipeline 检查 |
+
+> 插件路由前缀 /kanban-api、/git-api、/pipeline-api;数据落在 ~/.dsh/<plugin>/ 目录。
+
+## 引入这套开发工作流
+
+装好插件后,把本仓库的**官方开发流程样例**导入你的看板,即可获得一套完整的带门禁研发流程:
+
+**1. 导入(一句话)**
+
+把 [`workflow-template/workflow.json`](workflow-template/workflow.json) 的内容发给 DSH 会话里的 agent,说:「用 `kanban_import_config` 导入这份看板配置」。(也可以直接说「导入 workflow-template 作为我的看板配置」。)
+
+**2. 得到**
+
+一块带门禁的开发看板——10 列 + 9 条门禁 + `workflow` 创建模板:
+
+```
+Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd review → Stage → Done
+```
+
+**3. 开始用**
+
+- 新建卡片选 `workflow` 模板(自动带入 9 条门禁);
+- 把卡往下一列拖:不合规会被门禁拦下并提示原因;确认 = 打标签(`rd-confirmed` / `td-confirmed` / `uc-confirmed` / `review-1-done` / `tests-passed` / `review-2-done`);
+- 在 Stage 列用 git 插件合并 MR,卡片自动进 Done。
+
+> 导入只替换**配置层**(列 / 门禁 / 模板),你的卡片不受影响(自动挪到新板第一列),导入前自动备份。每个阶段的职责、9 条门禁明细、日常使用五步见 [workflow-template/README.md](workflow-template/README.md) 完整使用指南。
+
+**换别人的形态 / 分享你的形态**:看板配置可导入导出——`kanban_export_config` 导出你当前的列+门禁+模板(不含任何卡片数据,门禁按名字引用),他人 `kanban_import_config` 导入即拿到你的流程;想改成自己的,复制 `workflow-template/` 目录、改 `workflow.json`、再导入即可。
 
 ## Agent 工具总览
 
