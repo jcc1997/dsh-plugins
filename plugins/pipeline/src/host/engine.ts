@@ -395,12 +395,32 @@ export class RunQueue {
     const run: PipelineRun = { id: runId, pipelineId, version: targetVer, inputs, status: 'running', nodes: [], createdAt: now(), startedAt: now(), source }
     upsertRun(doc, run)
     await writeDoc(this.fs, doc)
-    const onRunUpdate = (r: PipelineRun) => {
-      // 异步安全：更新磁盘 + 内存
-      readDoc(this.fs).then((d) => { upsertRun(d, r); return writeDoc(this.fs, d) }).catch(() => {})
-    }
-    const result = await executePipeline({ ...this.deps, onRunUpdate }, pipeline, targetVer, inputs, runId)
+    const writer = this.makeUpdateWriter()
+    const result = await executePipeline({ ...this.deps, onRunUpdate: writer.update }, pipeline, targetVer, inputs, runId)
+    await writer.drain()
     return result
+  }
+
+  /**
+   * onRunUpdate 串行写盘工厂：executePipeline 会在节点状态变化时高频回调 onRunUpdate，
+   * 而 read-modify-write 是异步的——并发写盘会「旧状态覆盖新状态」（最终 success 被中途快照覆盖）。
+   * 修复：①每次回调先做 JSON 快照（脱离对象引用后续变化）；②快照排进单条写链串行落盘；
+   * ③执行结束后 drain() 等写链排空，保证最终状态最后落盘。
+   */
+  private makeUpdateWriter(): { update: (r: PipelineRun) => void; drain: () => Promise<void> } {
+    let chain: Promise<void> = Promise.resolve()
+    return {
+      update: (r: PipelineRun) => {
+        let snap: PipelineRun
+        try { snap = JSON.parse(JSON.stringify(r)) } catch { snap = r }
+        chain = chain.then(async () => {
+          const d = await readDoc(this.fs)
+          upsertRun(d, snap)
+          await writeDoc(this.fs, d)
+        }).catch(() => {})
+      },
+      drain: () => chain,
+    }
   }
 
   private startTick() {
@@ -427,10 +447,9 @@ export class RunQueue {
       runRec.startedAt = now()
       upsertRun(doc, runRec)
       await writeDoc(this.fs, doc)
-      const onRunUpdate = (r: PipelineRun) => {
-        readDoc(this.fs).then((d) => { upsertRun(d, r); return writeDoc(this.fs, d) }).catch(() => {})
-      }
-      await executePipeline({ ...this.deps, onRunUpdate }, pipeline, runRec.version, runRec.inputs, runId)
+      const writer = this.makeUpdateWriter()
+      await executePipeline({ ...this.deps, onRunUpdate: writer.update }, pipeline, runRec.version, runRec.inputs, runId)
+      await writer.drain()
       const finDoc = await readDoc(this.fs)
       dequeueRun(finDoc, runId)
       await writeDoc(this.fs, finDoc)

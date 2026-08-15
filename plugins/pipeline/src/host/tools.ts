@@ -206,12 +206,21 @@ export function buildToolDefs(env: ToolEnv): any[] {
     parameters: {},
     execute: async (_args: any) => {
       const doc = await readDoc(fs)
-      return { ok: true, total: 0, catalog: listCatalog(doc), total2: undefined }
+      const cat = listCatalog(doc)
+      return { ok: true, total: cat.length, catalog: cat }
     },
     output: outputOf('可复用单元目录'),
   }
 
-  return [list, get, create, update, publish, del, run, status, runs, catalog]
+  const defs = [list, get, create, update, publish, del, run, status, runs, catalog]
+  // dsh-tools 要求 execute 返回 canonical value 为 lossless JSON（含 undefined 会被拒绝）。
+  // run 未完成时 output/error 等字段为 undefined → 统一做一次 JSON 清洗（undefined 属性被丢弃）。
+  const lossless = (v: any): any => (v === undefined ? null : JSON.parse(JSON.stringify(v)))
+  for (const t of defs) {
+    const raw = t.execute
+    t.execute = async (args: any) => lossless(await raw(args))
+  }
+  return defs
 }
 
 /* ── 内部辅助（供 tools 与 index 共用） ── */
