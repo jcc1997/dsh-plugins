@@ -39,9 +39,9 @@ export const mdrCss = `
 /* ══ §3 大浮窗 ══ */
 .mdr-mask{position:fixed;inset:0;background:var(--dsw-alias-bg-mask-1);z-index:120;display:flex;align-items:center;justify-content:center;animation:mdr-fade 240ms cubic-bezier(.4,0,.2,1)}
 @keyframes mdr-fade{0%{opacity:0}100%{opacity:1}}
-.mdr-viewer{width:min(1152px,94vw);height:min(768px,90vh);background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--dsw-shadow-lv3)}
+.mdr-viewer{width:min(1152px,94vw);height:min(768px,90vh);background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:14px;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--dsw-shadow-lv3);color:var(--dsw-alias-label-primary)}
 .mdr-viewer-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
-.mdr-viewer-title{font-weight:600;font-size:14px;flex:none}
+.mdr-viewer-title{font-weight:600;font-size:14px;flex:none;color:var(--dsw-alias-label-primary)}
 .mdr-viewer-path{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--dsw-alias-label-tertiary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .mdr-viewer-hint{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary)}
 .mdr-hint{padding:8px 16px;font-size:12px;color:var(--dsw-alias-state-warn-primary);border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
