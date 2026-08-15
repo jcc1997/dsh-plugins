@@ -3,7 +3,7 @@
 // 划词 → 批注输入框嵌入对应段落下方;右侧引用清单;底部总评;提交/取消。
 // 提交:POST /md-api/submit → 宿主 resolve 挂起的 md_doc_open 工具执行 → agent 自动继续;卡片就地展示提交内容。
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Composer } from '@dsh-plugins/ui'
+import { Composer, IconCheckOutline16, IconCloseOutline16 } from '@dsh-plugins/ui'
 import { parseMarkdownBlocks, renderBlocks } from './md'
 
 /** 宿主 owner props 形状(与 dsh-client-ui-tool 契约一致,同 pipeline 工具卡) */
@@ -138,8 +138,12 @@ function AnnotationEditor(props: { text: string; note: string; onNote: (v: strin
         autoFocus
         actions={
           <>
-            <button className="mdr-btn" type="button" onClick={props.onCancel}>取消</button>
-            <button className="mdr-btn mdr-btn-primary" type="button" onClick={props.onAdd}>添加批注</button>
+            <button className="mdr-icon-btn" type="button" title="取消" aria-label="取消" onClick={props.onCancel}>
+              <IconCloseOutline16 />
+            </button>
+            <button className="mdr-icon-btn mdr-icon-confirm" type="button" title="添加批注" aria-label="添加批注" onClick={props.onAdd}>
+              <IconCheckOutline16 />
+            </button>
           </>
         }
       />
@@ -250,9 +254,11 @@ function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { qu
             placeholder="总评(可选):整体意见…"
             actions={
               <>
-                <button className="mdr-btn" type="button" onClick={props.onClose}>取消</button>
-                <button className="mdr-btn mdr-btn-primary" type="button" disabled={submitting || (quotes.length === 0 && !comment.trim())} onClick={doSubmit}>
-                  {submitting ? '提交中…' : '提交'}{' '}
+                <button className="mdr-icon-btn" type="button" title="取消" aria-label="取消" onClick={props.onClose}>
+                  <IconCloseOutline16 />
+                </button>
+                <button className="mdr-icon-btn mdr-icon-confirm" type="button" title="提交" aria-label="提交" disabled={submitting || (quotes.length === 0 && !comment.trim())} onClick={doSubmit}>
+                  <IconCheckOutline16 />
                 </button>
               </>
             }

@@ -67,7 +67,7 @@ DSH 宿主在运行时注入完整的官方设计 tokens（`--dsw-static-*` 色�
 | 次按钮（.kbnb-btn） | 白底 + border-l2；hover 浅灰底（interactive-bg-hover） |
 | 危险按钮（.kbnb-danger） | 白底 + 红字红边；hover 红字加深 + danger-soft 底 |
 | 输入/文本域 | 白底 + border-l2；**focus/hover 零高亮**（无 ring、无边框变色，光标即反馈） |
-| 带操作按钮的输入（Composer） | 公共组件 `packages/ui/src/composer.tsx`（`Composer` + `composerCss`）：统一边框容器，textarea 无自身边框；**取消/确认等操作按钮内嵌容器**——单行时按钮在输入右侧，输入文字增多自动增高后按钮落右下角；样式由使用方注入 `composerCss` |
+| 带操作按钮的输入（Composer） | 公共组件 `packages/ui/src/composer.tsx`（`Composer` + `composerCss`）：统一边框容器，textarea 无自身边框、**caret 品牌蓝与宿主一致**；**取消/确认用 icon 按钮**（✓ / ×，hover 浅灰底）内嵌容器——**单行时按钮在输入右侧同行；输入增多自动增高变多行后,输入横向撑满、按钮落到容器内最下面一行(右对齐)**；输入内上下 padding 收窄（4px）；样式由使用方注入 `composerCss` |
 | 大标题输入（.kbnb-input-title） | 无边框无背景；26px/700；placeholder 用 tertiary |
 | 卡片（.kbnb-card） | 白底、radius-lg(12px)、border-l2、shadow-xs；hover: border 品牌色 + shadow-sm 微抬；active(选中): border 品牌色 + ring |
 | 列 | 白底，列间 1px 竖线分隔；列头计数为灰底胶囊 |

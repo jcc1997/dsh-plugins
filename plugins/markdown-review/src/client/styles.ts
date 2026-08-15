@@ -39,6 +39,8 @@ body[data-ds-dark-theme] .mdr-btn-primary:hover{background:var(--dsw-static-deep
 .mdr-submit-error{color:var(--dsw-alias-state-error-primary)}
 .mdr-icon-btn{border:none;background:none;cursor:pointer;font-size:16px;line-height:1;color:var(--dsw-alias-label-secondary);padding:4px;border-radius:6px;transition:background 150ms cubic-bezier(.4,0,.2,1)}
 .mdr-icon-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.mdr-icon-btn:disabled{opacity:.5;cursor:default;pointer-events:none}
+.mdr-icon-confirm{color:var(--dsw-alias-state-business-primary)}
 .mdr-viewer-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 320px;position:relative}
 .mdr-content{overflow-y:auto;padding:24px 28px;user-select:text;cursor:text;min-width:0}
 .mdr-quotes{border-left:1px solid var(--dsw-alias-border-l2);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
@@ -50,8 +52,9 @@ body[data-ds-dark-theme] .mdr-btn-primary:hover{background:var(--dsw-static-deep
 
 /* ══ 划词批注(嵌入对应段落下方) ══ */
 .mdr-editor-slot{display:block}
-.mdr-editor{margin:12px 0;display:flex;flex-direction:column;gap:8px}
-.mdr-editor-quote{font-size:12px;color:var(--dsw-alias-label-secondary);border-left:3px solid var(--dsw-alias-state-business-primary);padding-left:8px;max-height:96px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.mdr-editor{margin:12px 0;display:flex;flex-direction:row;align-items:flex-start;gap:12px}
+.mdr-editor .cmp-composer{flex:1 1 45%;min-width:240px}
+.mdr-editor-quote{flex:1 1 55%;min-width:0;font-size:12px;color:var(--dsw-alias-label-secondary);border-left:3px solid var(--dsw-alias-state-business-primary);padding-left:8px;max-height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
 
 /* ══ 底部总评 ══ */
 .mdr-viewer-foot{padding:12px 16px;border-top:1px solid var(--dsw-alias-border-l2);flex:none}
