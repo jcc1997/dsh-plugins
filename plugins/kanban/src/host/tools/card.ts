@@ -180,15 +180,15 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
       name: 'kanban_move',
       description: '移动卡片到目标状态（列）。status 传列名或列 id，如"进行中"。卡片挂有 move 门禁时，不通过则拒绝移动。',
       parameters: P({ card_id: STR('要移动的卡片 id'), status: STR('目标列名或列 id') }, ['card_id', 'status']),
-      execute: async (args: any) => {
+      execute: async (args: any, exec: any) => {
         const dataDir = await resolveDataDir(fs)
         const board0 = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
         const hit0 = findCardGlobal(board0, String(args.card_id))
         if (!hit0) return { ok: false, error: 'card not found: ' + args.card_id }
         const to0 = resolveColumn(board0, args.status)
         if (!to0) return { ok: false, error: 'column not found: ' + String(args.status) }
-        // 门禁（to 传目标列标题，config.to 可限定目标列）
-        const gate = await checkGates(hit0.card, board0, 'move', gateDeps, { to: to0.title })
+        // 门禁（to 传目标列标题，config.to 可限定目标列）；execCtx 透传调用方 agent/signal（pipeline 门禁评审用）
+        const gate = await checkGates(hit0.card, board0, 'move', gateDeps, { to: to0.title }, { agent: exec && exec.agent, signal: exec && exec.signal })
         if (!gate.ok) return { ok: false, error: '门禁未通过：' + gate.failed.map((f) => f.reason).join('；') }
         return mutateBoard(fs, (board: any) => {
           const hit = findCardGlobal(board, String(args.card_id))

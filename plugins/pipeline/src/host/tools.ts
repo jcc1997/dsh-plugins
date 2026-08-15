@@ -158,8 +158,11 @@ export function buildToolDefs(env: ToolEnv): any[] {
       version: STR('版本号，缺省 publishedVersion 或 latest'),
       inputs: OBJ('入参对象（JSON）；input 节点的 keys 会从其中抽取', true),
     },
-    execute: async (args: any) => {
-      const { runId, run } = await queue.submit(String(args.pipeline_id), args.version || 'latest', args.inputs || {}, 'agent')
+    execute: async (args: any, exec: any) => {
+      const { runId, run } = await queue.submit(String(args.pipeline_id), args.version || 'latest', args.inputs || {}, 'agent', {
+        parentAgent: exec && exec.agent,
+        externalSignal: exec && exec.signal,
+      })
       return { ok: true, run_id: runId, status: run.status, queued: true }
     },
     output: {

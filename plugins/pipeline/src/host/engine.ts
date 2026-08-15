@@ -24,8 +24,12 @@ export interface NodeExecContext {
   resolvePipeline: (pipelineId: string, version: string) => Promise<{ pipeline: Pipeline; nodes: PipelineNode[] } | null>
   /** 递归运行子 pipeline */
   runSub: (pipelineId: string, version: string, inputs: Record<string, unknown>) => Promise<Record<string, unknown>>
-  /** llm 节点解析器（沙箱子 agent 延后实现，调用方注入） */
+  /** llm 节点解析器（宿主 subagents 服务，调用方注入） */
   runLlm?: (prompt: string, up: Record<string, Record<string, unknown>>, conf: Record<string, unknown>) => Promise<string>
+  /** 调用方 agent（llm 节点 spawn 子 agent 的 parent 上下文，由工具链路注入） */
+  parentAgent?: unknown
+  /** 调用方取消信号（透传工具 exec.signal） */
+  externalSignal?: AbortSignal | undefined
   /** 节点状态上报（进度） */
   report: (nodeId: string, patch: Partial<NodeRunState>) => void
   signal?: { aborted: boolean }
@@ -212,8 +216,12 @@ export interface EngineDeps {
   fs: FsLike
   shell?: ShellLike
   onRunUpdate: (run: PipelineRun) => void
-  /** llm 节点处理器（沙箱子 agent，延后实现；缺省返回明确错误） */
+  /** llm 节点处理器（宿主 subagents 服务接线；缺省 fail-closed） */
   runLlm?: (prompt: string, up: Record<string, Record<string, unknown>>, conf: Record<string, unknown>) => Promise<string>
+  /** 调用方 agent（透传至 llm 节点） */
+  parentAgent?: unknown
+  /** 调用方取消信号（透传至 llm 节点） */
+  externalSignal?: AbortSignal | undefined
 }
 
 export async function executePipeline(
@@ -266,6 +274,7 @@ export async function executePipeline(
     report(id, { status: 'running', startedAt: now() })
     const ctx: NodeExecContext = {
       inputs, up, fs: deps.fs, shell: deps.shell,
+      parentAgent: deps.parentAgent, externalSignal: deps.externalSignal,
       resolvePipeline: async (pid, ver) => {
         const doc = await readDoc(deps.fs)
         const p = doc.pipelines.find((x) => x.id === pid)
@@ -343,6 +352,11 @@ async function runLlmNode(node: PipelineNode, ctx: NodeExecContext): Promise<Rec
   if (typeof node.config.sessionKey === 'string' && node.config.sessionKey.trim()) {
     conf.sessionKey = interpolate(node.config.sessionKey, ctx)
   }
+  // 调用上下文透传（spawn 子 agent 需要 parent/signal）
+  conf.parentAgent = ctx.parentAgent
+  conf.externalSignal = ctx.externalSignal
+  const card = (ctx.inputs && (ctx.inputs as any).card) || null
+  if (card && typeof card.id === 'string') conf.cardId = card.id
   if (!ctx.runLlm) {
     throw new Error('LLM 节点未接入 agent 服务（runLlm 未注入，fail-closed：宁可失败不可假放行）')
   }
@@ -390,8 +404,11 @@ export class RunQueue {
     this.deps = deps
   }
 
+  /** 运行级调用上下文（llm 节点 spawn 子 agent 用） */
+  private runOpts = new Map<string, { parentAgent?: unknown; externalSignal?: AbortSignal | undefined }>()
+
   /** 提交一个运行（异步入队），返回 run id；同步执行器由 submitSync 提供 */
-  async submit(pipelineId: string, version: string, inputs: Record<string, unknown>, source: string): Promise<{ runId: string; run: PipelineRun }> {
+  async submit(pipelineId: string, version: string, inputs: Record<string, unknown>, source: string, opts?: { parentAgent?: unknown; externalSignal?: AbortSignal | undefined }): Promise<{ runId: string; run: PipelineRun }> {
     const doc = await readDoc(this.fs)
     const pipeline = doc.pipelines.find((p) => p.id === pipelineId)
     if (!pipeline) throw new Error('pipeline not found: ' + pipelineId)
@@ -401,6 +418,7 @@ export class RunQueue {
       id: runId, pipelineId, version: targetVer, inputs, status: 'queued',
       nodes: [], createdAt: now(), source,
     }
+    if (opts) this.runOpts.set(runId, opts)
     enqueueRun(doc, run)
     await writeDoc(this.fs, doc)
     this.startTick()
@@ -408,7 +426,7 @@ export class RunQueue {
   }
 
   /** 同步执行（阻塞直到结束；不进入队列，直接 running） */
-  async submitSync(pipelineId: string, version: string, inputs: Record<string, unknown>, source: string): Promise<Record<string, unknown>> {
+  async submitSync(pipelineId: string, version: string, inputs: Record<string, unknown>, source: string, opts?: { parentAgent?: unknown; externalSignal?: AbortSignal | undefined }): Promise<Record<string, unknown>> {
     const doc = await readDoc(this.fs)
     const pipeline = doc.pipelines.find((p) => p.id === pipelineId)
     if (!pipeline) return { error: 'pipeline not found: ' + pipelineId }
@@ -416,11 +434,13 @@ export class RunQueue {
     const runId = safeId('r')
     // 占位记录
     const run: PipelineRun = { id: runId, pipelineId, version: targetVer, inputs, status: 'running', nodes: [], createdAt: now(), startedAt: now(), source }
+    if (opts) this.runOpts.set(runId, opts)
     upsertRun(doc, run)
     await writeDoc(this.fs, doc)
     const writer = this.makeUpdateWriter()
-    const result = await executePipeline({ ...this.deps, onRunUpdate: writer.update }, pipeline, targetVer, inputs, runId)
+    const result = await executePipeline({ ...this.deps, onRunUpdate: writer.update, ...(opts || {}) }, pipeline, targetVer, inputs, runId)
     await writer.drain()
+    this.runOpts.delete(runId)
     return result
   }
 
@@ -471,8 +491,10 @@ export class RunQueue {
       upsertRun(doc, runRec)
       await writeDoc(this.fs, doc)
       const writer = this.makeUpdateWriter()
-      await executePipeline({ ...this.deps, onRunUpdate: writer.update }, pipeline, runRec.version, runRec.inputs, runId)
+      const opts = this.runOpts.get(runId)
+      await executePipeline({ ...this.deps, onRunUpdate: writer.update, ...(opts || {}) }, pipeline, runRec.version, runRec.inputs, runId)
       await writer.drain()
+      this.runOpts.delete(runId)
       const finDoc = await readDoc(this.fs)
       dequeueRun(finDoc, runId)
       await writeDoc(this.fs, finDoc)

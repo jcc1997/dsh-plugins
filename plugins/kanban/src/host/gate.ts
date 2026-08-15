@@ -213,10 +213,14 @@ nativeCheckers['pipeline'] = async (card, gate, cfg, deps) => {
   if (ids.length === 0 && cfg.pipelineId) ids = [String(cfg.pipelineId)]
   if (ids.length === 0) return { name: gate.name || 'pipeline', type: 'pipeline', reason: 'pipeline checker 缺少 pipelines 配置' }
   const inputs: Record<string, unknown> = { card }
-  // 现场启动并等待：全部成功才通过（GitHub CI 门禁语义）
+  const execCtx = (deps as any)._execCtx || null
+  // 现场启动并等待：全部成功才通过（GitHub CI 门禁语义）；透传调用方 agent/signal（llm 节点 spawn 评审 agent）
   const results = await Promise.all(ids.map(async (pid) => {
     try {
-      const out = await svc.run(pid, inputs)
+      const out = await svc.run(pid, inputs, undefined, {
+        ...(execCtx && execCtx.agent ? { parentAgent: execCtx.agent } : {}),
+        ...(execCtx && execCtx.signal ? { externalSignal: execCtx.signal } : {}),
+      })
       return { pid, ok: !(out && out.error), out }
     } catch (e) {
       return { pid, ok: false, out: { error: String((e as Error).message) } }
@@ -271,7 +275,11 @@ async function runCodeOnRuntime(code: string, _script: string | null, card: any,
             if (!svc || typeof svc.run !== 'function') throw new Error('pipeline 服务未激活')
             const pipelineId = args && args.pipelineId ? String(args.pipelineId) : String(args)
             const inputs = (args && args.inputs) || { card: lossless(card) }
-            return lossless(await svc.run(pipelineId, inputs))
+            const execCtx = (deps as any)._execCtx || null
+            return lossless(await svc.run(pipelineId, inputs, undefined, {
+              ...(execCtx && execCtx.agent ? { parentAgent: execCtx.agent } : {}),
+              ...(execCtx && execCtx.signal ? { externalSignal: execCtx.signal } : {}),
+            }))
           },
           /** 通用服务桥：调用任意宿主插件服务（gate.call('git','isConfigured') 等） */
           call: async (args: any) => {
@@ -352,10 +360,14 @@ checkerRegistry['pipeline'] = async (card, gate, cfg, deps) => {
   if (ids.length === 0 && cfg.pipelineId) ids = [String(cfg.pipelineId)]
   if (ids.length === 0) return { name: gate.name || 'pipeline', type: 'pipeline', reason: 'pipeline checker 缺少 pipelines 配置' }
   const inputs: Record<string, unknown> = { card }
-  // 现场启动并等待：全部成功才通过（GitHub CI 门禁语义）
+  const execCtx = (deps as any)._execCtx || null
+  // 现场启动并等待：全部成功才通过（GitHub CI 门禁语义）；透传调用方 agent/signal（llm 节点 spawn 评审 agent）
   const results = await Promise.all(ids.map(async (pid) => {
     try {
-      const out = await svc.run(pid, inputs)
+      const out = await svc.run(pid, inputs, undefined, {
+        ...(execCtx && execCtx.agent ? { parentAgent: execCtx.agent } : {}),
+        ...(execCtx && execCtx.signal ? { externalSignal: execCtx.signal } : {}),
+      })
       return { pid, ok: !(out && out.error), out }
     } catch (e) {
       return { pid, ok: false, out: { error: String((e as Error).message) } }
@@ -368,16 +380,19 @@ checkerRegistry['pipeline'] = async (card, gate, cfg, deps) => {
   return null
 }
 
-/** 检查卡片上匹配 action 的全部门禁；任一失败即拒绝 */
+/** 检查卡片上匹配 action 的全部门禁；任一失败即拒绝。execCtx 透传调用方 agent/signal（pipeline 检查器 spawn 评审 agent 用） */
 export async function checkGates(
   card: any,
   board: any,
   action: GateAction,
   deps: GateCheckDeps,
   extra?: { to?: string },
+  execCtx?: { agent?: unknown; signal?: AbortSignal },
 ): Promise<{ ok: boolean; failed: GateFailure[] }> {
   const gates = gatesFor(card, action, extra, board)
   if (gates.length === 0) return { ok: true, failed: [] }
+  const prev = (deps as any)._execCtx
+  ;(deps as any)._execCtx = execCtx || null
   const failed: GateFailure[] = []
   for (const g of gates) {
     const type = (g.checker && g.checker.type) || ''
@@ -399,6 +414,7 @@ export async function checkGates(
     }
     if (f) failed.push(f)
   }
+  ;(deps as any)._execCtx = prev
   return { ok: failed.length === 0, failed }
 }
 

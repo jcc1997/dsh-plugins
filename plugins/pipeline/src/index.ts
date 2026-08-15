@@ -30,9 +30,9 @@ export function apply(ctx: PipelineCtx) {
   const tools = ctx.get('tools') as { register(def: unknown): () => void } | undefined
   const shell = ctx.get('shell') as ShellLike | undefined
 
-  /* ── llm 节点：接入宿主 agents 服务（评审 agent 执行）；未接入时引擎侧 fail-closed ── */
+  /* ── llm 节点：接入宿主 subagents 服务（评审 agent 执行）；未接入时引擎侧 fail-closed ── */
+  const subagents = ctx.get('subagents') as any
   const agents = ctx.get('agents') as any
-  const liveAgents = new Map<string, any>()   // 评审会话常驻表：sessionId -> AgentHandle（失败轮次保留供续评）
   /** 从消息 content（块数组或字符串）提取纯文本 */
   const blockText = (content: unknown): string => {
     if (typeof content === 'string') return content
@@ -44,19 +44,7 @@ export function apply(ctx: PipelineCtx) {
     }
     return ''
   }
-  const readLastAssistantText = (agent: any): string => {
-    try {
-      const msgs = agent && agent.session && typeof agent.session.deriveMessages === 'function' ? agent.session.deriveMessages() : []
-      for (let i = msgs.length - 1; i >= 0; i--) {
-        const m = msgs[i]
-        if (m && m.role === 'assistant') {
-          const t = blockText(m.content)
-          if (t.trim()) return t
-        }
-      }
-      return ''
-    } catch { return '' }
-  }
+
   const parseVerdict = (text: string): { ok: boolean; issues?: unknown[] } | null => {
     if (typeof text !== 'string') return null
     const m = text.match(/REVIEW_VERDICT:\s*(\{[\s\S]*\})\s*$/)
@@ -69,61 +57,50 @@ export function apply(ctx: PipelineCtx) {
     } catch { /* 非法 JSON → null（fail-closed） */ }
     return null
   }
-  const cwd = typeof process !== 'undefined' && process.cwd ? process.cwd() : undefined
   const runLlm: ((prompt: string, up: Record<string, unknown>, conf: Record<string, unknown>) => Promise<string>) | undefined =
-    agents && typeof agents.create === 'function'
+    subagents && typeof subagents.start === 'function'
       ? async (prompt, up, conf) => {
-          const sessionKey = typeof conf.sessionKey === 'string' && conf.sessionKey.trim() ? conf.sessionKey.trim() : ''
-          const sessionId = sessionKey || safeId('a')
+          const parent = conf.parentAgent
+          if (!parent) throw new Error('缺少调用方 agent 上下文（parentAgent 未注入）')
           const timeoutMs = typeof conf.timeoutMs === 'number' ? conf.timeoutMs : 600000
           const agentOptions: Record<string, unknown> = {}
           if (typeof conf.provider === 'string' && conf.provider) agentOptions.provider = conf.provider
           if (typeof conf.model === 'string' && conf.model) agentOptions.model = conf.model
           if (typeof conf.maxTokens === 'number') agentOptions.maxTokens = conf.maxTokens
-          let handle: any = sessionKey ? liveAgents.get(sessionId) : null
+          const reviewPersona = typeof conf.persona === 'string' && conf.persona.trim()
+            ? conf.persona
+            : '你是代码评审 agent。只评审、不改码、不提交。严格按收到的评审指令与仓库内 workflow-template/prompts/review.md 执行，最终输出以最后一行 REVIEW_VERDICT:{"ok":true|false,"issues":[...]} 结尾。'
+          const run = await subagents.start('spawn', {
+            label: 'review' + (conf.cardId ? '-' + conf.cardId : ''),
+            prompt: [{ type: 'text', text: prompt }],
+            parent,
+            signal: (conf.externalSignal as AbortSignal | undefined) || new AbortController().signal,
+            ...(Object.keys(agentOptions).length ? { agentOptions } : {}),
+            persona: reviewPersona,
+          })
+          let timer: ReturnType<typeof setTimeout> | null = null
           try {
-            // 续评：恢复上一轮持久化 session（宿主重启后仍有效）
-            if (!handle && sessionKey && typeof agents.resume === 'function') {
-              try { handle = await agents.resume({ resumeSessionId: sessionId, agentOptions }) } catch { handle = null }
+            const result: any = await Promise.race([
+              run.result,
+              new Promise((_resolve, reject) => {
+                timer = setTimeout(() => {
+                  try { run.dispose() } catch { /* ignore */ }
+                  reject(new Error('评审 agent 超时（' + timeoutMs + 'ms）'))
+                }, timeoutMs)
+              }),
+            ])
+            if (result && result.stopReason !== 'completed') {
+              throw new Error('评审 agent 未正常完成：' + String(result && result.stopReason) + '（output=' + blockText(result && result.output)?.slice(0, 200) + '）')
             }
-            if (!handle) {
-              handle = await agents.create({
-                sessionId,
-                meta: { ...(cwd ? { cwd } : {}), origin: 'subagent', agentPreset: typeof conf.agentPreset === 'string' && conf.agentPreset ? conf.agentPreset : 'review' },
-                agentOptions,
-              })
-            }
-            if (sessionKey) liveAgents.set(sessionId, handle)
-            const agent = handle && handle.agent
-            if (!agent) throw new Error('agent 创建失败')
-            const timer = setTimeout(() => { try { agent.cancel('timeout') } catch { /* ignore */ } }, timeoutMs)
-            try {
-              // Message 契约：id + role + content 块数组 + source（缺一即被 inbox 拒收，agent 不启动）
-              agent.followup({
-                id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
-                role: 'user',
-                content: [{ type: 'text', text: prompt }],
-                source: { kind: 'plugin', plugin: 'pipeline' },
-              })
-              await agent.whenIdle()
-              const text = readLastAssistantText(agent)
-              // 通过（ok:true）→ 闭环释放；失败/解析失败 → 保留 handle 供下一轮续评
-              const verdict = parseVerdict(text)
-              if (verdict && verdict.ok === true && sessionKey) {
-                liveAgents.delete(sessionId)
-                try { await handle.dispose() } catch { /* ignore */ }
-              }
-              return text
-            } finally {
-              clearTimeout(timer)
-            }
-          } catch (e) {
-            if (sessionKey) liveAgents.delete(sessionId)
-            try { if (handle) await handle.dispose() } catch { /* ignore */ }
-            throw e
+            return blockText(result && result.output)
+          } finally {
+            if (timer) clearTimeout(timer)
+            try { await run.dispose() } catch { /* ignore */ }
           }
         }
-      : undefined
+      : agents && typeof agents.create === 'function'
+        ? async () => { throw new Error('subagents 服务不可用（llm 节点需要 ctx.subagents；agents 兜底路径未实现）') }
+        : undefined
 
   /* ── 运行引擎（队列 + 注册表） ── */
   const queue = new RunQueue(fs, {
@@ -270,13 +247,13 @@ export function apply(ctx: PipelineCtx) {
       const v = version || p.publishedVersion || p.latestVersion
       return p.versions.find((x) => x.version === v) || null
     },
-    /** 同步运行（阻塞等待结果）；供其他 plugin 编排调用 */
-    run: async (pipelineId: string, inputs: Record<string, unknown>, version?: string) => {
-      return queue.submitSync(String(pipelineId), version || 'latest', inputs || {}, 'plugin')
+    /** 同步运行（阻塞等待结果）；供其他 plugin 编排调用；opts 透传调用方 agent/signal（llm 节点用） */
+    run: async (pipelineId: string, inputs: Record<string, unknown>, version?: string, opts?: { parentAgent?: unknown; externalSignal?: AbortSignal | undefined }) => {
+      return queue.submitSync(String(pipelineId), version || 'latest', inputs || {}, 'plugin', opts)
     },
     /** 异步运行（入队），返回 runId */
-    runAsync: async (pipelineId: string, inputs: Record<string, unknown>, version?: string) => {
-      const { runId, run } = await queue.submit(String(pipelineId), version || 'latest', inputs || {}, 'plugin')
+    runAsync: async (pipelineId: string, inputs: Record<string, unknown>, version?: string, opts?: { parentAgent?: unknown; externalSignal?: AbortSignal | undefined }) => {
+      const { runId, run } = await queue.submit(String(pipelineId), version || 'latest', inputs || {}, 'plugin', opts)
       return { runId, status: run.status }
     },
     status: async (runId: string) => {
