@@ -14,7 +14,7 @@
 
 - **tokens 快照(唯一来源)**: `packages/ui/dsh/design-platform.css` — 由 `node scripts/sync-host-tokens.mjs` 从 `vendor/deepseek-harness` submodule(`packages/client/ui-theme/src/styles/`)同步生成,**勿手改**。
 - **宿主组件实测来源**: `vendor/deepseek-harness/packages/client/ui-primitives/src/*.module.css`(Button/Input/Modal/Menu/Pill 等)。
-- **图标集**: `packages/ui/src/icons.tsx`(从宿主 `ui-primitives/src/icons` 全量提取,MIT)。
+- **图标集**: `packages/ui/host/icons.ts`(直接 re-export 宿主 `ui-primitives/src/icons` 源码,70 个,零复制零漂移)。
 
 ## 工作流
 

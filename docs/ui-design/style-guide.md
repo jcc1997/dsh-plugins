@@ -57,7 +57,7 @@
 
 ## 八、图标风格 Iconography
 
-- 来源: 宿主 `ic_ds_*` 图标集(vendor submodule, MIT),全量提取至 `packages/ui/src/icons.tsx`,命名沿用宿主。
+- 来源: 宿主 `ic_ds_*` 图标集(vendor submodule, MIT),经 `packages/ui/host/icons.ts` **直接 re-export**(同一份源码,无漂移),命名沿用宿主。
 - 尺寸档位: 12 / 14 / 16 / 20(宿主四档);glyph 默认 16。
 - 风格: outline 线性,stroke 1.3,圆头线帽(round cap/join);fill 图标仅宿主同款场景(close/loading)。
 - 使用规则: 图标按钮 glyph 一律 16,容器 28×28 圆形(§组件规范);**禁自绘/第三方图标集**;确无图标 → 记 ADR 从宿主集补充。

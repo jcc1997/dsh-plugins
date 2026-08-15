@@ -20,7 +20,7 @@ const REPO_ROOT = join(__dirname, '..')
 
 const SRC = join(REPO_ROOT, 'vendor/deepseek-harness/packages/client/ui-theme/src/styles/design-platform.css')
 const PKG_JSON = join(REPO_ROOT, 'vendor/deepseek-harness/packages/client/ui-theme/package.json')
-const TARGET = join(REPO_ROOT, 'packages/ui/dsh/design-platform.css')
+const TARGET = join(REPO_ROOT, 'packages/ui/host/design-platform.css')
 const dryRun = process.argv.includes('--dry-run')
 
 if (!existsSync(SRC)) {

@@ -1,6 +1,6 @@
 // 通用小组件：Modal（遮罩不点击关闭，只走显式按钮）
 import React from 'react'
-import { IconCloseOutline16 } from './icons'
+import { IconCloseOutline16 } from '../host/icons'
 
 export function Modal(props: { title: string; width?: number; children: React.ReactNode; onClose: () => void }) {
   return (
