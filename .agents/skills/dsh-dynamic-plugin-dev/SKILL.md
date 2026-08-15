@@ -139,12 +139,112 @@ B7. **verify 必须真实执行 client bundle**（模拟 window.__ModuleLoader__
 ### 3.3 槽位 / 会话联动
 
 - 槽位：`slots.inject(key, () => slots.register({ name, id, order, label, children? }, Comp))`；子槽位声明（children）独占渲染授权（Declaring is claiming）；跨条目渲染走服务桥接（见 legacy §八）。
-- `sidebar.footer.action`（侧边栏入口）、`conversation.view`（session scope，props.sessionId）、`settings.section` 等宿主槽位。
+- `sidebar.footer.action`（侧边栏入口）、`conversation.view`（session scope，props.sessionId）、`settings.section`、`tool.call.toolview`（keyed，key=工具名，接管对话流工具卡）等宿主槽位。
 - client 侧 `sessions` 服务：open(id) 切换会话；`workspaces` 服务：connectWorkspace 等。
+- **插件 UI 四种模式（全屏页 / 会话 tab / 工具卡接管 / 注入他人槽位）+ 官方源码位置 + 代码例子 → 见 3.5**（开发 UI 前必读，勿重新考古）。
 
 ### 3.4 宿主服务目录（常用）
 
 - `fs`（文件读写）、`credentials`（token，ref 名如 GITHUB_TOKEN，存储 ~/.dsh/.credentials.yaml）、`webServer`（HTTP 路由）、`tools`（工具注册）、`shell`（沙箱进程）、`web`（无 header fetch）、`timer`、`settings`、`storage`、`sessions`、`subagents`、`jobs`、`approval`、`sandbox` 等；准确签名用 `cordis_inspect_query`。
+
+## 3.5 插件 UI 开发速查（模式 + 官方位置 + 代码例子，dsh-pipeline 实测沉淀）
+
+> 需求分类 → 选模式：① 完整管理界面 → **A 全屏页面入口**；② 会话里持续看某数据 → **B 会话 tab**；
+> ③ agent 调用你的工具时在对话流里展示卡片 → **C 工具卡片接管**（本次新发现，最重要）；
+> ④ 往别人界面加按钮 → **D 注入他人槽位**（git 注入 kanban 的做法）。
+
+### A. 全屏页面入口（sidebar.footer.action，kanban/pipeline 同款）
+
+```tsx
+// client/index.ts
+export const inject = ['slots', 'sessions'] // sessions 可选：页面内 open(id) 跳会话
+export function apply(ctx) {
+  // ① 样式注入（幂等，见 1.3）
+  const slots = ctx.get('slots')
+  const host = makeHostBridge() // fetch → /xxx-api/*，见 1.3
+  function Entry(props: { wide: boolean }) {
+    const [open, setOpen] = React.useState(false)
+    return <div>
+      <button className="plp-side-btn" onClick={() => setOpen(!open)}>图标 + 名</button>
+      {open ? <MyPage host={host} onClose={() => setOpen(false)} /> : null}
+    </div>
+  }
+  slots.inject('sidebar.footer.action', () => slots.register(
+    { name: 'sidebar.footer.action', id: 'mypkg', order: 11, label: () => '我的插件' },
+    (props) => <Entry wide={props.wide} />,
+  ))
+}
+```
+- 全屏页 CSS 骨架：`.plp-page{position:fixed;inset:0;z-index:60;background:var(--dsw-alias-bg-base);display:flex;flex-direction:column}`（z-index 60 盖宿主，70 弹窗，kanban/pipeline 实测值）。
+- 页内结构惯例：顶栏（返回键 + 标题 + 主按钮）→ body（左侧窄边栏导航 + 主区视图切换）→ 弹窗（`.plp-mask` + `.plp-modal`）。
+
+### B. 会话 tab（conversation.view，session scope，kanban「任务」tab 同款）
+
+```tsx
+slots.inject('conversation.view', () => slots.register(
+  { name: 'conversation.view', id: 'mypkg-tab', order: 20, label: () => '我的Tab' },
+  (props: { sessionId?: string }) => <MyPanel sessionId={props.sessionId} host={host} />, // session scope 必得 sessionId
+))
+```
+- 适合「当前会话关联数据」：如 kanban 任务卡；轮询用 setInterval + cleanup。
+
+### C. 对话流工具卡片接管（tool.call.toolview keyed，★本次实测）
+
+宿主官方扩展点：**按工具名接管某个工具在对话消息流中的渲染**（官方 bash/read/ask 卡片同机制）。key = 工具名；不注册则 fallback 通用卡片。
+
+```tsx
+// client/index.ts —— 注册（keyed 槽位 options 与 list 槽位不同！）
+slots.inject('tool.call.toolview', () => slots.register(
+  { name: 'tool.call.toolview', key: 'my_tool', locale: 'conversation' },
+  MyToolCard,
+))
+// client/card.tsx —— 组件（只依赖官方契约字段，不 import 宿主内部）
+function MyToolCard(props: { callId: string; toolName: string; block: any; inspect?: () => void; t?: any }) {
+  const settled = 'kind' in props.block          // ★ running/settled 判别（官方同款写法）
+  const args = settled ? safeParse(props.block.call?.argsRaw) : safeParse(props.block.argsRaw)
+  // settled 时还有：block.content（结果文本块）、block.isError、block.meta、block.error?.code
+  return <div className="plp-callcard">
+    <span>{settled ? '完成' : '执行中…'}</span>
+    <button onClick={() => { /* 跳你自己的页面，见「跳转联动」 */ }}>查看详情</button>
+  </div>
+}
+```
+- **block 两态**（dsh-client-runtime）：未结束 = RunningToolCall `{ callId, name, argsRaw(JSON 字符串), time, callView, subCalls }`；已结束 = ToolResultNode `{ kind:'tool-result', call(窗口截断时 null), content, isError, error:{name,code}, meta, resultView, subCalls }`。
+- **meta 通道**（往卡片带结构化数据的正道）：host 工具 defineTool 的 output 里写
+  `presentationMeta(args, value) => ({ run_id: ..., status: ... })`（纯函数、lossless JSON）→ 客户端 `block.meta` 拿到。
+  注意 execute 返回值本身必须 lossless JSON（undefined 会被 dsh-tools 拒绝：报 "value is not lossless JSON"——pipeline 实测踩过，工具层统一 `JSON.parse(JSON.stringify(v))` 清洗）。
+- **实时进度**：卡片内 fetch 自己 host 的路由轮询（如 /xxx-api/run-status），状态终态后停。
+- **presentCall/presentResult**（可选增强）：defineTool 的可选字段，纯函数返回 `{card:'generic', title, rawInput}` / `{card:'generic', title, content:[{type:'text',text}]}`——工具卡片在「无接管/轨迹视图」等场景的文本展示。
+- 接管后要自己渲染完整卡片（标题行 + 状态 + 内容），**不能 import 官方 ToolRow**（ui-tool 内部组件不在 ModuleLoader seed 表，external 不了，只能打进包——不划算）。
+
+### D. 注入他人槽位（git → kanban 的做法）
+
+对方插件声明子槽位并授权渲染（见下「children 声明」），你直接 `slots.inject('kanban.card.actions', () => slots.register({ name, id, order, label }, Comp))`；owner 会通过 `renderSlot('kanban.card.actions', { cardId, onSynced }, {})` 调用，props 由对方声明方定义（git 侧 owner props = `{cardId, onSynced}`）。
+
+### 槽位 API 速记（dsh-client-ui-slots）
+
+- **register(options, Component) → disposer**；options 按槽位 kind 不同：
+  - list/single：`{ name, id, order, label?, children?, priority? }`（label 可函数；同 id 不同 priority 共存，最低 renders）
+  - keyed：`{ name, key, locale?, priority? }`（locale = 翻译命名空间，如 'conversation'，声明后组件 props 注入 t 函数）
+- **children 声明 = 独占渲染授权**（Declaring is claiming）：一个槽位只能一个声明者；声明后本条目 props 得到窄化的 `renderSlot(childKey, owner, opts)`。
+- **组件 props 组成**（ComposedProps）：PropsRuntime（owner 供 share + keyed 的 key props + session scope 注入 `sessionId` + 全局注入） + locale 声明的 `t` + children 声明的 `renderSlot`。
+- SlotKind：single / list / keyed / chain；SlotScope：root / session-maybe / session（session scope 组件必得 sessionId）。
+- **跳转联动**（同插件内跨槽位跳转，pipeline 实测）：client 半同 bundle 共享模块级变量，写个 pub/sub（`registerOpenHandler(fn)` / `requestOpenRun(id)`），侧边栏 Entry mount 时注册 handler（setOpen(true)+定位 id），卡片按钮调用 request。不必走 cordis 事件。
+
+### 官方源码 / 类型位置（全部在 DSH 运行时缓存，vendor submodule 没有）
+
+| 主题 | 包 / 文件 |
+|---|---|
+| 槽位系统 API（SlotMap/register/PropsRuntime/SlotKind/KindOptions） | `@deepseek-ai/dsh-client-ui-slots/lib/types/index.d.ts` |
+| **tool.call.toolview 契约**（keyed 声明 + ToolCallOwnerProps） | `@deepseek-ai/dsh-client-ui-tool/lib/types/client/contract/slots.d.ts` |
+| 工具卡片两态（RunningToolCall/ToolResultNode/ToolCallBlock） | `@deepseek-ai/dsh-client-runtime/lib/types/client/sessions/conversation.d.ts` |
+| defineTool 完整选项（presentCall/presentResult/presentationMeta/isConcurrencySafe） | `@deepseek-ai/dsh-tools/lib/types/schema.d.ts` |
+| ToolCallView/ToolResultView 声明式视图 | `@deepseek-ai/dsh-tools/lib/types/presentation.d.ts` |
+| **官方工具卡注册例子**（ask-question/bash/file-mutation/read/search 的 row + register 调用，照抄结构） | `@deepseek-ai/dsh-client-ui-tool/lib/client.js`（grep "tool.call.toolview"） |
+| 官方图标/按钮/Modal（ic_ds_* 图标集） | `@deepseek-ai/dsh-client-ui-primitives`（本仓库 vendor/deepseek-harness 有同源参考，见 packages/ui） |
+| 宿主 UI 包全景 | pnpm dlx checkout 下 `node_modules/.pnpm/` 里 `@deepseek-ai+dsh-client-ui-*` |
+
+**省 token 检索法**：先 `grep -rn "槽位名/关键词" <包>/lib/types` 定位 .d.ts（类型即契约），再看 `lib/client.js` 里 grep 到的官方注册例子抄结构。client.js 是打包产物但可读（未压缩）。
 
 ## 四、架构决策记录
 
