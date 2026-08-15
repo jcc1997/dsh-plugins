@@ -192,6 +192,9 @@ slots.inject('conversation.view', () => slots.register(
 
 宿主官方扩展点：**按工具名接管某个工具在对话消息流中的渲染**（官方 bash/read/ask 卡片同机制）。key = 工具名；不注册则 fallback 通用卡片。
 
+> **★ 重要修正（md-review 实测,别被旧结论误导）**：run_code 里通过 SDK `tools.xxx(...)` 调用宿主工具 = **真实工具调用,会在当前会话对话流渲染工具卡**,与模型直接调工具等价。且 **tools 桥按当前宿主工具注册表实时构建**——新装插件重启 dsh 后,`tools.<新工具>` 在当前会话立刻可调,**不需要新开会话**(本仓曾误判为「会话快照,必须重开」,错了;技能目录会刷新、tools 桥也是活的)。验证方法:`typeof tools.<name> === 'function'` 探测 + 打宿主路由(如 POST http://127.0.0.1:3080/<plugin-api>/…) 看 200/JSON 还是 405(405 = 插件没挂进 profile,`dsh plugin --profile web add <路径>` 解决)。
+> **★ 阻塞式人机交互工具(md_doc_open 类)的调试教训**:从 run_code 发起后,若程序用 Promise.race 超时返回/显式取消,挂起会被清掉——用户随后在卡片上点「提交」会收到宿主拒绝,而若失败提示渲染在卡片层(被自己的大浮窗遮住),用户看到的就只是「提交无响应」。规则:① 失败提示必须渲染在用户正在看的浮窗内;② 真实演示时不要 race/取消,让工具一直挂着等提交(结果会落到该工具块,下一轮可从上下文读到)。
+
 ```tsx
 // client/index.ts —— 注册（keyed 槽位 options 与 list 槽位不同！）
 slots.inject('tool.call.toolview', () => slots.register(

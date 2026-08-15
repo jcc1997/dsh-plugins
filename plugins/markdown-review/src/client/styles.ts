@@ -40,6 +40,7 @@ export const mdrCss = `
 
 /* ══ 划词批注(嵌入对应段落下方) ══ */
 .mdr-hint{padding:6px 16px;font-size:12px;color:var(--dsw-alias-state-warn-primary);border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
+.mdr-submit-error{color:var(--dsw-alias-state-error-primary)}
 .mdr-editor-slot{display:block}
 .mdr-editor{margin:8px 0;padding:10px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:10px;background:var(--dsw-alias-bg-layer-2);display:flex;flex-direction:column;gap:8px;max-width:720px}
 .mdr-editor-quote{font-size:12px;color:var(--dsw-alias-label-secondary);border-left:3px solid var(--dsw-alias-state-business-primary);padding-left:8px;max-height:96px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}

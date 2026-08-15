@@ -55,8 +55,9 @@ export function MdDocCard(props: ToolViewProps) {
     setLoading(false)
   }
 
-  async function submit(payload: { quotes: QuoteItem[]; comment: string }) {
-    if (!doc || !doc.docId) return
+  /** 返回 {ok, error?} 供浮窗内展示失败原因(卡片层错误在浮窗下看不见) */
+  async function submit(payload: { quotes: QuoteItem[]; comment: string }): Promise<{ ok: boolean; error?: string }> {
+    if (!doc || !doc.docId) return { ok: false, error: '文档尚未加载完成' }
     setLoading(true)
     setError('')
     try {
@@ -69,11 +70,18 @@ export function MdDocCard(props: ToolViewProps) {
       if (data && data.ok) {
         setSubmitted(payload)
         setOpen(false)
-      } else {
-        setError((data && data.error) || '提交失败(可能已超时,让 agent 重新打开文档)')
+        return { ok: true }
       }
-    } catch { setError('网络错误:提交失败') }
-    setLoading(false)
+      const msg = (data && data.error) || '提交失败(可能已超时,让 agent 重新打开文档)'
+      setError(msg)
+      return { ok: false, error: msg }
+    } catch {
+      const msg = '网络错误:提交失败'
+      setError(msg)
+      return { ok: false, error: msg }
+    } finally {
+      setLoading(false)
+    }
   }
 
   const title = (args && args.title) || (doc && doc.title) || path.split('/').pop() || '文档'
@@ -139,12 +147,13 @@ function AnnotationEditor(props: { text: string; note: string; onNote: (v: strin
 }
 
 /** 大浮窗:左正文(划词 → 段落下方批注)+ 右引用清单 + 底部总评/提交 */
-function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { quotes: QuoteItem[]; comment: string }) => void }) {
+function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { quotes: QuoteItem[]; comment: string }) => Promise<{ ok: boolean; error?: string }> }) {
   const [quotes, setQuotes] = useState<QuoteItem[]>([])
   const [comment, setComment] = useState('')
   const [anchor, setAnchor] = useState<{ key: string; text: string } | null>(null)
   const [note, setNote] = useState('')
   const [hint, setHint] = useState('')
+  const [submitError, setSubmitError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const blocks = useMemo(() => parseMarkdownBlocks(props.doc.markdown || ''), [props.doc])
@@ -191,7 +200,9 @@ function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { qu
     if (submitting) return
     if (quotes.length === 0 && !comment.trim()) return
     setSubmitting(true)
-    await props.onSubmit({ quotes, comment: comment.trim() })
+    setSubmitError('')
+    const r = await props.onSubmit({ quotes, comment: comment.trim() })
+    if (r && !r.ok) setSubmitError(r.error || '提交失败')
     setSubmitting(false)
   }
 
@@ -213,6 +224,7 @@ function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { qu
           <button className="mdr-icon-btn" type="button" title="关闭" onClick={props.onClose}>×</button>
         </header>
         {hint ? <div className="mdr-hint">{hint}</div> : null}
+        {submitError ? <div className="mdr-hint mdr-submit-error">{submitError}</div> : null}
         <div className="mdr-viewer-body">
           <div className="mdr-content" ref={contentRef} onMouseUp={onMouseUp}>
             {renderBlocks(blocks, extra)}
