@@ -149,7 +149,8 @@ export const plpCss = `
 .plp-sess-st-cancelled{color:var(--dsw-alias-label-dimmed)}
 
 /* ══ 常驻 dock 条(conversation.input.dock,Composer 上方整行;todo 式运行列表) ══ */
-.plp-dock{display:flex;flex-direction:column;gap:2px;padding:6px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-base)}
+/* 水平留白与宿主输入卡同款(--dsh-composer-side-clearance,宿主 input 区对齐变量) */
+.plp-dock{display:flex;flex-direction:column;gap:2px;margin-left:calc(var(--dsh-composer-side-clearance, 0px) + 16px);margin-right:calc(var(--dsh-composer-side-clearance, 0px) + 16px);padding:6px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-base)}
 .plp-dock-head{display:flex;align-items:center;gap:8px;min-width:0}
 .plp-dock-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-primary);flex:none}
 .plp-dock-count{font-size:11px;color:var(--dsw-alias-label-tertiary);background:var(--dsw-alias-bg-layer-2);border-radius:999px;padding:0 6px;font-variant-numeric:tabular-nums}
