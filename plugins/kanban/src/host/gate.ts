@@ -68,7 +68,52 @@ export type CheckerFn = (card: any, gate: CardGate, cfg: Record<string, unknown>
 /** 检查器注册表：type → 实现。 */
 export const checkerRegistry: Record<string, CheckerFn> = {}
 
-checkerRegistry['tag-required'] = async (card, gate, cfg) => {
+/** 内置类型的「预设代码模板」：唯一执行底层 = code 沙箱。模板在 worker 里经 gate 命名空间判定。 */
+export function presetProgram(type: string, cfg: Record<string, unknown>): string {
+  if (type === 'tag-required') {
+    const need = JSON.stringify((Array.isArray(cfg.tags) ? cfg.tags : []).map(String))
+    return `const c = await gate.card({});
+const need = ${need};
+const miss = need.filter(t => !(c.tags || []).includes(t));
+return { ok: miss.length === 0, reason: miss.length ? '缺少必需标签：' + miss.join(', ') : '' }`
+  }
+  if (type === 'field-nonempty') {
+    const field = JSON.stringify(String(cfg.field || 'description'))
+    return `const c = await gate.card({});
+const v = c[${field}];
+return { ok: typeof v === 'string' && v.trim() !== '', reason: '字段「' + ${field} + '」为空' }`
+  }
+  if (type === 'mr-linked') {
+    return `const c = await gate.card({});
+const refs = c.refs || [];
+const repo = refs.find(r => r.kind === 'github-repo' && r.externalId);
+const mr = refs.find(r => r.kind === 'github-mr' && r.externalId);
+return { ok: !!(repo && mr), reason: !repo ? '未关联 GitHub 仓库' : '未关联 MR' }`
+  }
+  if (type === 'mr-merged') {
+    return `const c = await gate.card({});
+const sync = await gate.call({service: 'git', method: 'sync', args: [c.id]});
+const mrs = sync && sync.snapshot && sync.snapshot.mrs ? sync.snapshot.mrs : [];
+const linked = (c.refs || []).filter(r => r.kind === 'github-mr' && r.externalId).map(r => String(r.externalId));
+if (linked.length === 0 && mrs.length === 0) return { ok: false, reason: '未关联 MR' };
+const open = mrs.filter(m => m.state !== 'merged');
+return { ok: open.length === 0, reason: open.length ? 'MR 未合并：' + open.map(m => '#' + m.number).join(', ') : '' }`
+  }
+  if (type === 'pipeline') {
+    let ids: string[] = Array.isArray(cfg.pipelines) ? cfg.pipelines.map(String).filter(Boolean) : []
+    if (ids.length === 0 && cfg.pipelineId) ids = [String(cfg.pipelineId)]
+    return `const ids = ${JSON.stringify(ids)};
+const card = await gate.card({});
+const outs = await Promise.all(ids.map(id => gate.runPipeline({pipelineId: id, inputs: {card}})));
+const bad = outs.filter(o => o && o.error);
+return { ok: bad.length === 0, reason: bad.length ? 'pipeline 失败：' + bad.map(o => o.error).join('；') : '' }`
+  }
+  throw new Error('unknown preset checker type: ' + type)
+}
+
+/** 宿主等价实现（降级路径：无 codeRuntime 时内置类型直接判，不依赖沙箱） */
+export const nativeCheckers: Record<string, CheckerFn> = {}
+nativeCheckers['tag-required'] = async (card, gate, cfg) => {
   const required: string[] = (Array.isArray(cfg.tags) ? cfg.tags : []).map(String)
   const have: string[] = Array.isArray(card.tags) ? card.tags : []
   const missing = required.filter((t) => t && !have.includes(t))
@@ -76,14 +121,14 @@ checkerRegistry['tag-required'] = async (card, gate, cfg) => {
   return null
 }
 
-checkerRegistry['field-nonempty'] = async (card, gate, cfg) => {
+nativeCheckers['field-nonempty'] = async (card, gate, cfg) => {
   const field = String(cfg.field || 'description')
   const val = card[field]
   if (typeof val !== 'string' || val.trim() === '') return { name: gate.name || 'field-nonempty', type: 'field-nonempty', reason: '字段「' + field + '」为空' }
   return null
 }
 
-checkerRegistry['mr-linked'] = async (card, gate) => {
+nativeCheckers['mr-linked'] = async (card, gate) => {
   const refs: any[] = Array.isArray(card.refs) ? card.refs : []
   const repoRef = refs.find((r) => r.kind === 'github-repo')
   const mrRefs = refs.filter((r) => r.kind === 'github-mr' && r.externalId)
@@ -94,7 +139,7 @@ checkerRegistry['mr-linked'] = async (card, gate) => {
   return null
 }
 
-checkerRegistry['mr-merged'] = async (card, gate, _cfg, deps) => {
+nativeCheckers['mr-merged'] = async (card, gate, _cfg, deps) => {
   const refs: any[] = Array.isArray(card.refs) ? card.refs : []
   const repoRef = refs.find((r) => r.kind === 'github-repo')
   const mrRefs = refs.filter((r) => r.kind === 'github-mr' && r.externalId)
@@ -119,6 +164,32 @@ checkerRegistry['mr-merged'] = async (card, gate, _cfg, deps) => {
   if (unmerged.length > 0) return { name: gate.name || 'mr-merged', type: 'mr-merged', reason: 'MR 未全部合并：' + unmerged.join(', ') }
   return null
 }
+
+
+nativeCheckers['pipeline'] = async (card, gate, cfg, deps) => {
+  const svc = deps.getPipelineService ? deps.getPipelineService() : undefined
+  if (!svc || typeof svc.run !== 'function') return { name: gate.name || 'pipeline', type: 'pipeline', reason: 'pipeline 插件未激活' }
+  let ids: string[] = Array.isArray(cfg.pipelines) ? cfg.pipelines.map(String).filter(Boolean) : []
+  if (ids.length === 0 && cfg.pipelineId) ids = [String(cfg.pipelineId)]
+  if (ids.length === 0) return { name: gate.name || 'pipeline', type: 'pipeline', reason: 'pipeline checker 缺少 pipelines 配置' }
+  const inputs: Record<string, unknown> = { card }
+  // 现场启动并等待：全部成功才通过（GitHub CI 门禁语义）
+  const results = await Promise.all(ids.map(async (pid) => {
+    try {
+      const out = await svc.run(pid, inputs)
+      return { pid, ok: !(out && out.error), out }
+    } catch (e) {
+      return { pid, ok: false, out: { error: String((e as Error).message) } }
+    }
+  }))
+  const failed = results.filter((r) => !r.ok)
+  if (failed.length > 0) {
+    return { name: gate.name || 'pipeline', type: 'pipeline', reason: failed.map((f) => 'pipeline ' + f.pid + ' 失败：' + String(f.out && f.out.error ? f.out.error : 'unknown')).join('；') }
+  }
+  return null
+}
+
+
 
 checkerRegistry['code'] = async (card, gate, cfg, deps) => {
   const code = typeof cfg.code === 'string' && cfg.code.trim() ? cfg.code : null
@@ -260,15 +331,30 @@ export async function checkGates(
   if (gates.length === 0) return { ok: true, failed: [] }
   const failed: GateFailure[] = []
   for (const g of gates) {
+    const type = (g.checker && g.checker.type) || ''
     const cfg = (g.checker && g.checker.config) || {}
-    const fn = checkerRegistry[g.checker.type]
     let f: GateFailure | null
-    if (!fn) f = { name: g.name || g.checker.type, type: g.checker.type, reason: '未知检查器类型：' + g.checker.type }
-    else f = await fn(card, g, cfg, deps)
+    if (type === 'code') {
+      f = await checkerRegistry['code'](card, g, cfg, deps)
+    } else if (presetTypes.includes(type)) {
+      // 唯一执行底层 = code 沙箱:内置预设编译成代码跑;无 codeRuntime 时宿主等价实现兜底
+      const rt = deps.getCodeRuntime ? deps.getCodeRuntime() : undefined
+      if (rt && typeof rt.run === 'function') {
+        f = await runCodeOnRuntime(presetProgram(type, cfg), null, card, g, cfg, deps, rt)
+      } else {
+        const native = nativeCheckers[type]
+        f = native ? await native(card, g, cfg, deps) : { name: g.name || type, type, reason: '未知检查器类型：' + type }
+      }
+    } else {
+      f = { name: g.name || type, type, reason: '未知检查器类型：' + type }
+    }
     if (f) failed.push(f)
   }
   return { ok: failed.length === 0, failed }
 }
+
+/** 内置预设类型（全部经 code 沙箱执行） */
+export const presetTypes = ['tag-required', 'field-nonempty', 'mr-linked', 'mr-merged', 'pipeline']
 
 /** 校验门禁定义（新增时输入合法性） */
 export function validateGate(gate: any): string | null {

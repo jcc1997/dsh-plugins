@@ -30,16 +30,20 @@ DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板�
 
 一张卡片可挂**多条门禁**，触发动作时全部通过才放行；任一失败返回「门禁未通过：<原因>」并拒绝动作。门禁可挂在卡片上，也可由创建模板带入。
 
-### 2. checker 六种类型
+### 2. checker 六种类型（唯一执行底层 = 沙箱 code）
 
-| type | 说明 | config |
+所有 checker 最终都以**代码**形式在 code 沙箱里执行（架构：内置类型 = 预设代码模板，见 §3）。声明式类型只是快捷预设，与手写 code 等价：
+
+| type | 预设代码做的事 | config |
 |---|---|---|
-| `tag-required` | 卡片必须含指定标签 | `{tags: ["rd-confirmed"]}` |
-| `field-nonempty` | 卡片字段非空 | `{field: "description"}` |
-| `mr-linked` | 已关联 GitHub 仓库 + MR（读 refs） | 无 |
-| `mr-merged` | 关联 MR 已全部合并（GitHub API + GITHUB_TOKEN） | 无 |
-| `code` | **一段代码**（沙箱执行，见 §3） | `{code}` 或 `{script}`，可选 `{timeoutMs}` |
-| `pipeline` | **现场启动 pipeline 并等全部成功**（GitHub CI 门禁语义） | `{pipelines: ["<pipelineId>", ...]}`，并行执行 |
+| `tag-required` | 检查 `card.tags` 包含指定标签 | `{tags: ["rd-confirmed"]}` |
+| `field-nonempty` | 检查卡片字段非空 | `{field: "description"}` |
+| `mr-linked` | 检查 refs 有 github-repo + github-mr | 无 |
+| `mr-merged` | 经 `gate.call` git.sync 拿 MR 快照，检查全部 merged | 无 |
+| `code` | **手写代码**（见 §3） | `{code}` 或 `{script}`，可选 `{timeoutMs}` |
+| `pipeline` | 经 `gate.runPipeline` 现场跑并等全部成功（GitHub CI 门禁语义） | `{pipelines: [...]}`，并行执行 |
+
+> 无 codeRuntime 时降级：内置预设走宿主等价实现（行为一致），code 类型走 bash 子进程（无 gate 命名空间）。
 
 ### 3. code checker：沙箱里有什么
 

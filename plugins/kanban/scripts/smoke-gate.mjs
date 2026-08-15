@@ -11,6 +11,10 @@ const fsMock = {
   writeText: async (t, content) => { mem.set(t.targetKey, content) },
 }
 const registered = []
+const rtCalls = []
+// codeRuntime mock:队列式判定(第 1 次=拦截验证,之后=放行)
+const verdicts = [{ ok: false, reason: 'mock 拦截:缺少必需标签' }]
+for (let i = 0; i < 8; i++) verdicts.push({ ok: true, reason: '' })
 const ctx = {
   get: (name) => {
     if (name === 'fs') return fsMock
@@ -18,6 +22,7 @@ const ctx = {
     if (name === 'webServer') return { register: () => () => {} }
     if (name === 'credentials') return { resolve: async () => undefined }
     if (name === 'shell') return { run: async (spec) => ({ exitCode: 0, stdout: { text: JSON.stringify({ ok: true, reason: '' }), truncated: false } }) }
+    if (name === 'codeRuntime') return { run: async (req) => { rtCalls.push({ program: req.program, globals: (req.bindings||[]).map(b=>b.global) }); const v = verdicts.shift() || { ok: true, reason: '' }; return { value: v, logs: [] } } }
     if (name === 'pipeline') return { run: async () => ({ output: 'pass' }) }
     return undefined
   },
@@ -71,4 +76,7 @@ r = await tool('kanban_archive').execute({ card_id: cardId })
 console.log('8 归档放行:', JSON.stringify(r))
 if (!r.ok) throw new Error('FAIL: 归档应通过')
 
+const presetRun = rtCalls.find(c => c.program.includes('gate.card') && c.program.includes('need'))
+if (!presetRun) throw new Error('FAIL: 内置预设未走 codeRuntime 沙箱路径')
+console.log('preset 沙箱路径 OK:', presetRun.program.slice(0, 80).replace(/\n/g, ' '))
 console.log('KANBAN-GATE-V5 SMOKE PASS')
