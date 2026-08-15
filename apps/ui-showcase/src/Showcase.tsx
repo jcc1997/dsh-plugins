@@ -99,10 +99,7 @@ export function Showcase() {
               <span className="mdr-card-status">已提交</span>
             </div>
             <div className="mdr-card-summary">
-              <div className="mdr-card-quote">
-                <div className="mdr-card-quote-text">选中原文示例</div>
-                <div className="mdr-card-quote-note">批注示例</div>
-              </div>
+              <div className="mdr-card-count">3 条批注</div>
               <div className="mdr-card-comment">总评:整体意见示例</div>
             </div>
           </div>

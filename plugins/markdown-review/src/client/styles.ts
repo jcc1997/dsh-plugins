@@ -14,6 +14,7 @@ export const mdrCss = `
 .mdr-card-context{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .mdr-card-error{font-size:12px;color:var(--dsw-alias-state-error-primary)}
 .mdr-card-muted{font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.mdr-card-count{font-size:12px;color:var(--dsw-alias-label-secondary);font-weight:600}
 .mdr-card-summary{display:flex;flex-direction:column;gap:8px}
 .mdr-card-quote{background:var(--dsw-alias-bg-layer-2);border-left:3px solid var(--dsw-alias-state-business-primary);border-radius:8px;padding:8px 12px}
 .mdr-card-quote-text{font-size:12px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word}

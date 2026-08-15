@@ -114,13 +114,7 @@ export function MdDocCard(props: ToolViewProps) {
       {error ? <div className="mdr-card-error">{error}</div> : null}
       {submitted ? (
         <div className="mdr-card-summary">
-          {submitted.quotes.length > 0 ? submitted.quotes.map((q) => (
-            <div key={q.id} className="mdr-card-quote">
-              {q.line ? <div className="mdr-card-quote-line">{fmtLine(q.line, q.lineEnd)}</div> : null}
-              <div className="mdr-card-quote-text">{q.text}</div>
-              {q.note ? <div className="mdr-card-quote-note">{q.note}</div> : null}
-            </div>
-          )) : <div className="mdr-card-muted">无划词批注</div>}
+          {submitted.quotes.length > 0 ? <div className="mdr-card-count">{submitted.quotes.length} 条批注</div> : <div className="mdr-card-muted">无划词批注</div>}
           {submitted.comment ? <div className="mdr-card-comment">总评:{submitted.comment}</div> : null}
         </div>
       ) : !settled ? (
