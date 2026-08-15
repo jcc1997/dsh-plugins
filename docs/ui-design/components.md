@@ -76,6 +76,7 @@
   - textarea: 无边框无背景无 outline、上下 padding 4px、max-height 160px 内部滚动、caret 品牌蓝
   - 取消/确认 icon 按钮内嵌: 单行 → 同行右侧;多行 → 输入撑满、按钮落容器内最下面一行右对齐(ADR-3)
 - **交互**: Enter 提交/发送,Shift+Enter 换行;Esc 无副作用(不关闭容器);发送后清空输入、焦点保持。
+- **紧凑规格(compact)**: 批注等内嵌小输入用 `compact`(radius 10、padding 2px 10px、font 12/18、icon 按钮 24×24);单行按钮贴右、多行自动展开按钮落底部(ADR-10)。
 
 ## 五、卡片
 
@@ -121,6 +122,7 @@
 5. **表单**: Tab 顺序=视觉顺序;提交按钮 Enter 触发(非 textarea 时)。
 6. **长列表**: 键盘上下键移动焦点(可选,有列表语义时);滚动不劫持页面。
 7. **破坏性操作**: danger 确认按钮用 ghost+错误色;确认文案明确说出对象(「删除卡片 X」)。
+8. **批注/引用类操作**: 划词批注必须携带**原文行号**(块级 data-mdr-line,1-based),随批注提交,便于 agent 回原文定位;行号展示为 mono 11px tertiary 标签(如 L12)。
 
 ## 十、决策记录(ADR)
 
@@ -135,3 +137,4 @@
 | ADR-7 | 按钮契约 = 宿主 Button.module.css 实测(胶囊/两档/四变体/disabled .4) | 宿主统一最高原则,旧方角自创漂移 | 方角 r8 + 6/14 padding(漂移,废弃) |
 | ADR-8 | tokens 单一来源 = design-platform.css 快照(sync 脚本从 submodule 同步) | 同一内容只在一处,宿主升级可复现 | 手工维护/宿主即来源(不可复现) |
 | ADR-9 | 间距 = 宿主实测归纳档位表,非自创 4n | 宿主无 spacing token,值散在组件 CSS | 4n 体系(与实测冲突,部分漂移) |
+| ADR-10 | 批注框 compact 规格:radius 10/padding 2 10/font 12/icon 24;灰底 markdown-inline-code 横向拉满(无左右 padding/无左右边框) | 批注需克制内嵌、与正文区分、脱离文档流 | 常规 Composer(r22 胶囊+16 内边距,过大);bg-layer-2 灰底(浅色主题下为白,不生效) |

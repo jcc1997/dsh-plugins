@@ -108,10 +108,10 @@ export function Showcase() {
           <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
         </>} />
       </Section>
-      <Section title="划词批注框(引用 + 胶囊输入)">
+      <Section title="划词批注框(灰底拉满 + 紧凑输入,输入变多自动展开)">
         <div className="mdr-editor">
-          <div className="mdr-editor-quote">选中原文示例:这是一段被划词选中的文字,出现在批注框左侧。</div>
-          <Composer value="" onChange={() => {}} placeholder="对这段的批注…" actions={<>
+          <div className="mdr-editor-quote"><span className="mdr-line-tag">L12</span>选中原文示例:这是一段被划词选中的文字,带行号定位。</div>
+          <Composer value="" onChange={() => {}} placeholder="对这段的批注…" compact actions={<>
             <button className="mdr-icon-btn"><IconCloseOutline16 /></button>
             <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
           </>} />
