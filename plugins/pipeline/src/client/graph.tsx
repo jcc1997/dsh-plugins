@@ -2,7 +2,7 @@
 // 交互：节点卡片（类型徽章/标题/删除/端口点）；边中点 + 新增节点；点节点选中（右侧编辑面板）。
 // 不支持拖拽节点（nodesDraggable=false）；画布可平移/缩放；连线规则与 host 引擎一致（显式 inputs 优先，否则串联上一个）。
 import React, { useMemo, useState } from 'react'
-import { ReactFlow, Background, Controls, Panel, BaseEdge, EdgeLabelRenderer, getBezierPath, MarkerType, type EdgeProps, type NodeProps } from '@xyflow/react'
+import { ReactFlow, Background, Controls, Panel, BaseEdge, EdgeLabelRenderer, getBezierPath, MarkerType, Handle, Position, type EdgeProps, type NodeProps } from '@xyflow/react'
 
 export interface GraphNode {
   id: string
@@ -68,6 +68,7 @@ function PlpNode(props: NodeProps) {
   const n = d.node
   return (
     <div className={'plp-rf-node' + (d.selected ? ' plp-rf-node-sel' : '')}>
+      <Handle type="target" position={Position.Top} className="plp-rf-handle" />
       <span className="plp-rf-port plp-rf-port-in" />
       <div className="plp-rf-node-head">
         <span className={'plp-graph-type plp-graph-type-' + n.type}>{NODE_LABEL[n.type] || n.type}</span>
@@ -86,6 +87,7 @@ function PlpNode(props: NodeProps) {
           onClick={(e) => { e.stopPropagation(); d.onMove(n.id, 1) }}>↓</button>
       </div>
       <span className="plp-rf-port plp-rf-port-out" />
+      <Handle type="source" position={Position.Bottom} className="plp-rf-handle" />
     </div>
   )
 }
@@ -99,7 +101,7 @@ function PlpEdge(props: EdgeProps) {
       <EdgeLabelRenderer>
         <button type="button" className="plp-rf-edge-add nodrag nopan" title="在此新增节点"
           style={{ position: 'absolute', transform: 'translate(-50%,-50%) translate(' + labelX + 'px,' + labelY + 'px)', pointerEvents: 'all' }}
-          onClick={(e) => { e.stopPropagation(); (props.data as unknown as { onAddBetween: (f: string, t: string) => void }).onAddBetween(props.source, props.target) }}>
+          onClick={(e) => { e.stopPropagation(); const d = props.data as unknown as { onAddBetween?: (f: string, t: string) => void } | undefined; if (d && d.onAddBetween) d.onAddBetween(props.source, props.target) }}>
           <svg width={10} height={10} viewBox="0 0 16 16" fill="none"><path d="M8.6 1.5V7.4H14.5V8.6H8.6V14.5H7.4V8.6H1.5V7.4H7.4V1.5H8.6z" fill="currentColor"/></svg>
         </button>
       </EdgeLabelRenderer>
@@ -146,7 +148,7 @@ export function NodeGraph(props: {
           source: d,
           target: n.id,
           type: 'plp',
-          markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: 'var(--dsw-alias-border-l3)' },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14 },
           data: { onAddBetween: props.onAddEdge },
         })
       }
