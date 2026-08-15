@@ -292,16 +292,22 @@ const GATE_ON_LABEL: Record<string, string> = { move: '移动状态', tags: '增
 const GATE_KIND_LABEL: Record<string, string> = { 'mr-merged': 'MR 已合并', 'mr-linked': '已关联 MR', 'tag-required': '必须含标签', 'field-nonempty': '字段非空', 'code': '代码检查', 'pipeline': 'pipeline 检查' }
 
 /** 卡片当前门禁：gateIds → 门禁库解析；旧内联 gates 兜底（宿主已迁移，防御性保留） */
+function gateSig(g: any): string {
+  return [g.name, g.on, String(g.to || ''), g.checker ? g.checker.type : g.kind].join('\u0001')
+}
 function resolveCardGates(card: KanbanCard, lib: CardGate[]): CardGate[] {
   const ids: string[] = Array.isArray((card as any).gateIds) ? (card as any).gateIds : []
   const out: CardGate[] = []
+  const push = (g: CardGate) => {
+    if (!g || !g.id) return
+    if (out.some((o: any) => o.id === g.id || gateSig(o) === gateSig(g))) return
+    out.push(g)
+  }
   for (const id of ids) {
     const g = lib.find((x: any) => x.id === id)
-    if (g && !out.some((o: any) => o.id === g.id)) out.push(g)
+    if (g) push(g)
   }
-  for (const g of ((card as any).gates || []) as CardGate[]) {
-    if (!out.some((o: any) => o.id === g.id)) out.push(g)
-  }
+  for (const g of ((card as any).gates || []) as CardGate[]) push(g)
   return out
 }
 

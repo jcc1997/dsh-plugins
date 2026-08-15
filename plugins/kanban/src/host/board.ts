@@ -49,6 +49,8 @@ export function normalizeBoard(board: any): any {
         const id = ensureGate(g)
         if (!holder.gateIds.includes(id)) holder.gateIds.push(id)
       }
+      // 内联已入库 + 引用已建 → 清掉内联副本，避免库引用与内联双重渲染/双重检查
+      holder.gates = []
     }
   }
   for (const col of board.columns || []) {
