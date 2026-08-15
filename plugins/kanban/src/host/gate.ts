@@ -22,12 +22,16 @@ export interface PipelineSvcLike {
 export interface GateCheckDeps {
   /** 解析 GITHUB_TOKEN（mr-* checker 用） */
   getToken(): Promise<string | undefined>
-  /** 沙箱执行器（code checker 用） */
+  /** 沙箱执行器（code checker 的 bash fallback 用） */
   shell?: ShellLike
-  /** pipeline 服务（pipeline checker 用，懒解析） */
+  /** pipeline 服务（pipeline checker / code binding 用，懒解析） */
   getPipelineService?(): PipelineSvcLike | undefined
-  /** 写临时文件（code checker 用；由宿主 fs 注入，避免 node:fs 依赖） */
+  /** 写临时文件（code checker bash fallback 用；由宿主 fs 注入） */
   writeTempFile?(path: string, content: string): Promise<void>
+  /** 宿主 codeRuntime（run_code 同款 worker 沙箱；code checker 首选后端） */
+  getCodeRuntime?(): { run(req: { program: string; bindings: Array<{ global: string; functions: Record<string, (args: unknown) => Promise<unknown>> }>; signal?: AbortSignal }): Promise<{ value?: unknown; logs: string[]; error?: { kind: string; message: string } }> } | undefined
+  /** 任意宿主服务（code binding 的 call 通用桥用） */
+  getService?(name: string): any
 }
 
 export interface GateFailure {
@@ -117,15 +121,79 @@ checkerRegistry['mr-merged'] = async (card, gate, _cfg, deps) => {
 }
 
 checkerRegistry['code'] = async (card, gate, cfg, deps) => {
-  const shell = deps.shell
-  if (!shell) return { name: gate.name || 'code', type: 'code', reason: '沙箱执行器不可用（code checker 需要 shell）' }
   const code = typeof cfg.code === 'string' && cfg.code.trim() ? cfg.code : null
   const script = typeof cfg.script === 'string' && cfg.script.trim() ? cfg.script : null
   if (!code && !script) return { name: gate.name || 'code', type: 'code', reason: 'code checker 缺少 code 或 script 配置' }
+  const rt = deps.getCodeRuntime ? deps.getCodeRuntime() : undefined
+  if (rt && typeof rt.run === 'function') {
+    return await runCodeOnRuntime(code || '', script, card, gate, cfg, deps, rt)
+  }
+  return await runCodeOnBash(code || '', script, card, gate, cfg, deps)
+}
+
+/** 首选后端：宿主 codeRuntime（worker 沙箱 + bindings 注入宿主能力，run_code 同款隔离） */
+async function runCodeOnRuntime(code: string, _script: string | null, card: any, gate: CardGate, _cfg: Record<string, unknown>, deps: GateCheckDeps, rt: any): Promise<GateFailure | null> {
+  try {
+    const result = await rt.run({
+      program: code,
+      bindings: [{
+        global: 'gate',
+        functions: {
+          /** 当前被检查的卡片 */
+          card: async () => lossless(card),
+          /** 读任意卡片（kanban 服务） */
+          getCard: async (args: any) => {
+            const id = args && args.cardId ? String(args.cardId) : String(args)
+            return lossless(await readCardById(id, deps))
+          },
+          /** 现场跑一条 pipeline 并等结果（pipeline 插件服务） */
+          runPipeline: async (args: any) => {
+            const svc = deps.getPipelineService ? deps.getPipelineService() : undefined
+            if (!svc || typeof svc.run !== 'function') throw new Error('pipeline 服务未激活')
+            const pipelineId = args && args.pipelineId ? String(args.pipelineId) : String(args)
+            const inputs = (args && args.inputs) || { card: lossless(card) }
+            return lossless(await svc.run(pipelineId, inputs))
+          },
+          /** 通用服务桥：调用任意宿主插件服务（gate.call('git','isConfigured') 等） */
+          call: async (args: any) => {
+            const service = args && args.service ? String(args.service) : ''
+            const method = args && args.method ? String(args.method) : ''
+            const mArgs = args && Array.isArray(args.args) ? args.args : []
+            const svc = deps.getService ? deps.getService(service) : undefined
+            if (!svc) throw new Error('service not found: ' + service)
+            const fn = svc[method]
+            if (typeof fn !== 'function') throw new Error('method not found: ' + service + '.' + method)
+            return lossless(await fn(...mArgs))
+          },
+        },
+      }],
+    })
+    if (result.error) {
+      return { name: gate.name || 'code', type: 'code', reason: 'code 运行失败(' + result.error.kind + ')：' + result.error.message }
+    }
+    // 判定：顶层 return {ok} 优先；否则 logs 最后一行 JSON
+    let verdict: any = result.value !== undefined ? result.value : null
+    if (!verdict && Array.isArray(result.logs) && result.logs.length > 0) {
+      const last = result.logs[result.logs.length - 1].trim()
+      try { verdict = last ? JSON.parse(last) : null } catch { /* 非 JSON */ }
+    }
+    if (verdict && typeof verdict === 'object' && verdict.ok === true) return null
+    if (verdict && typeof verdict === 'object' && verdict.ok === false) return { name: gate.name || 'code', type: 'code', reason: String((verdict as any).reason || '未通过') }
+    if (verdict === 'ok' || verdict === true) return null
+    return { name: gate.name || 'code', type: 'code', reason: '未通过（未返回 {ok:true}；value=' + JSON.stringify(verdict) + '）' }
+  } catch (e) {
+    return { name: gate.name || 'code', type: 'code', reason: 'codeRuntime 执行失败：' + String((e as Error).message) }
+  }
+}
+
+/** 降级后端：bash 沙箱 node 子进程 + 载荷文件（hooks bridges 同款数据注入） */
+async function runCodeOnBash(code: string, script: string | null, card: any, gate: CardGate, cfg: Record<string, unknown>, deps: GateCheckDeps): Promise<GateFailure | null> {
+  const shell = deps.shell
+  if (!shell) return { name: gate.name || 'code', type: 'code', reason: '沙箱执行器不可用（code checker 需要 shell）' }
+  if (!deps.writeTempFile) return { name: gate.name || 'code', type: 'code', reason: 'code checker 需要 writeTempFile 依赖' }
   const payload = JSON.stringify({ card, gate: { id: gate.id, name: gate.name, on: gate.on, checker: gate.checker } })
   const codePath = '/tmp/dsh-gate-' + gate.id + '.mjs'
   const payloadPath = '/tmp/dsh-gate-' + gate.id + '.json'
-  if (!deps.writeTempFile) return { name: gate.name || 'code', type: 'code', reason: 'code checker 需要 writeTempFile 依赖' }
   try {
     if (code) await deps.writeTempFile(codePath, code)
     await deps.writeTempFile(payloadPath, payload)
@@ -147,6 +215,19 @@ checkerRegistry['code'] = async (card, gate, cfg, deps) => {
   } catch (e) {
     return { name: gate.name || 'code', type: 'code', reason: '执行失败：' + String((e as Error).message) }
   }
+}
+
+async function readCardById(cardId: string, deps: GateCheckDeps): Promise<any> {
+  const kanban = deps.getService ? deps.getService('kanban') : undefined
+  if (kanban && typeof kanban.getCard === 'function') {
+    return (await kanban.getCard(cardId)) || null
+  }
+  return null
+}
+
+function lossless(v: unknown): unknown {
+  if (v === undefined) return null
+  try { return JSON.parse(JSON.stringify(v)) } catch { return null }
 }
 
 checkerRegistry['pipeline'] = async (card, gate, cfg, deps) => {

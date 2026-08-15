@@ -44,6 +44,8 @@ export function apply(ctx: KanbanCtx) {
     },
     shell,
     getPipelineService: () => ctx.get('pipeline') as any | undefined,
+    getCodeRuntime: () => ctx.get('codeRuntime') as any | undefined,
+    getService: (name: string) => ctx.get(name),
     writeTempFile: async (path: string, content: string) => {
       const target = await fs.resolve(path)
       await fs.writeText(target, content, undefined, undefined, { mode: 'danger-full-access' })
