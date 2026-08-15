@@ -3,7 +3,7 @@
 //   §1 类型与工具函数(块参数解析 / 引用项 / 文档信息)
 //   §2 MdDocCard — 对话流中的工具卡(打开按钮 + 提交摘要)
 //   §3 MdViewer — 大浮窗:左栏(md 内容上 / 总评输入下)+ 右栏(审批内容清单)
-//   §4 AnnotationEditor — 划词后嵌在段落下方的批注框(左:选中原文;右:批注输入+icon 按钮)
+//   §4 AnnotationPopover — 划词后跟随选区弹出的批注浮窗(引用文字#行号 + compact 输入)
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Composer, IconCheckOutline16, IconCloseOutline16 } from '@dsh-plugins/ui'
 import { parseMarkdownBlocks, renderBlocks } from './md'
@@ -135,7 +135,7 @@ export function MdDocCard(props: ToolViewProps) {
 export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { quotes: QuoteItem[]; comment: string }) => Promise<{ ok: boolean; error?: string }> }) {
   const [quotes, setQuotes] = useState<QuoteItem[]>([])
   const [comment, setComment] = useState('')
-  const [anchor, setAnchor] = useState<{ key: string; text: string; line?: number } | null>(null)
+  const [anchor, setAnchor] = useState<{ key: string; text: string; line?: number; pos: { top: number; left: number } } | null>(null)
   const [note, setNote] = useState('')
   const [hint, setHint] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -143,19 +143,39 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
   const contentRef = useRef<HTMLDivElement | null>(null)
   const blocks = useMemo(() => parseMarkdownBlocks(props.doc.markdown || ''), [props.doc])
 
-  /* ── Esc 关闭浮层(components.md §九-2) ── */
+  /* ── Esc:优先关批注浮窗,再关浮层(components.md §九-2) ── */
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') props.onClose()
+      if (e.key !== 'Escape') return
+      if (anchor) setAnchor(null)
+      else props.onClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [props.onClose])
+  }, [anchor, props.onClose])
+
+  /* ── 批注浮窗关闭:内容区滚动 / 点击浮窗外(components.md §九) ── */
+  useEffect(() => {
+    if (!anchor) return
+    const onScroll = () => setAnchor(null)
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement
+      if (t && t.closest && t.closest('.mdr-popover')) return
+      setAnchor(null)
+    }
+    const content = contentRef.current
+    if (content) content.addEventListener('scroll', onScroll, { passive: true })
+    document.addEventListener('mousedown', onDown)
+    return () => {
+      if (content) content.removeEventListener('scroll', onScroll)
+      document.removeEventListener('mousedown', onDown)
+    }
+  }, [anchor])
 
   /* ── 划词:单块内选区 → 在该块下方嵌入批注框;跨块/mermaid 区域拒绝 ── */
   function onMouseUp(e: React.MouseEvent) {
     const target = e.target as HTMLElement
-    if (target && target.closest && target.closest('[data-mdr-editor]')) return
+    if (target && target.closest && target.closest('[data-mdr-popover]')) return
     const sel = window.getSelection()
     if (!sel || sel.isCollapsed) return
     const range = sel.getRangeAt(0)
@@ -181,7 +201,8 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
     const text = sel.toString().trim()
     if (!text) return
     const lineNum = Number(startBlock.getAttribute('data-mdr-line') || 0) || undefined
-    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400), line: lineNum })
+    const rect = range.getBoundingClientRect()
+    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400), line: lineNum, pos: { top: rect.top, left: rect.left } })
     setNote('')
     setHint('')
     sel.removeAllRanges()
@@ -204,14 +225,6 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
     setSubmitting(false)
   }
 
-  const extra = useMemo(() => {
-    const m = new Map<string, React.ReactNode>()
-    if (anchor) {
-      m.set(anchor.key, <AnnotationEditor text={anchor.text} line={anchor.line} note={note} onNote={setNote} onAdd={addQuote} onCancel={() => setAnchor(null)} />)
-    }
-    return m
-  }, [anchor, note])
-
   const canSubmit = !submitting && (quotes.length > 0 || comment.trim() !== '')
 
   return (
@@ -231,8 +244,20 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
           {/* 左栏:上 md 内容 / 下 总评输入 */}
           <div className="mdr-main">
             <div className="mdr-content" ref={contentRef} onMouseUp={onMouseUp}>
-              {renderBlocks(blocks, extra)}
+              {renderBlocks(blocks)}
             </div>
+            {anchor ? (
+              <AnnotationPopover
+                key={anchor.key}
+                text={anchor.text}
+                line={anchor.line}
+                pos={anchor.pos}
+                note={note}
+                onNote={setNote}
+                onAdd={addQuote}
+                onCancel={() => setAnchor(null)}
+              />
+            ) : null}
             <div className="mdr-main-input">
               <Composer
                 value={comment}
@@ -275,16 +300,27 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
 
 /* ═══════════ §4 划词批注框(嵌段落下方;左:选中原文 / 右:批注输入+icon 按钮) ═══════════ */
 
-function AnnotationEditor(props: { text: string; line?: number; note: string; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
+/** 批注浮窗:跟随选区弹出(下方优先,空间不足翻上方,视口 clamp);关闭走外部滚动/点击/Esc(MdViewer 统一管理) */
+function AnnotationPopover(props: { text: string; line?: number; pos: { top: number; left: number }; note: string; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
   const ref = useRef<HTMLDivElement | null>(null)
+  const [placed, setPlaced] = useState<{ top: number; left: number } | null>(null)
   useEffect(() => {
-    if (ref.current) ref.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    const el = ref.current
+    if (!el) return
+    const w = el.offsetWidth
+    const h = el.offsetHeight
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    let top = props.pos.top + 8
+    if (top + h > vh - 8) top = Math.max(8, props.pos.top - h - 8)
+    const left = Math.max(8, Math.min(props.pos.left, vw - w - 8))
+    setPlaced({ top, left })
   }, [])
   return (
-    <div className="mdr-editor" data-mdr-editor ref={ref}>
-      <div className="mdr-editor-quote">
-        {props.line ? <span className="mdr-line-tag">L{props.line}</span> : null}
+    <div className="mdr-popover" data-mdr-popover ref={ref} style={placed ? { top: placed.top, left: placed.left } : { visibility: 'hidden' }}>
+      <div className="mdr-popover-quote">
         {props.text}
+        {props.line ? <span className="mdr-popover-line">#{'L' + props.line}</span> : null}
       </div>
       <Composer
         value={props.note}

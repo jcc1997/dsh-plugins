@@ -59,14 +59,13 @@ export const mdrCss = `
 .mdr-quote-note{font-size:12px;color:var(--dsw-alias-state-business-primary);margin-top:4px;white-space:pre-wrap;word-break:break-word}
 .mdr-quote-x{position:absolute;top:4px;right:4px}
 
-/* ══ §4 划词批注框(嵌段落下方;灰底横向拉满无左右 padding,脱离文档流;紧凑输入 ADR-10) ══ */
-.mdr-editor-slot{display:block}
-.mdr-editor{margin:8px 0;display:flex;flex-direction:column;gap:6px;min-width:0;background:var(--dsw-alias-markdown-inline-code);border-top:1px solid var(--dsw-alias-border-l1);border-bottom:1px solid var(--dsw-alias-border-l1);padding:8px 0}
-.mdr-editor .cmp-composer{min-width:0}
-.mdr-editor .mdr-icon-btn{width:24px;height:24px}
-.mdr-editor .mdr-icon-btn svg{width:14px;height:14px}
-.mdr-editor-quote{min-width:0;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary);max-height:48px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
-.mdr-line-tag{display:inline-block;flex:none;margin-right:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);background:var(--dsw-alias-bg-base);border-radius:4px;padding:0 4px;vertical-align:1px}
+/* ══ §4 划词批注浮窗(跟随选区;浮层规格 bg-base+shadow-lv3;引用文字淡灰底 + #行号纯文字;紧凑输入 ADR-10/11) ══ */
+.mdr-popover{position:fixed;z-index:130;width:min(360px,calc(100vw - 16px));box-sizing:border-box;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:14px;box-shadow:var(--dsw-shadow-lv3);padding:12px;display:flex;flex-direction:column;gap:8px}
+.mdr-popover-quote{min-width:0;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-markdown-code-block);border-radius:6px;padding:6px 8px;max-height:64px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.mdr-popover-line{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dsw-alias-label-tertiary);white-space:nowrap;margin-left:2px}
+.mdr-popover .cmp-composer{min-width:0}
+.mdr-popover .mdr-icon-btn{width:24px;height:24px}
+.mdr-popover .mdr-icon-btn svg{width:14px;height:14px}
 .mdr-quote-line{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dsw-alias-label-tertiary);margin-bottom:2px}
 .mdr-card-quote-line{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--dsw-alias-label-tertiary);margin-bottom:2px}
 

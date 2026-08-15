@@ -24,11 +24,13 @@ export function Composer(props: {
   const grow = () => {
     const el = ref.current
     if (!el) return
+    const cs = getComputedStyle(el)
+    const single = parseFloat(cs.lineHeight) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
     el.style.height = 'auto'
     const max = props.maxHeight || 160
-    el.style.height = Math.min(el.scrollHeight, max) + 'px'
-    // 单行(行高 20 + 上下 padding 8 = 28)以下 = 单行模式;超出即多行
-    setMultiline(el.scrollHeight > 30)
+    // 单行 = 精确 lineHeight+padding(内容顶部对齐无余量,视觉对称);超出即多行按内容增高
+    el.style.height = el.scrollHeight <= single + 2 ? single + 'px' : Math.min(el.scrollHeight, max) + 'px'
+    setMultiline(el.scrollHeight > single + 2)
   }
   useEffect(() => { grow() }, [props.value])
   return (
