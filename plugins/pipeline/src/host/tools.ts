@@ -162,7 +162,27 @@ export function buildToolDefs(env: ToolEnv): any[] {
       const { runId, run } = await queue.submit(String(args.pipeline_id), args.version || 'latest', args.inputs || {}, 'agent')
       return { ok: true, run_id: runId, status: run.status, queued: true }
     },
-    output: outputOf('运行提交结果'),
+    output: {
+      schema: { type: 'json' as const },
+      render: (_args: unknown, value: unknown) => [{ type: 'text' as const, text: '运行提交结果\n' + JSON.stringify(value, null, 2) }],
+      presentationMeta: (_args: unknown, value: unknown) => ({ run_id: (value as any)?.run_id ?? null, status: (value as any)?.status ?? null }),
+    },
+    // 气泡卡片：调用时显示「运行流水线」+ 关键入参；完成后显示 run_id 与入队状态
+    presentCall: (args: any) => ({
+      card: 'generic' as const,
+      title: '运行流水线',
+      kind: 'execute' as const,
+      rawInput: { pipeline_id: args.pipeline_id, version: args.version || 'latest', inputs: args.inputs },
+    }),
+    presentResult: (_args: any, result: any) => {
+      if (result.isError) return { card: 'generic' as const, title: '流水线提交失败' }
+      const meta = result.meta || {}
+      return {
+        card: 'generic' as const,
+        title: '流水线运行已提交',
+        content: [{ type: 'text' as const, text: meta.run_id ? 'run_id ' + meta.run_id + '（' + meta.status + '，可在会话「流水线」tab 查看进度）' : '已入队' }],
+      }
+    },
   }
 
   const status = {
@@ -175,7 +195,30 @@ export function buildToolDefs(env: ToolEnv): any[] {
       if (!run) return { ok: false, error: 'run not found: ' + args.run_id }
       return { ok: true, run: summarizeRun(run) }
     },
-    output: outputOf('运行状态'),
+    output: {
+      schema: { type: 'json' as const },
+      render: (_args: unknown, value: unknown) => [{ type: 'text' as const, text: '运行状态\n' + JSON.stringify(value, null, 2) }],
+      presentationMeta: (_args: unknown, value: unknown) => {
+        const r = (value as any)?.run
+        if (!r) return null
+        const nodes = Array.isArray(r.nodes) ? r.nodes : []
+        const done = nodes.filter((n: any) => n.status === 'success' || n.status === 'failed' || n.status === 'skipped').length
+        return { status: r.status, done, total: nodes.length, has_error: !!r.error }
+      },
+    },
+    // 气泡卡片：调用时显示 run_id；完成后显示状态 + 节点进度摘要
+    presentCall: (args: any) => ({ card: 'generic' as const, title: '查询流水线进度', rawInput: { run_id: args.run_id } }),
+    presentResult: (_args: any, result: any) => {
+      if (result.isError) return { card: 'generic' as const, title: '进度查询失败' }
+      const meta = result.meta || null
+      if (!meta) return undefined
+      const pct = meta.total > 0 ? Math.round(meta.done * 100 / meta.total) : (meta.status === 'success' ? 100 : 0)
+      return {
+        card: 'generic' as const,
+        title: '流水线进度',
+        content: [{ type: 'text' as const, text: '状态 ' + meta.status + ' · 节点 ' + meta.done + '/' + meta.total + ' · ' + pct + '%' + (meta.has_error ? '（有节点失败）' : '') }],
+      }
+    },
   }
 
   const runs = {

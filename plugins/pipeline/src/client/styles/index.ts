@@ -128,6 +128,28 @@ export const plpCss = `
 .plp-page *::-webkit-scrollbar-thumb{background:var(--dsw-alias-scrollbar-bg-l1);border-radius:999px;border:2px solid transparent;background-clip:content-box}
 .plp-page *::-webkit-scrollbar-track{background:transparent}
 
+/* ══ 会话「流水线」tab（conversation.view 槽位） ══ */
+.plp-session{padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0;overflow-y:auto}
+.plp-session-head{display:flex;align-items:center;justify-content:space-between}
+.plp-session-title{font-size:14px;font-weight:600}
+.plp-session-count{font-size:11px;color:var(--dsw-alias-label-tertiary)}
+.plp-session-empty{padding:32px 16px;text-align:center;font-size:12px;line-height:1.9;color:var(--dsw-alias-label-tertiary)}
+.plp-session-list{display:flex;flex-direction:column;gap:8px}
+.plp-session-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-base);cursor:pointer;text-align:left;font-family:inherit;color:var(--dsw-alias-label-primary);transition:border-color 150ms cubic-bezier(.4,0,.2,1),box-shadow 150ms cubic-bezier(.4,0,.2,1)}
+.plp-session-card:hover{border-color:var(--dsw-alias-state-business-primary);box-shadow:var(--dsw-shadow-lv2)}
+.plp-session-card-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.plp-session-card-title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plp-session-card-meta{font-size:11px;color:var(--dsw-alias-label-tertiary);display:flex;align-items:center;gap:10px}
+.plp-session-card-err{font-size:11px;color:var(--dsw-alias-state-error-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plp-session-card-go{flex:none;font-size:11px;color:var(--dsw-alias-state-business-primary);border:1px solid var(--dsw-alias-state-business-primary);border-radius:999px;padding:2px 8px}
+.plp-session-status{font-size:11px;padding:1px 8px;border-radius:999px;background:var(--dsw-alias-bg-layer-2)}
+.plp-sess-st-queued{color:var(--dsw-alias-label-tertiary)}
+.plp-sess-st-running{color:var(--dsw-alias-state-warn-primary);background:var(--dsw-alias-state-warn-secondary)}
+.plp-sess-st-success{color:var(--dsw-alias-state-success-primary);background:var(--dsw-alias-state-success-secondary)}
+.plp-sess-st-failed{color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-secondary)}
+.plp-sess-st-cancelled{color:var(--dsw-alias-label-dimmed)}
+.plp-session .plp-progress{display:inline-flex;margin:0}
+
 /* ══ 宿主侧边栏入口 ══ */
 .plp-side-btn{box-sizing:border-box;width:100%;height:49px;color:var(--dsw-alias-label-primary);cursor:pointer;background:none;border:none;border-radius:8px;align-items:center;gap:8px;padding:0 8px 0 6px;font-family:inherit;font-size:13px;display:inline-flex;overflow:hidden;line-height:20px;transition:background 150ms cubic-bezier(.4,0,.2,1)}
 .plp-side-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}

@@ -19,7 +19,7 @@ export interface PipelineDoc {
   queue: string[]
 }
 
-export function PipelinePage(props: { onClose: () => void }) {
+export function PipelinePage(props: { onClose: () => void; focusRunId?: string | null }) {
   const host = React.useMemo(() => ({
     call: async (method: string, args?: unknown) => {
       const res = await fetch('/pipeline-api/' + method, {
@@ -48,6 +48,14 @@ export function PipelinePage(props: { onClose: () => void }) {
   }, [host])
 
   useEffect(() => { load() }, [load])
+
+  // 外部跳转（会话 tab 卡片点击）：切到运行视图并定位 run
+  useEffect(() => {
+    if (props.focusRunId) {
+      setView('runs')
+      setEditing(null)
+    }
+  }, [props.focusRunId])
 
   const nav = (v: 'list' | 'runs' | 'settings') => { setView(v); setEditing(null) }
 
@@ -86,7 +94,7 @@ export function PipelinePage(props: { onClose: () => void }) {
         <main className="plp-main">
           {!doc ? <div className="plp-loading">加载中…</div> : null}
           {doc && view === 'list' ? <ListView doc={doc} host={host} onOpen={(id) => setEditing(id)} onChanged={load} /> : null}
-          {doc && view === 'runs' ? <RunsView doc={doc} host={host} onChanged={load} /> : null}
+          {doc && view === 'runs' ? <RunsView doc={doc} host={host} onChanged={load} focusRunId={props.focusRunId} /> : null}
           {doc && view === 'settings' ? <AboutView /> : null}
           {doc && editing ? <EditorView host={host} pipelineId={editing} onClose={() => { setEditing(null); load() }} onChanged={load} /> : null}
           {creating ? <CreateModal host={host} onCreated={(id) => { setCreating(false); setEditing(id); load() }} onClose={() => setCreating(false)} /> : null}
@@ -179,19 +187,33 @@ function ListView(props: { doc: PipelineDoc; host: HostLike; onOpen: (id: string
 }
 
 /* ── 运行与队列视图 ── */
-function RunsView(props: { doc: PipelineDoc; host: HostLike; onChanged: () => void }) {
+function RunsView(props: { doc: PipelineDoc; host: HostLike; onChanged: () => void; focusRunId?: string | null }) {
   const [selected, setSelected] = useState<string | null>(null)
+  const [pipeFilter, setPipeFilter] = useState<string>('')
   useEffect(() => {
     const t = setInterval(() => props.onChanged(), 1500)
     return () => clearInterval(t)
   }, [props.onChanged])
-  const runs = [...props.doc.runs].sort((a: any, b: any) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
-  const sel = selected ? runs.find((r: any) => r.id === selected) : null
+  // 外部跳转定位：focusRunId 变化时选中
+  useEffect(() => {
+    if (props.focusRunId) setSelected(props.focusRunId)
+  }, [props.focusRunId])
+  const allRuns = [...props.doc.runs].sort((a: any, b: any) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+  const runs = pipeFilter ? allRuns.filter((r: any) => r.pipelineId === pipeFilter) : allRuns
+  const sel = selected ? allRuns.find((r: any) => r.id === selected) : null
   return (
     <div style={{ display: 'flex', gap: 16, minHeight: 0 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="plp-section-title">运行与队列（{props.doc.queue.length} 排队 / {runs.filter((r: any) => r.status === 'running').length} 进行中）</div>
-        {runs.length === 0 ? <div className="plp-empty">暂无运行记录。在流水线编辑页点击「运行」触发。</div> : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <span className="plp-section-title" style={{ margin: 0 }}>运行与队列（{props.doc.queue.length} 排队 / {allRuns.filter((r: any) => r.status === 'running').length} 进行中）</span>
+          <select className="plp-select" style={{ width: 220, marginLeft: 'auto' }} value={pipeFilter} onChange={(e) => setPipeFilter(e.target.value)} title="按流水线筛选">
+            <option value="">全部流水线</option>
+            {props.doc.pipelines.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}（{allRuns.filter((r: any) => r.pipelineId === p.id).length}）</option>
+            ))}
+          </select>
+        </div>
+        {runs.length === 0 ? <div className="plp-empty">{pipeFilter ? '该流水线暂无运行记录。' : '暂无运行记录。在流水线编辑页点击「运行」触发。'}</div> : null}
         {runs.map((r: any) => (
           <div key={r.id} className={'plp-run' + (selected === r.id ? ' plp-run-sel' : '')} onClick={() => setSelected(r.id)}>
             <span className={'plp-run-status plp-st-' + r.status} />

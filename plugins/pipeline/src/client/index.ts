@@ -3,6 +3,8 @@
 import React from 'react'
 import { plpCss } from './styles'
 import { PipelinePage } from './page'
+import { SessionRunsPanel } from './session-runs'
+import { registerOpenHandler } from './nav'
 
 export const name = 'pipeline'
 export const inject = ['slots']
@@ -54,9 +56,16 @@ export function apply(ctx: { get(name: string): unknown }) {
 
   const slots = ctx.get('slots') as SlotsLike | undefined
   if (!slots) return
+  const host: HostLike = makeHostBridge()
 
   function PipelineEntry(props: { wide: boolean }) {
     const [open, setOpen] = React.useState(false)
+    const [focusRunId, setFocusRunId] = React.useState<string | null>(null)
+    // 注册跳转总线：会话 tab 卡片点击 → 打开面板 + 定位 run
+    React.useEffect(() => registerOpenHandler((runId) => {
+      setFocusRunId(runId)
+      setOpen(true)
+    }), [])
     return React.createElement('div', null,
       React.createElement('button', {
         className: 'plp-side-btn' + (open ? ' plp-side-btn-on' : ''),
@@ -67,7 +76,10 @@ export function apply(ctx: { get(name: string): unknown }) {
       }, props.wide
         ? React.createElement(React.Fragment, null, React.createElement(IconPipelineGlyph, null), React.createElement('span', null, 'Pipeline'))
         : React.createElement(IconPipelineGlyph, null)),
-      open ? React.createElement(PipelinePage, { onClose: () => setOpen(false) }) : null,
+      open ? React.createElement(PipelinePage, {
+        onClose: () => { setOpen(false); setFocusRunId(null) },
+        focusRunId,
+      }) : null,
     )
   }
 
@@ -75,6 +87,14 @@ export function apply(ctx: { get(name: string): unknown }) {
     slots.register(
       { name: 'sidebar.footer.action', id: 'pipeline', order: 11, label: () => 'Pipeline' },
       (props: { wide: boolean }) => React.createElement(PipelineEntry, { wide: props.wide }),
+    ),
+  )
+
+  // 会话「流水线」tab：对话中查看运行卡片（进度/状态），点击跳转主面板详情
+  slots.inject('conversation.view', () =>
+    slots.register(
+      { name: 'conversation.view', id: 'pipeline-runs', order: 30, label: () => '流水线' },
+      (props: { sessionId?: string }) => React.createElement(SessionRunsPanel, { sessionId: props.sessionId, host }),
     ),
   )
 }

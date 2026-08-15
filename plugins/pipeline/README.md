@@ -8,7 +8,8 @@ DSH Pipeline 流水线插件（正式 bundle 形态）。类似 dify 的可复�
 - **版本管理（npm 风格 semver）**：版本号形如 v1.0.1（major.minor.patch）。发布后版本不可变；最新版本是草稿，可编辑节点图；发布时按 patch/minor/major 升位。
 - **atomic 与 combined**：atomic 是无依赖基础单元（可复用）；combined 引用已发布的 atomic 单元组合成完整流程（pipeline 节点 ref 支持 `<pipelineId>@<version>` / `@latest`）。
 - **节点类型**：input / output / exec（shell 命令）/ fetch（HTTP）/ transform（JSON 转换）/ llm（大模型分析）/ pipeline（子流水线引用）。支持 {input.xxx} / {up.<nodeId>.<field>} 占位符串联数据。
-- **运行与队列**：运行入队串行执行；「运行与队列」视图实时轮询进度、节点状态（pending/running/success/failed）、输出与错误。
+- **运行与队列**：运行入队串行执行；「运行与队列」视图实时轮询进度、节点状态（pending/running/success/failed）、输出与错误，支持**按流水线筛选**。
+- **对话中查看**：会话「流水线」tab（conversation.view 槽位）实时显示最近运行卡片（状态徽章 + 进度条 + 节点进度），**点击卡片跳转主面板运行详情**；agent 气泡中的 pipeline_run / pipeline_run_status 工具卡片也带声明式进度展示（presentCall/presentResult）。
 - **面向 agent**：对话上下文 10 个 pipeline_* 工具——查 / 建 / 改 / 删 / 发布版本 / 运行 / 查进度 / 看队列 / 目录。
 - **跨插件服务**：其他插件可经 ctx.get('pipeline') 调用 list / get / getPublished / run（同步阻塞）/ runAsync（入队）/ status / catalog。
 
