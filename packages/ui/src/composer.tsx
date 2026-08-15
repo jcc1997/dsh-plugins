@@ -48,12 +48,12 @@ export function Composer(props: {
 
 /** Composer 样式(输入零高亮;caret 与宿主一致;由使用方注入,幂等) */
 export const composerCss = `
-.cmp-composer{display:flex;align-items:center;gap:8px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-base);padding:4px 12px;min-width:0}
+.cmp-composer{display:flex;align-items:center;gap:8px;border:1px solid var(--dsw-alias-border-l2-darkmode-thin, var(--dsw-alias-border-l2));border-radius:22px;background:var(--dsw-specific-input-major, var(--dsw-alias-bg-base));padding:4px 16px;min-width:0}
 .cmp-composer-input{flex:1;min-width:0;border:none;background:none;outline:none;resize:none;font-size:13px;line-height:20px;color:var(--dsw-alias-label-primary);caret-color:var(--dsw-alias-state-business-primary);padding:4px 0;font-family:inherit;max-height:160px;overflow-y:auto}
 .cmp-composer-input::placeholder{color:var(--dsw-alias-label-dimmed)}
 .cmp-composer-actions{display:flex;align-items:center;gap:8px;flex:none}
 /* 多行:输入横向撑满,按钮落到容器内最下面一行(右对齐) */
-.cmp-composer-multi{flex-wrap:wrap;align-items:flex-end;padding:8px 12px}
+.cmp-composer-multi{flex-wrap:wrap;align-items:flex-end;padding:10px 16px}
 .cmp-composer-multi .cmp-composer-input{flex:1 1 100%;padding:4px 0}
-.cmp-composer-multi .cmp-composer-actions{width:100%;justify-content:flex-end;padding-top:2px}
+.cmp-composer-multi .cmp-composer-actions{width:100%;justify-content:flex-end;padding-top:4px}
 `

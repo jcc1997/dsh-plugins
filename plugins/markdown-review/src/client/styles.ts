@@ -52,8 +52,7 @@ body[data-ds-dark-theme] .mdr-btn-primary:hover{background:var(--dsw-static-deep
 
 /* ══ 划词批注(嵌入对应段落下方) ══ */
 .mdr-editor-slot{display:block}
-.mdr-editor{margin:12px 0;display:flex;flex-direction:row;align-items:flex-start;gap:12px}
-.mdr-editor .cmp-composer{flex:1 1 45%;min-width:240px}
+.mdr-editor{margin:12px 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,1.05fr);align-items:start;gap:12px}
 .mdr-editor-quote{flex:1 1 55%;min-width:0;font-size:12px;color:var(--dsw-alias-label-secondary);border-left:3px solid var(--dsw-alias-state-business-primary);padding-left:8px;max-height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
 
 /* ══ 底部总评 ══ */

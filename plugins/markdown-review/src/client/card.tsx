@@ -220,7 +220,7 @@ function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { qu
   }, [anchor, note])
 
   return (
-    <div className="mdr-mask" onClick={(e) => { if (e.target === e.currentTarget) props.onClose() }}>
+    <div className="mdr-mask">
       <div className="mdr-viewer">
         <header className="mdr-viewer-head">
           <span className="mdr-viewer-title">{props.doc.title || '文档'}</span>
