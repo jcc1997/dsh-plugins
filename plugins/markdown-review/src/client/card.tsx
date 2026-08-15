@@ -135,7 +135,7 @@ export function MdDocCard(props: ToolViewProps) {
 export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { quotes: QuoteItem[]; comment: string }) => Promise<{ ok: boolean; error?: string }> }) {
   const [quotes, setQuotes] = useState<QuoteItem[]>([])
   const [comment, setComment] = useState('')
-  const [anchor, setAnchor] = useState<{ key: string; text: string; line?: number; pos: { top: number; left: number } } | null>(null)
+  const [anchor, setAnchor] = useState<{ key: string; text: string; line?: number; rel: { top: number; left: number } } | null>(null)
   const [note, setNote] = useState('')
   const [hint, setHint] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -154,22 +154,16 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
     return () => window.removeEventListener('keydown', onKey)
   }, [anchor, props.onClose])
 
-  /* ── 批注浮窗关闭:内容区滚动 / 点击浮窗外(components.md §九) ── */
+  /* ── 批注浮窗关闭:点击浮窗外(components.md §九);滚动=浮窗跟随选区,不关闭 ── */
   useEffect(() => {
     if (!anchor) return
-    const onScroll = () => setAnchor(null)
     const onDown = (e: MouseEvent) => {
       const t = e.target as HTMLElement
       if (t && t.closest && t.closest('.mdr-popover')) return
       setAnchor(null)
     }
-    const content = contentRef.current
-    if (content) content.addEventListener('scroll', onScroll, { passive: true })
     document.addEventListener('mousedown', onDown)
-    return () => {
-      if (content) content.removeEventListener('scroll', onScroll)
-      document.removeEventListener('mousedown', onDown)
-    }
+    return () => document.removeEventListener('mousedown', onDown)
   }, [anchor])
 
   /* ── 划词:单块内选区 → 在该块下方嵌入批注框;跨块/mermaid 区域拒绝 ── */
@@ -202,7 +196,9 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
     if (!text) return
     const lineNum = Number(startBlock.getAttribute('data-mdr-line') || 0) || undefined
     const rect = range.getBoundingClientRect()
-    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400), line: lineNum, pos: { top: rect.top, left: rect.left } })
+    const cr = el.getBoundingClientRect()
+    // 锚点存相对内容区的坐标(滚动跟随:滚动后视口位置 = rel - scrollTop + contentRect.top)
+    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400), line: lineNum, rel: { top: rect.top - cr.top + el.scrollTop, left: rect.left - cr.left + el.scrollLeft } })
     setNote('')
     setHint('')
     sel.removeAllRanges()
@@ -251,7 +247,8 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
                 key={anchor.key}
                 text={anchor.text}
                 line={anchor.line}
-                pos={anchor.pos}
+                rel={anchor.rel}
+                contentRef={contentRef}
                 note={note}
                 onNote={setNote}
                 onAdd={addQuote}
@@ -300,21 +297,36 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
 
 /* ═══════════ §4 划词批注框(嵌段落下方;左:选中原文 / 右:批注输入+icon 按钮) ═══════════ */
 
-/** 批注浮窗:跟随选区弹出(下方优先,空间不足翻上方,视口 clamp);关闭走外部滚动/点击/Esc(MdViewer 统一管理) */
-function AnnotationPopover(props: { text: string; line?: number; pos: { top: number; left: number }; note: string; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
+/** 批注浮窗:跟随选区弹出并随内容滚动(锚点=相对内容区坐标,滚动重算视口位置);关闭走点击外部/Esc */
+function AnnotationPopover(props: { text: string; line?: number; rel: { top: number; left: number }; contentRef: React.RefObject<HTMLDivElement | null>; note: string; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
   const ref = useRef<HTMLDivElement | null>(null)
   const [placed, setPlaced] = useState<{ top: number; left: number } | null>(null)
-  useEffect(() => {
+  const compute = () => {
     const el = ref.current
-    if (!el) return
+    const content = props.contentRef.current
+    if (!el || !content) return
+    const cr = content.getBoundingClientRect()
     const w = el.offsetWidth
     const h = el.offsetHeight
     const vw = window.innerWidth
     const vh = window.innerHeight
-    let top = props.pos.top + 8
-    if (top + h > vh - 8) top = Math.max(8, props.pos.top - h - 8)
-    const left = Math.max(8, Math.min(props.pos.left, vw - w - 8))
+    const anchorTop = props.rel.top - content.scrollTop + cr.top
+    const anchorLeft = props.rel.left - content.scrollLeft + cr.left
+    let top = anchorTop + 8
+    if (top + h > vh - 8) top = Math.max(8, anchorTop - h - 8)
+    const left = Math.max(8, Math.min(anchorLeft, vw - w - 8))
     setPlaced({ top, left })
+  }
+  useEffect(() => { compute() }, [])
+  useEffect(() => {
+    const content = props.contentRef.current
+    if (!content) return
+    content.addEventListener('scroll', compute, { passive: true })
+    window.addEventListener('resize', compute)
+    return () => {
+      content.removeEventListener('scroll', compute)
+      window.removeEventListener('resize', compute)
+    }
   }, [])
   return (
     <div className="mdr-popover" data-mdr-popover ref={ref} style={placed ? { top: placed.top, left: placed.left } : { visibility: 'hidden' }}>
