@@ -135,7 +135,7 @@ export function MdDocCard(props: ToolViewProps) {
 export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { quotes: QuoteItem[]; comment: string }) => Promise<{ ok: boolean; error?: string }> }) {
   const [quotes, setQuotes] = useState<QuoteItem[]>([])
   const [comment, setComment] = useState('')
-  const [anchor, setAnchor] = useState<{ key: string; text: string; line?: number; rel: { top: number; left: number } } | null>(null)
+  const [anchor, setAnchor] = useState<{ key: string; text: string; line?: number; rel: { top: number; bottom: number; left: number } } | null>(null)
   const [note, setNote] = useState('')
   const [hint, setHint] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -197,8 +197,8 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
     const lineNum = Number(startBlock.getAttribute('data-mdr-line') || 0) || undefined
     const rect = range.getBoundingClientRect()
     const cr = el.getBoundingClientRect()
-    // 锚点存相对内容区的坐标(滚动跟随:滚动后视口位置 = rel - scrollTop + contentRect.top)
-    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400), line: lineNum, rel: { top: rect.top - cr.top + el.scrollTop, left: rect.left - cr.left + el.scrollLeft } })
+    // 锚点存相对内容区的 top/bottom/left(滚动跟随;bottom 用于浮窗避开选区文字)
+    setAnchor({ key: String(startBlock.getAttribute('data-mdr-key') || ''), text: text.slice(0, 400), line: lineNum, rel: { top: rect.top - cr.top + el.scrollTop, bottom: rect.bottom - cr.top + el.scrollTop, left: rect.left - cr.left + el.scrollLeft } })
     setNote('')
     setHint('')
     sel.removeAllRanges()
@@ -298,7 +298,7 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
 /* ═══════════ §4 划词批注框(嵌段落下方;左:选中原文 / 右:批注输入+icon 按钮) ═══════════ */
 
 /** 批注浮窗:跟随选区弹出并随内容滚动(锚点=相对内容区坐标,滚动重算视口位置);关闭走点击外部/Esc */
-function AnnotationPopover(props: { text: string; line?: number; rel: { top: number; left: number }; contentRef: React.RefObject<HTMLDivElement | null>; note: string; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
+function AnnotationPopover(props: { text: string; line?: number; rel: { top: number; bottom: number; left: number }; contentRef: React.RefObject<HTMLDivElement | null>; note: string; onNote: (v: string) => void; onAdd: () => void; onCancel: () => void }) {
   const ref = useRef<HTMLDivElement | null>(null)
   const [placed, setPlaced] = useState<{ top: number; left: number } | null>(null)
   const compute = () => {
@@ -311,20 +311,24 @@ function AnnotationPopover(props: { text: string; line?: number; rel: { top: num
     const vw = window.innerWidth
     const vh = window.innerHeight
     const anchorTop = props.rel.top - content.scrollTop + cr.top
+    const anchorBottom = props.rel.bottom - content.scrollTop + cr.top
     const anchorLeft = props.rel.left - content.scrollLeft + cr.left
-    let top = anchorTop + 8
-    if (top + h > vh - 8) top = Math.max(8, anchorTop - h - 8)
+    // 浮窗永不遮挡选区文字:优先选区下方;下方放不下且上方能完整放下 → 翻上;否则贴视口底部(仍在选区下方)
+    let top = anchorBottom + 8
+    if (top + h > vh - 8) {
+      if (anchorTop - h - 8 >= 8) top = anchorTop - h - 8
+      else top = Math.max(8, vh - h - 8)
+    }
     const left = Math.max(8, Math.min(anchorLeft, vw - w - 8))
     setPlaced({ top, left })
   }
   useEffect(() => { compute() }, [])
   useEffect(() => {
-    const content = props.contentRef.current
-    if (!content) return
-    content.addEventListener('scroll', compute, { passive: true })
+    // scroll 不冒泡:用 window capture 捕获所有滚动容器(content / demo wrap / 外层)
+    window.addEventListener('scroll', compute, { capture: true, passive: true })
     window.addEventListener('resize', compute)
     return () => {
-      content.removeEventListener('scroll', compute)
+      window.removeEventListener('scroll', compute, { capture: true })
       window.removeEventListener('resize', compute)
     }
   }, [])
