@@ -3,6 +3,7 @@
 // 划词 → 批注输入框嵌入对应段落下方;右侧引用清单;底部总评;提交/取消。
 // 提交:POST /md-api/submit → 宿主 resolve 挂起的 md_doc_open 工具执行 → agent 自动继续;卡片就地展示提交内容。
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Composer } from '@dsh-plugins/ui'
 import { parseMarkdownBlocks, renderBlocks } from './md'
 
 /** 宿主 owner props 形状(与 dsh-client-ui-tool 契约一致,同 pipeline 工具卡) */
@@ -130,20 +131,18 @@ function AnnotationEditor(props: { text: string; note: string; onNote: (v: strin
   return (
     <div className="mdr-editor" data-mdr-editor ref={ref}>
       <div className="mdr-editor-quote">{props.text}</div>
-      <div className="mdr-editor-row">
-        <textarea
-          className="mdr-editor-input"
-          value={props.note}
-          onChange={(e) => props.onNote(e.target.value)}
-          placeholder="对这段的批注…"
-          rows={2}
-          autoFocus
-        />
-        <div className="mdr-editor-btns">
-          <button className="mdr-btn" type="button" onClick={props.onCancel}>取消</button>
-          <button className="mdr-btn mdr-btn-primary" type="button" onClick={props.onAdd}>添加批注</button>
-        </div>
-      </div>
+      <Composer
+        value={props.note}
+        onChange={props.onNote}
+        placeholder="对这段的批注…"
+        autoFocus
+        actions={
+          <>
+            <button className="mdr-btn" type="button" onClick={props.onCancel}>取消</button>
+            <button className="mdr-btn mdr-btn-primary" type="button" onClick={props.onAdd}>添加批注</button>
+          </>
+        }
+      />
     </div>
   )
 }
@@ -244,11 +243,20 @@ function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (p: { qu
           </aside>
         </div>
         <footer className="mdr-viewer-foot">
-          <textarea className="mdr-comment-input" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="总评(可选):整体意见…" rows={2} />
-          <button className="mdr-btn" type="button" onClick={props.onClose}>取消</button>
-          <button className="mdr-btn mdr-btn-primary" type="button" disabled={submitting || (quotes.length === 0 && !comment.trim())} onClick={doSubmit}>
-            {submitting ? '提交中…' : '提交'}{' '}
-          </button>
+          <Composer
+            className="mdr-foot-composer"
+            value={comment}
+            onChange={setComment}
+            placeholder="总评(可选):整体意见…"
+            actions={
+              <>
+                <button className="mdr-btn" type="button" onClick={props.onClose}>取消</button>
+                <button className="mdr-btn mdr-btn-primary" type="button" disabled={submitting || (quotes.length === 0 && !comment.trim())} onClick={doSubmit}>
+                  {submitting ? '提交中…' : '提交'}{' '}
+                </button>
+              </>
+            }
+          />
         </footer>
       </div>
     </div>

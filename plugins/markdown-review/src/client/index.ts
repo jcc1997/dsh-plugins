@@ -3,6 +3,7 @@
 // (与 pipeline_run 卡片同款机制;组件只依赖 ToolViewProps 公开契约)。
 import React from 'react'
 import { mdrCss } from './styles'
+import { composerCss } from '@dsh-plugins/ui'
 import { MdDocCard } from './card'
 
 export const name = 'markdown-review'
@@ -20,7 +21,7 @@ export function apply(ctx: CtxLike) {
       const el = document.createElement('style')
       el.dataset.plugin = 'dsh-markdown-review'
       el.dataset.pluginCss = 'markdown-review/all'
-      el.textContent = mdrCss
+      el.textContent = mdrCss + composerCss
       document.head.appendChild(el)
     }
   } catch { /* 样式注入失败不阻断 */ }

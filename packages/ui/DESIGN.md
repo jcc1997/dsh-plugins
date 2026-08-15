@@ -66,7 +66,8 @@ DSH 宿主在运行时注入完整的官方设计 tokens（`--dsw-static-*` 色�
 | 主按钮（.kbnb-primary） | 品牌蓝底白字，radius-md(8px)，padding 6px 14px；hover 深一档；disabled opacity .5 |
 | 次按钮（.kbnb-btn） | 白底 + border-l2；hover 浅灰底（interactive-bg-hover） |
 | 危险按钮（.kbnb-danger） | 白底 + 红字红边；hover 红字加深 + danger-soft 底 |
-| 输入/文本域 | 白底 + border-l2；**focus: 边框不变 + ring(accent-ring 2px)** |
+| 输入/文本域 | 白底 + border-l2；**focus/hover 零高亮**（无 ring、无边框变色，光标即反馈） |
+| 带操作按钮的输入（Composer） | 公共组件 `packages/ui/src/composer.tsx`（`Composer` + `composerCss`）：统一边框容器，textarea 无自身边框；**取消/确认等操作按钮内嵌容器**——单行时按钮在输入右侧，输入文字增多自动增高后按钮落右下角；样式由使用方注入 `composerCss` |
 | 大标题输入（.kbnb-input-title） | 无边框无背景；26px/700；placeholder 用 tertiary |
 | 卡片（.kbnb-card） | 白底、radius-lg(12px)、border-l2、shadow-xs；hover: border 品牌色 + shadow-sm 微抬；active(选中): border 品牌色 + ring |
 | 列 | 白底，列间 1px 竖线分隔；列头计数为灰底胶囊 |
@@ -78,7 +79,7 @@ DSH 宿主在运行时注入完整的官方设计 tokens（`--dsw-static-*` 色�
 
 ## 四、交互状态
 
-- **focus**：所有可聚焦控件 focus-visible 显示 accent-ring（2px 外圈），用 box-shadow 实现（不改边框，避免布局跳动）
+- **focus**：**按钮类**控件 focus-visible 显示 accent-ring（2px 外圈，box-shadow 实现，键盘可达性）；**输入类控件零高亮**（无 ring、无边框变色，光标即反馈，见 §三）
 - **hover**：可点元素 150ms 过渡；列表项浅灰底；卡片边框+阴影
 - **拖拽**：拖动中卡片 opacity .5；落点显示 3px accent 插入线；目标列 outline accent
 - **保存**：顶栏显示「保存中…」；失败红字错误条
