@@ -268,7 +268,9 @@ const result = await rt.run({
 
 ## 四、架构决策记录
 
-- 看板入口：`sidebar.footer.action`（按钮 + 全屏页单组件），不用 overlay 槽位（hooks/联动问题）；页内左侧边栏（看板/归档/设置）。
+- 看板入口：`sidebar.footer.action`（按钮 + 全屏页单组件），不用 overlay 槽位（hooks/联动问题）；页内左侧边栏（看板/归档/设置/门禁/模板）。
+- **门禁库 v6（kanban）**：门禁 = `board.gateLibrary[]` 独立实体（单独创建/配置），卡片与模板用 `gateIds[]` 勾选引用复用；旧内联 `gates[]`（含旧平铺 kind 格式）在 `normalizeBoard` 读取时自动迁入库（按 name+type+on+to 去重）并**清空内联副本**（防双重渲染/双重检查）。库删除工具（kanban_gate_delete）同时从卡片/模板摘除引用。模板工具支持 `gate_ids` + 兼容内联 `gates` 自动入库。客户端「门禁」页 = 库 CRUD + 引用关系；卡片抽屉从库下拉勾选挂载。
+- **host 半冒烟测试模式（无 cordis 工具时）**：node 直连 `lib/index.js`——mock fs 用**临时目录前缀重写**（`resolve(p)` 把 `~/.dsh/<plugin>` 改写进 mkdtemp 目录，readText 抛 ENOENT 模拟缺文件），mock webServer 收集 route，`apply(ctx)` 后直接调 `registered[tool].execute(args)`；路由调用需自建 `async function* req`（读 body 用 for-await）+ `{writeHead,end}` 捕获响应。此模式可端到端验证数据迁移/工具/门禁检查，不碰真实数据。
 - 数据：`~/.dsh/kanban/board.json` + config.json(dataDir)；卡片含 `tags[]`/`comments[]`/`activity[]`(带 actor)/`refs[]`/`meta{}`/`content[]`（富文本块）/`archivedFrom`；归档 = `board.archive[]`。
 - 数据通道（正式形态）：host 半 webServer 路由（/kanban-api/*）+ client 半 fetch；agent 工具 ctx.tools；跨插件 ctx.provide 服务。
 - 共享包：`packages/ui`（图标/工具函数/Modal/设计 tokens）、`packages/communication`（bus/rpc 双形态工厂，git 事件用）。
