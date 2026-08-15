@@ -1,0 +1,137 @@
+{
+  "name": "dsh-workflow-dev",
+  "version": "1.0.0",
+  "description": "基于 dsh-kanban 门禁的软件开发工作流模板:Backlog → RD → TD → UC → In Dev → review → Testing → 2nd review → Stage → Done",
+  "kanban": {
+    "columns": [
+      "Backlog",
+      "RD",
+      "TD",
+      "UC",
+      "In Dev",
+      "review",
+      "Testing",
+      "2nd review",
+      "Stage",
+      "Done"
+    ],
+    "gates": [
+      {
+        "name": "进入 RD 需关联 MR",
+        "on": "move",
+        "to": "RD",
+        "checker": {
+          "type": "mr-linked"
+        }
+      },
+      {
+        "name": "RD 确认才能进 TD",
+        "on": "move",
+        "to": "TD",
+        "checker": {
+          "type": "tag-required",
+          "config": {
+            "tags": [
+              "rd-confirmed"
+            ]
+          }
+        }
+      },
+      {
+        "name": "TD 确认才能进 UC",
+        "on": "move",
+        "to": "UC",
+        "checker": {
+          "type": "tag-required",
+          "config": {
+            "tags": [
+              "td-confirmed"
+            ]
+          }
+        }
+      },
+      {
+        "name": "验收用例确认才能开发",
+        "on": "move",
+        "to": "In Dev",
+        "checker": {
+          "type": "tag-required",
+          "config": {
+            "tags": [
+              "uc-confirmed"
+            ]
+          }
+        }
+      },
+      {
+        "name": "进入 review 需关联 MR",
+        "on": "move",
+        "to": "review",
+        "checker": {
+          "type": "mr-linked"
+        }
+      },
+      {
+        "name": "review 通过才能测试",
+        "on": "move",
+        "to": "Testing",
+        "checker": {
+          "type": "tag-required",
+          "config": {
+            "tags": [
+              "review-1-done"
+            ]
+          }
+        }
+      },
+      {
+        "name": "测试通过才能进 2nd review",
+        "on": "move",
+        "to": "2nd review",
+        "checker": {
+          "type": "tag-required",
+          "config": {
+            "tags": [
+              "tests-passed"
+            ]
+          }
+        }
+      },
+      {
+        "name": "2nd review 通过才能 Stage",
+        "on": "move",
+        "to": "Stage",
+        "checker": {
+          "type": "tag-required",
+          "config": {
+            "tags": [
+              "review-2-done"
+            ]
+          }
+        }
+      },
+      {
+        "name": "MR 已合并才能进 Done",
+        "on": "move",
+        "to": "Done",
+        "checker": {
+          "type": "mr-merged"
+        }
+      }
+    ],
+    "template": {
+      "name": "workflow",
+      "description": "标准开发工作流:Backlog→RD→TD→UC→In Dev→review→Testing→2nd review→Stage→Done。进入下一列需过门禁;确认=打 confirm 标签。文档在 git 仓库 docs/<taskId>/ 随分支 MR 演进。",
+      "tags": [
+        "workflow",
+        "default"
+      ]
+    }
+  },
+  "customizing": {
+    "1": "改 kanban.columns 增删阶段(按顺序)",
+    "2": "改 kanban.gates 定义每阶段进入门禁(name/on/to/checker)",
+    "3": "改 kanban.template 的预置描述/标签",
+    "4": "重跑 node install.mjs,幂等合并进看板"
+  }
+}

@@ -2,11 +2,12 @@
 
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)(DSH)开发的插件集合:看板 + 门禁工作流、git 集成、AI 流水线。三个插件均为**正式 bundle**形态,安装后重启生效、重启不丢。
 
-- [**kanban**](plugins/kanban/README.md):嵌入侧边栏的全功能看板——27 个 agent 工具、行为**门禁**(内置条件 / 代码 / pipeline 三种检查单元)、创建模板、归档、分组、富文本内容。
+- [**kanban**](plugins/kanban/README.md):嵌入侧边栏的全功能看板——29 个 agent 工具、行为**门禁**(内置条件 / 代码 / pipeline 三种检查单元,门禁库独立实体复用)、创建模板、归档、分组、富文本内容。
 - [**git**](plugins/git/README.md):task 关联 GitHub 仓库/分支/MR + 7 个 `git_*` 工具 + [ID] 自动关联 + MR 同步/合并(方案见 [PLAN.md](plugins/git/PLAN.md))。
-- [**pipeline**](plugins/pipeline/README.md):类 dify 的可复用 AI 流水线——atomic 基础单元 + combined 组合流水线、npm 风格 semver 版本(v1.0.1)、React Flow 节点图编辑、运行队列与进度、10 个 `pipeline_*` 工具。
+- [**pipeline**](plugins/pipeline/README.md):类 dify 的可复用 AI 流水线——atomic 基础单元 + combined 组合流水线、npm 风格 semver 版本(v1.0.1)、React Flow 节点图编辑、运行队列与进度、11 个 `pipeline_*` 工具。
+- [**workflow-dev**](workflow-dev/README.md):**开发流程模板包**——10 列(Backlog → RD → TD → UC → In Dev → review → Testing → 2nd review → Stage → Done)+ 9 条门禁 + 创建模板,一键安装脚本 + 完整使用指南,复制出去即可自定义成自己的流程工具。
 
-三个插件可组合成一套**带门禁的开发工作流**:Backlog → RD → TD → 验收用例 → 开发 → Review → Testing(pipeline 跑测试)→ Stage → MR 合并 → 自动 Done,详见 [kanban 的 Agent 门禁指南](plugins/kanban/README.md#面向-agent-的门禁指南)。
+前三个插件 + workflow-dev 组合成一套**带门禁的开发工作流**:Backlog → RD → TD → 验收用例 → 开发 → review → Testing(pipeline 跑测试)→ 2nd review → Stage → MR 合并 → 自动 Done,详见 [workflow-dev 使用指南](workflow-dev/README.md) 与 [kanban 的 Agent 门禁指南](plugins/kanban/README.md#面向-agent-的门禁指南)。
 
 ## 快速开始
 
@@ -26,9 +27,9 @@ dsh plugin --profile web add /path/to/dsh-plugins/plugins/pipeline
 
 | 插件 | 工具前缀 | 数量 | 重点能力 |
 |---|---|---|---|
-| kanban | `kanban_*` | 27 | 看板读写、归档、列管理、关联、**门禁(gate_add/remove/list/check)**、**创建模板(template_*)** |
+| kanban | `kanban_*` | 29 | 看板读写、归档、列管理、关联、**门禁库(gate_create/delete/add/remove/list/check)**、**创建模板(template_*)** |
 | git | `git_*` | 7 | 配置、[ID] 认领、关联、MR 列表/同步/合并 |
-| pipeline | `pipeline_*` | 10 | 流水线管理、版本发布、运行/进度/队列、catalog |
+| pipeline | `pipeline_*` | 11 | 流水线管理、版本发布/删除、运行/进度/队列、catalog |
 
 agent 使用各插件的完整契约(参数、门禁模型、代码沙箱能力)见对应插件 README。
 
@@ -43,6 +44,7 @@ dsh-plugins/
 ├── packages/
 │   ├── ui/          # 共享包 @dsh-plugins/ui:设计 tokens + 图标 + 工具函数
 │   └── communication/ # 通信协议层(bus/rpc/services)
+├── workflow-dev/    # 开发流程模板包:workflow.json + 一键安装脚本 + 使用指南(复制即用)
 ├── scripts/         # 仓库级工具(workflow-ci-check.mjs 等)
 └── .agents/skills/  # 插件开发技能(dsh-dynamic-plugin-dev 等)
 ```

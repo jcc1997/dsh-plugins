@@ -32,7 +32,7 @@ export const boardCss = `
 .kbnb-column{flex:0 0 272px;padding:12px 14px 10px;display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--dsw-alias-border-l2)}
 .kbnb-board > .kbnb-column:first-child,.kbnb-group-row > .kbnb-column:first-child{border-left:none}
 .kbnb-column-drop{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px;border-radius:8px}
-.kbnb-column-head{display:flex;align-items:center;gap:8px;padding:0 0 12px;cursor:grab;flex:none}
+.kbnb-column-head{display:flex;align-items:center;gap:8px;padding:0 0 12px;cursor:default;flex:none}
 .kbnb-column-title{font-weight:600;font-size:15px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.2px}
 .kbnb-column-count{font-size:11px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums;border:1px solid var(--dsw-alias-border-l2)}
 

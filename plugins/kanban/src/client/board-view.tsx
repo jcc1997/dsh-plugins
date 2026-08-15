@@ -1,6 +1,6 @@
-// client/board-view.tsx — 看板视图：顶栏工具行（分组/列配置）+ 列/卡片渲染 + 拖拽排序
+// client/board-view.tsx — 看板视图：顶栏工具行（分组/列配置）+ 列/卡片渲染 + 卡片拖拽
 // 分组：不分组 = 单泳道（整体横向滚动）；Git 仓库 = 按 github-repo 关联分泳道（组内横向滚动）
-// 拖拽：组内排序/跨列可用；跨组拖拽忽略；分组模式下列头拖拽禁用
+// 拖拽：仅卡片（组内排序/跨列移动）；跨组拖拽忽略；列头不可拖拽（列排序走设置页列配置）
 import React, { useState } from 'react'
 import { safeNow, appendActivity } from '@dsh-plugins/ui'
 import { KanbanBoard } from '@dsh-plugins/ui'
@@ -16,7 +16,7 @@ export interface Group {
   columns: Array<{ id: string; title: string; cards: any[]; meta?: any }>
 }
 
-type DragState = { kind: 'card'; cardId: string; from: string; groupKey: string } | { kind: 'column'; from: number } | null
+type DragState = { kind: 'card'; cardId: string; from: string; groupKey: string } | null
 
 export function BoardView(props: {
   board: KanbanBoard
@@ -51,45 +51,36 @@ export function BoardView(props: {
     if (!drag) return
     if (drag.kind === 'card') setHint({ columnId, index: computeCardIndex(evt) })
   }
-  /** 落点：同组卡片移动（跨组忽略）；列头拖拽仅在不分组模式生效 */
+  /** 落点：卡片移动（跨组忽略；组内排序 / 跨列移动） */
   function onColumnDrop(columnId: string, groupKey: string, evt: React.DragEvent) {
     evt.preventDefault()
     if (!drag) return
-    if (drag.kind === 'card') {
-      if (drag.groupKey !== groupKey) {
-        setDrag(null)
-        setHint(null)
-        return
-      }
-      const index = computeCardIndex(evt)
-      props.kb.mutate((b) => {
-        const fromCol = b.columns.find((c) => c.id === drag.from)
-        const toCol = b.columns.find((c) => c.id === columnId)
-        if (!fromCol || !toCol) return
-        const idx = fromCol.cards.findIndex((k) => k.id === drag.cardId)
-        if (idx < 0) return
-        const [card] = fromCol.cards.splice(idx, 1)
-        if (fromCol.id === toCol.id) {
-          let target = index
-          if (idx < target) target -= 1
-          toCol.cards.splice(target, 0, card)
-          card.updatedAt = safeNow()
-          appendActivity(card, '调整顺序')
-        } else {
-          toCol.cards.splice(index, 0, card)
-          card.updatedAt = safeNow()
-          appendActivity(card, '状态变更：' + fromCol.title + ' → ' + toCol.title)
-        }
-      })
-    } else if (drag.kind === 'column') {
-      props.kb.mutate((b) => {
-        const from = drag.from
-        const to = b.columns.findIndex((c) => c.id === columnId)
-        if (from < 0 || to < 0 || from === to) return
-        const [col] = b.columns.splice(from, 1)
-        b.columns.splice(to, 0, col)
-      })
+    if (drag.kind !== 'card') { setDrag(null); setHint(null); return }
+    if (drag.groupKey !== groupKey) {
+      setDrag(null)
+      setHint(null)
+      return
     }
+    const index = computeCardIndex(evt)
+    props.kb.mutate((b) => {
+      const fromCol = b.columns.find((c) => c.id === drag.from)
+      const toCol = b.columns.find((c) => c.id === columnId)
+      if (!fromCol || !toCol) return
+      const idx = fromCol.cards.findIndex((k) => k.id === drag.cardId)
+      if (idx < 0) return
+      const [card] = fromCol.cards.splice(idx, 1)
+      if (fromCol.id === toCol.id) {
+        let target = index
+        if (idx < target) target -= 1
+        toCol.cards.splice(target, 0, card)
+        card.updatedAt = safeNow()
+        appendActivity(card, '调整顺序')
+      } else {
+        toCol.cards.splice(index, 0, card)
+        card.updatedAt = safeNow()
+        appendActivity(card, '状态变更：' + fromCol.title + ' → ' + toCol.title)
+      }
+    })
     setDrag(null)
     setHint(null)
   }
@@ -134,7 +125,7 @@ export function BoardView(props: {
   }
 
   /** 单列渲染：列头（可拖拽排序）+ 卡片列表（独立滚动）+ 添加卡片 */
-  function renderColumn(col: any, colIndex: number, groupKey: string) {
+  function renderColumn(col: any, _colIndex: number, groupKey: string) {
     return (
       <section
         key={col.id}
@@ -142,16 +133,8 @@ export function BoardView(props: {
         onDragOver={(evt) => onColumnOver(col.id, evt)}
         onDrop={(evt) => onColumnDrop(col.id, groupKey, evt)}
       >
-        <header
-          className="kbnb-column-head"
-          draggable={props.groupBy === 'none'}
-          onDragStart={(evt) => {
-            evt.dataTransfer.effectAllowed = 'move'
-            setDrag({ kind: 'column', from: colIndex })
-          }}
-          onDragEnd={onDragEnd}
-        >
-          <span className="kbnb-column-title" title={props.groupBy === 'none' ? '拖拽排序' : col.title}>
+        <header className="kbnb-column-head">
+          <span className="kbnb-column-title" title={col.title}>
             {col.title}
           </span>
           <span className="kbnb-column-count">{col.cards.length}</span>

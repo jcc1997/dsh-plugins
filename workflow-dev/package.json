@@ -1,0 +1,13 @@
+{
+  "name": "dsh-workflow-dev",
+  "version": "1.0.0",
+  "private": true,
+  "description": "基于 dsh-kanban 门禁的软件开发工作流模板(Backlog→RD→TD→UC→In Dev→review→Testing→2nd review→Stage→Done)。复制本目录即可作为自己的流程工具。",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "install": "node install.mjs"
+  }
+}
