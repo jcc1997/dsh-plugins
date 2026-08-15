@@ -83,13 +83,23 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
    - `kanban.columns`:增删阶段(按顺序);
    - `kanban.gates`:改每条门禁的 `on`(move/tags/archive)、`to`(目标列)、`checker`(mr-linked / mr-merged / tag-required / field-nonempty / code / pipeline);
    - `kanban.templates`:改模板名、预置描述、标签与勾选门禁(按门禁名引用)。
-3. 让 agent 用 `kanban_import_config` 重新导入即可(整体替换,自动备份)。
+3. 让 agent 用 `kanban_import_config` 重新导入即可(整体替换,自动备份);
+4. 同步更新 `skills/workflow/SKILL.md`(流程含义/门禁清单/标签表,见该文件第五节维护清单)。
+
+## 附带 skill:把流程含义教给 agent
+
+本目录 `skills/workflow/SKILL.md` 是这套流程的 **agent 知识卡**:10 列阶段语义、9 条门禁、确认标签表、agent 操作手册(建卡/推进/门禁解释/MR 收尾)、自定义维护指引。
+
+- **本仓库内已生效**:仓库根 `.agents/skills/workflow/` 存有同步副本,agent 自动加载;
+- **复制出去时**:把 `skills/workflow/` 一并拷入目标仓库的 `.agents/skills/` 下,该仓库的 agent 即可自动加载;
+- **改了流程记得同步**:两个 SKILL.md 副本(包内真源 + 仓库根副本)必须一起改。
 
 ## 文件说明
 
 | 文件 | 作用 |
 |---|---|
 | `workflow.json` | 工作流配置(列 + 门禁 + 模板),**单一事实源**,与 kanban_export_config 导出格式一致 |
+| `skills/workflow/SKILL.md` | 流程含义与 agent 操作手册(随包分发,拷入 .agents/skills/ 即被加载) |
 | `README.md` | 本文件:安装指引 + 使用指南 |
 
 ## License

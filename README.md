@@ -82,9 +82,9 @@ dsh-plugins/
 ├── packages/
 │   ├── ui/          # 共享包 @dsh-plugins/ui:设计 tokens + 图标 + 工具函数
 │   └── communication/ # 通信协议层(bus/rpc/services)
-├── workflow-template/ # 开发流程配置样例包:workflow.json + 使用指南(经 kanban_import_config 导入)
+├── workflow-template/ # 开发流程配置样例包:workflow.json + 使用指南 + workflow skill(经 kanban_import_config 导入)
 ├── scripts/         # 仓库级工具(workflow-ci-check.mjs 等)
-└── .agents/skills/  # 插件开发技能(dsh-dynamic-plugin-dev 等)
+└── .agents/skills/  # 插件开发技能(dsh-dynamic-plugin-dev 等)+ workflow 流程 skill 同步副本
 ```
 
 ## 开发与贡献
