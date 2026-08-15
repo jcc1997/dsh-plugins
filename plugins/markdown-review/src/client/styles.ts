@@ -52,7 +52,7 @@ export const mdrCss = `
 .mdr-content{flex:1;min-height:0;overflow-y:auto;padding:24px 28px;user-select:text;cursor:text;min-width:0}
 .mdr-main-input{flex:none;padding:12px 16px}
 .mdr-main-input .cmp-composer{width:100%}
-.mdr-quotes{overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.mdr-quotes{overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0;border-left:1px solid var(--dsw-alias-border-l2)}
 .mdr-quotes-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-secondary)}
 .mdr-quote-item{position:relative;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:12px 28px 12px 12px;transition:border-color 150ms cubic-bezier(.4,0,.2,1)}
 .mdr-quote-item:hover{border-color:var(--dsw-alias-border-l3)}
