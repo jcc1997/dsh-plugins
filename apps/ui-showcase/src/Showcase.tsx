@@ -1,8 +1,8 @@
 // src/Showcase.tsx — dsh-plugins UI 组件库画廊(独立开发服务,不依赖宿主)
 // 组件来源:packages/ui(Composer/icons)+ plugins/markdown-review/src/client(工具卡/浮窗/批注框/markdown 渲染)
 // 后续组件沉淀进 packages/ui 后,这里随包同步展示。
-import React, { useState } from 'react'
-import { Composer, IconCheckOutline16, IconCloseOutline16, IconTrashOutline16, Modal } from '@dsh-plugins/ui'
+import React, { useEffect, useState } from 'react'
+import { Composer, IconCheckOutline16, IconCloseOutline16, IconDarkOutline16, IconLightOutline16, IconTrashOutline16, Modal } from '@dsh-plugins/ui'
 import { MdViewer } from '../../../plugins/markdown-review/src/client/card'
 import { parseMarkdownBlocks, renderBlocks } from '../../../plugins/markdown-review/src/client/md'
 
@@ -51,9 +51,21 @@ function Section(props: { title: string; children: React.ReactNode }) {
 export function Showcase() {
   const [note, setNote] = useState('多行模式:输入增多后按钮落到最下面一行,输入横向撑满。再来一行看看自动增高。')
   const [single, setSingle] = useState('')
+  // 暗黑模式:宿主 token 深色定义在 body[data-ds-dark-theme],toggle 即切换该属性
+  const [dark, setDark] = useState(false)
+  useEffect(() => {
+    if (dark) document.body.setAttribute('data-ds-dark-theme', '')
+    else document.body.removeAttribute('data-ds-dark-theme')
+  }, [dark])
   return (
     <div className="sc-page">
-      <h2 className="sc-head">dsh-plugins UI 组件库 Showcase(独立开发服务)</h2>
+      <div className="sc-head">
+        <h2>dsh-plugins UI 组件库 Showcase(独立开发服务)</h2>
+        <button className="mdr-btn" type="button" title="切换明暗主题" onClick={() => setDark((d) => !d)}>
+          {dark ? <IconLightOutline16 /> : <IconDarkOutline16 />}
+          {dark ? '浅色' : '暗色'}
+        </button>
+      </div>
       <Section title="按钮(主/次/禁用)">
         <div className="sc-row">
           <button className="mdr-btn mdr-btn-primary">主按钮</button>
