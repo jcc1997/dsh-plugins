@@ -5,30 +5,31 @@ import React, { useEffect, useState } from 'react'
 import { Composer, IconCheckOutline16, IconCloseOutline16, IconDarkOutline16, IconLightOutline16, IconTrashOutline16, Modal } from '@dsh-plugins/ui'
 import { MdViewer } from '../../../plugins/markdown-review/src/client/card'
 import { parseMarkdownBlocks, renderBlocks } from '../../../plugins/markdown-review/src/client/md'
-import { PipelineCallCard } from '../../../plugins/pipeline/src/client/call-card'
+import { PipelineDock } from '../../../plugins/pipeline/src/client/dock'
 import { NodeGraph } from '../../../plugins/pipeline/src/client/graph'
 
-// ── pipeline demo:mock /pipeline-api 接口(工具卡轮询/页面数据不依赖真实后端) ──
-const DEMO_RUN: any = {
-  run_id: 'demo-run-1',
-  status: 'running',
-  nodes: [
-    { id: 'n1', title: '输入', status: 'success' },
-    { id: 'n2', title: '转 mp3', status: 'running' },
-    { id: 'n3', title: '输出', status: 'queued' },
-  ],
-  error: '',
-  output: null,
-}
+// ── pipeline demo:mock /pipeline-api 接口(dock 条数据,不依赖真实后端) ──
+const DEMO_DOCK_RUNS: any = [
+  { id: 'run-abc123', pipelineId: 'p1', pipelineName: '视频转 mp3', status: 'running', version: 'v0.3.0', createdAt: '2026-08-15T10:00:00Z', done: 2, total: 5, error: '', output: null },
+  { id: 'run-def456', pipelineId: 'p2', pipelineName: '文档总结', status: 'queued', version: 'v1.0.0', createdAt: '2026-08-15T09:58:00Z', done: 0, total: 3, error: '', output: null },
+  { id: 'run-ghi789', pipelineId: 'p3', pipelineName: '数据抓取', status: 'success', version: 'v0.1.0', createdAt: '2026-08-15T09:30:00Z', done: 4, total: 4, error: '', output: { rows: 128 } },
+  { id: 'run-jkl012', pipelineId: 'p4', pipelineName: '网页转 pdf', status: 'failed', version: 'v0.2.0', createdAt: '2026-08-15T08:00:00Z', done: 2, total: 4, error: 'fetch timeout', output: null },
+]
 const originalFetch = window.fetch.bind(window)
 window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input)
-  if (url.startsWith('/pipeline-api/run-status')) {
-    // 第一轮返回 running,后续推进到 success
-    if (!DEMO_RUN.started) DEMO_RUN.started = true
-    DEMO_RUN.elapsed = (DEMO_RUN.elapsed || 0) + 1
-    if (DEMO_RUN.elapsed >= 2) { DEMO_RUN.status = 'success'; DEMO_RUN.nodes[1].status = 'success'; DEMO_RUN.nodes[2].status = 'success'; DEMO_RUN.output = { mp3: '/tmp/demo.mp3', size: 1280 } }
-    return Promise.resolve(new Response(JSON.stringify({ run: DEMO_RUN }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+  if (url.startsWith('/pipeline-api/dock-runs')) {
+    // 模拟运行推进:第 3 轮后 run-abc123 完成
+    const d = window as any
+    d.__dockPolls = (d.__dockPolls || 0) + 1
+    if (d.__dockPolls >= 3) {
+      DEMO_DOCK_RUNS[0].status = 'success'
+      DEMO_DOCK_RUNS[0].done = 5
+      DEMO_DOCK_RUNS[0].output = { mp3: '/tmp/demo.mp3' }
+      DEMO_DOCK_RUNS[1].status = 'running'
+      DEMO_DOCK_RUNS[1].done = 1
+    }
+    return Promise.resolve(new Response(JSON.stringify({ ok: true, runs: DEMO_DOCK_RUNS }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
   }
   return originalFetch(input, init)
 }) as typeof fetch
@@ -209,23 +210,9 @@ export function Showcase() {
       ) : null}
       {tab === 'pipeline' ? (
         <>
-          <Section title="工具卡(轮询演示,2 轮后自动完成)">
-            <div className="sc-card-col">
-              <PipelineCallCard
-                toolName="pipeline_run"
-                callId="demo-call-1"
-                block={{ kind: 'running', argsRaw: JSON.stringify({ run_id: 'demo-run-1' }) }}
-              />
-              <PipelineCallCard
-                toolName="pipeline_run"
-                callId="demo-call-2"
-                block={{ kind: 'result', isError: false, meta: { run_id: 'demo-run-2', status: 'success', done: 3, total: 3 }, call: { argsRaw: JSON.stringify({ run_id: 'demo-run-2' }) } }}
-              />
-              <PipelineCallCard
-                toolName="pipeline_run_status"
-                callId="demo-call-3"
-                block={{ kind: 'result', isError: true, meta: { run_id: 'demo-run-3', status: 'failed' }, call: { argsRaw: JSON.stringify({ run_id: 'demo-run-3' }) } }}
-              />
+          <Section title="常驻 dock 条(conversation.input.dock,Composer 上方;todo 式运行列表,轮询推进)">
+            <div style={{ maxWidth: 640 }}>
+              <PipelineDock />
             </div>
           </Section>
           <Section title="节点图(React Flow,只读模式)">

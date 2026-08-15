@@ -109,6 +109,27 @@ export function apply(ctx: PipelineCtx) {
     const { runId, run } = await queue.submit(String(args.pipeline_id), args.version || 'latest', args.inputs || {}, 'ui')
     return { ok: true, run_id: runId, status: run.status }
   })
+  // dock 常驻条数据:全部运行倒序(运行中置顶)+ pipeline 名称映射
+  route('/pipeline-api/dock-runs', async () => {
+    const doc = await readDoc(fs)
+    const nameOf = new Map(doc.pipelines.map((p) => [p.id, p.name]))
+    const active = new Set(['queued', 'running'])
+    const runs = doc.runs.map((r) => ({
+      id: r.id, pipelineId: r.pipelineId, pipelineName: nameOf.get(r.pipelineId) || r.pipelineId,
+      status: r.status, version: r.version, createdAt: r.createdAt, startedAt: r.startedAt, finishedAt: r.finishedAt,
+      error: r.error || '', output: r.output || null,
+      done: r.nodes.filter((n) => n.status === 'success' || n.status === 'failed' || n.status === 'skipped').length,
+      total: r.nodes.length,
+    }))
+      .sort((a, b) => {
+        const aa = active.has(a.status) ? 1 : 0
+        const bb = active.has(b.status) ? 1 : 0
+        if (aa !== bb) return bb - aa
+        return String(b.createdAt).localeCompare(String(a.createdAt))
+      })
+      .slice(0, 20)
+    return { ok: true, runs }
+  })
   // 运行详情
   route('/pipeline-api/run-status', async (args: any) => {
     const doc = await readDoc(fs)

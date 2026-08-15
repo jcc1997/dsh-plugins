@@ -148,6 +148,28 @@ export const plpCss = `
 .plp-sess-st-failed{color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-secondary)}
 .plp-sess-st-cancelled{color:var(--dsw-alias-label-dimmed)}
 
+/* ══ 常驻 dock 条(conversation.input.dock,Composer 上方整行;todo 式运行列表) ══ */
+.plp-dock{display:flex;flex-direction:column;gap:2px;padding:6px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-base)}
+.plp-dock-head{display:flex;align-items:center;gap:8px;min-width:0}
+.plp-dock-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-primary);flex:none}
+.plp-dock-count{font-size:11px;color:var(--dsw-alias-label-tertiary);background:var(--dsw-alias-bg-layer-2);border-radius:999px;padding:0 6px;font-variant-numeric:tabular-nums}
+.plp-dock-spacer{flex:1}
+.plp-dock-collapse{width:22px;height:22px;border:none;background:none;cursor:pointer;color:var(--dsw-alias-label-tertiary);display:inline-flex;align-items:center;justify-content:center;border-radius:6px;padding:0}
+.plp-dock-collapse:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.plp-dock-error{font-size:11px;color:var(--dsw-alias-state-error-primary)}
+.plp-dock-list{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.plp-dock-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;min-width:0;font-size:12px}
+.plp-dock-row:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.plp-dock-dot{width:8px;height:8px;border-radius:50%;flex:none}
+.plp-dock-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;max-width:220px}
+.plp-dock-status{font-size:11px;color:var(--dsw-alias-label-tertiary);flex:none}
+.plp-dock-progress{font-size:11px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;flex:none}
+.plp-dock-id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:var(--dsw-alias-label-tertiary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plp-dock-go{width:22px;height:22px;flex:none;border:none;background:none;cursor:pointer;color:var(--dsw-alias-label-secondary);display:inline-flex;align-items:center;justify-content:center;border-radius:6px;padding:0}
+.plp-dock-go:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-state-business-primary)}
+.plp-dock-x{width:20px;height:20px;flex:none;border:none;background:none;cursor:pointer;color:var(--dsw-alias-label-tertiary);display:inline-flex;align-items:center;justify-content:center;border-radius:6px;padding:0}
+.plp-dock-x:hover{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}
+
 /* ══ 对话流工具卡片（tool.call.toolview） ══ */
 .plp-callcard{border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-base);padding:10px 12px;margin:4px 0 4px 4px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .plp-callcard-head{display:flex;align-items:center;gap:8px;min-width:0}

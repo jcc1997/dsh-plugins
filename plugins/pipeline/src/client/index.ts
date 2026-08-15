@@ -5,7 +5,7 @@ import React from 'react'
 import xyflowCss from '@xyflow/react/dist/style.css'
 import { plpCss, xyflowThemeCss } from './styles'
 import { PipelinePage } from './page'
-import { PipelineCallCard } from './call-card'
+import { PipelineDock } from './dock'
 import { registerOpenHandler } from './nav'
 
 export const name = 'pipeline'
@@ -101,12 +101,8 @@ export function apply(ctx: { get(name: string): unknown }) {
     ),
   )
 
-  // 对话流工具卡片：接管 pipeline_run / pipeline_run_status 的渲染
-  // （tool.call.toolview keyed 槽位，key = 工具名；实时进度 + 点击跳转主面板详情）
-  slots.inject('tool.call.toolview', () =>
-    slots.register({ name: 'tool.call.toolview', key: 'pipeline_run', locale: 'conversation' }, PipelineCallCard),
-  )
-  slots.inject('tool.call.toolview', () =>
-    slots.register({ name: 'tool.call.toolview', key: 'pipeline_run_status', locale: 'conversation' }, PipelineCallCard),
+  // 常驻 dock 条：对话流输入区上方整行(conversation.input.dock,宿主 todo 同款座位)
+  slots.inject('conversation.input.dock', () =>
+    slots.register({ name: 'conversation.input.dock', id: 'pipeline', order: 0, locale: 'conversation' }, PipelineDock),
   )
 }
