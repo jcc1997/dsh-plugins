@@ -238,10 +238,12 @@ export const plpCss = `
 .plp-dep-id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;color:var(--dsw-alias-label-tertiary)}
 .plp-cfg-hint{font-size:11px;color:var(--dsw-alias-label-tertiary);white-space:pre-wrap;word-break:break-all;background:var(--dsw-alias-bg-layer-2);border-radius:8px;padding:8px 10px;margin-top:6px}
 
-/* ══ 宿主侧边栏入口 ══ */
-.plp-side-btn{box-sizing:border-box;width:100%;height:49px;color:var(--dsw-alias-label-primary);cursor:pointer;background:none;border:none;border-radius:8px;align-items:center;gap:8px;padding:0 8px 0 6px;font-family:inherit;font-size:13px;display:inline-flex;overflow:hidden;line-height:20px;transition:background 150ms cubic-bezier(.4,0,.2,1)}
+/* ══ 宿主侧边栏入口（与「设置」入口同尺寸：34px 高 / 12px 圆角 / 同 padding-margin） ══ */
+.plp-side-btn{box-sizing:border-box;width:calc(100% + 8px);height:34px;color:var(--dsw-alias-label-primary);cursor:pointer;background:none;border:none;border-radius:12px;flex:none;align-items:center;gap:8px;margin:4px -4px;padding:6px 2px 6px 10px;font-family:inherit;font-size:14px;line-height:22px;display:inline-flex;overflow:hidden;transition:background 150ms cubic-bezier(.4,0,.2,1)}
 .plp-side-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .plp-side-btn-on{color:var(--dsw-alias-state-business-primary)}
+/* 折叠轨模式：与设置同款 36px 圆形图标按钮 */
+.plp-side-btn-rail{border-radius:50%;justify-content:center;gap:0;width:36px;height:36px;margin:8px 0 10px;padding:0}
 .plp-nav-icon{flex:none}
 
 /* ══ 暗色主题适配 ══ */

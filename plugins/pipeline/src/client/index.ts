@@ -78,7 +78,7 @@ export function apply(ctx: { get(name: string): unknown }) {
     }), [])
     return React.createElement('div', null,
       React.createElement('button', {
-        className: 'plp-side-btn' + (open ? ' plp-side-btn-on' : ''),
+        className: 'plp-side-btn' + (props.wide ? '' : ' plp-side-btn-rail') + (open ? ' plp-side-btn-on' : ''),
         type: 'button',
         title: 'Pipeline',
         'aria-label': 'Pipeline',

@@ -70,7 +70,7 @@ export function apply(ctx: CtxLike) {
     const [open, setOpen] = React.useState(false)
     return React.createElement('div', null,
       React.createElement('button', {
-        className: 'kbnb-side-btn' + (open ? ' kbnb-side-btn-on' : ''),
+        className: 'kbnb-side-btn' + (props.wide ? '' : ' kbnb-side-btn-rail') + (open ? ' kbnb-side-btn-on' : ''),
         type: 'button',
         title: '看板',
         'aria-label': '看板',

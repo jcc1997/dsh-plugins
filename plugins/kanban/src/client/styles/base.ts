@@ -62,10 +62,13 @@ export const baseCss = `
 .kbnb-page *::-webkit-scrollbar-track{background:transparent}
 
 /* ══ 宿主侧边栏入口（官方类覆盖，保持既有布局修正） ══ */
-.kbnb-side-btn{box-sizing:border-box;width:100%;height:49px;color:var(--dsw-alias-label-primary);cursor:pointer;background:none;border:none;border-radius:8px;align-items:center;gap:8px;padding:0 8px 0 6px;font-family:inherit;font-size:13px;display:inline-flex;overflow:hidden;line-height:20px;transition:background 150ms cubic-bezier(.4, 0, .2, 1)}
+/* 与宿主「设置」入口（sidebar.settings trigger）同尺寸：34px 高 / 12px 圆角 / 同 padding-margin */
+.kbnb-side-btn{box-sizing:border-box;width:calc(100% + 8px);height:34px;color:var(--dsw-alias-label-primary);cursor:pointer;background:none;border:none;border-radius:12px;flex:none;align-items:center;gap:8px;margin:4px -4px;padding:6px 2px 6px 10px;font-family:inherit;font-size:14px;line-height:22px;display:inline-flex;overflow:hidden;transition:background 150ms cubic-bezier(.4, 0, .2, 1)}
 .kbnb-side-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .kbnb-side-btn-on{color:var(--dsw-alias-state-business-primary)}
 .kbnb-side-btn-on:hover{color:var(--dsw-alias-state-business-primary)}
+/* 折叠轨模式：与设置同款 36px 圆形图标按钮 */
+.kbnb-side-btn-rail{border-radius:50%;justify-content:center;gap:0;width:36px;height:36px;margin:8px 0 10px;padding:0}
 .Nqubda_layer{width:auto;flex:1 1 auto;min-width:0}
 .hHd-Xa_footerActions{flex-direction:column;gap:4px}
 .hHd-Xa_collapsed .hHd-Xa_footerActions{flex-direction:column;width:auto;align-items:center}
