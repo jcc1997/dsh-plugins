@@ -10,6 +10,8 @@ DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板�
 - **创建模板**：预设 description / tags / content / 门禁勾选（gate_ids 引用门禁库），新建卡片时引用免重复输入。agent（kanban_create(template=) 或 kanban_template_* 工具）与手动创建（创建弹窗模板下拉 + 预填）均可用。
 - **跨插件服务**：ctx.provide('kanban')（getCard / updateCard / listCards / getCardStatus / moveCard）。
 
+> 想直接拿到一套现成的开发流程（10 列 + 9 条门禁 + workflow 模板 + 一键安装），见仓库根目录 [workflow-dev](../../workflow-dev/README.md) 模板包——复制出去即可自定义。
+
 ## 面向 Agent 的门禁指南
 
 > agent 在对话中给卡片挂门禁、写门禁代码前，先读本节——工具参数、检查器契约、沙箱能力都在这里。
