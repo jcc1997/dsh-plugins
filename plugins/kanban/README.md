@@ -10,7 +10,7 @@ DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板�
 - **创建模板**：预设 description / tags / content / 门禁勾选（gate_ids 引用门禁库），新建卡片时引用免重复输入。agent（kanban_create(template=) 或 kanban_template_* 工具）与手动创建（创建弹窗模板下拉 + 预填）均可用。
 - **跨插件服务**：ctx.provide('kanban')（getCard / updateCard / listCards / getCardStatus / moveCard）。
 
-> 想直接拿到一套现成的开发流程（10 列 + 9 条门禁 + workflow 模板 + 一键安装），见仓库根目录 [workflow-dev](../../workflow-dev/README.md) 模板包——复制出去即可自定义。
+> 想直接拿到一套现成的开发流程（10 列 + 9 条门禁 + workflow 模板），把仓库根目录 [workflow-template](../../workflow-template/README.md) 样例包的 `workflow.json` 交给 agent 用 `kanban_import_config` 导入即可——复制出去改一改就是自己的流程。
 
 ## 面向 Agent 的门禁指南
 
@@ -113,6 +113,7 @@ kanban_create(title: …, template: "workflow")                        # 新卡�
 - 挂载：`kanban_gate_add`（card_id + gate_id）/ `kanban_gate_remove`；预检：`kanban_gate_check`（不执行动作）
 - 模板带门禁：`kanban_template_create/update` 支持 `gate_ids`（兼容内联 `gates` 自动入库）→ 建卡 `kanban_create(template: …)` 自动带入
 - UI：「门禁」页 = 门禁库 CRUD（含引用关系）；卡片抽屉「门禁」区块勾选挂载；动作前 UI 调 /kanban-api/gate-check 预检
+- 配置流转：`kanban_export_config`（导出列+门禁库+模板，按名字引用，不含任何卡片/个人数据）/ `kanban_import_config`（整体替换配置层，旧卡片挪第一列，自动备份 board.json）——格式与 workflow-template 的 workflow.json 一致
 
 ## 数据
 
@@ -122,7 +123,7 @@ kanban_create(title: …, template: "workflow")                        # 新卡�
 ## 开发
 
 ```bash
-pnpm --filter dsh-kanban check   # typecheck + build + verify（29 工具 / 5 路由断言）
+pnpm --filter dsh-kanban check   # typecheck + build + verify（31 工具 / 5 路由断言）
 node scripts/smoke-gate.mjs      # 门禁/模板端到端冒烟
 node build.mjs --watch           # HMR 开发
 ```

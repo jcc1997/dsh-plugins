@@ -30,7 +30,7 @@ const ctx = {
 }
 mod.apply(ctx)
 console.log('host: 工具', registered.length, '| 路由', routes.length, '| 服务', Object.keys(provided).join(','))
-if (registered.length !== 29) throw new Error('工具注册数错误: ' + registered.length)
+if (registered.length !== 31) throw new Error('工具注册数错误: ' + registered.length)
 for (const p of ['/kanban-api/load', '/kanban-api/save', '/kanban-api/set-data-dir', '/kanban-api/git-sync', '/kanban-api/gate-check']) {
   if (!routes.includes(p)) throw new Error('路由缺失: ' + p)
 }
