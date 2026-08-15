@@ -59,11 +59,11 @@ export const mdrCss = `
 .mdr-quote-note{font-size:12px;color:var(--dsw-alias-state-business-primary);margin-top:4px;white-space:pre-wrap;word-break:break-word}
 .mdr-quote-x{position:absolute;top:4px;right:4px}
 
-/* ══ §4 划词批注框(嵌段落下方;左:选中原文 / 右:批注输入) ══ */
+/* ══ §4 划词批注框(嵌段落下方;引用小字 + 胶囊输入,轻盈融入文档流) ══ */
 .mdr-editor-slot{display:block}
-.mdr-editor{margin:12px 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,1.05fr);align-items:start;gap:12px;min-width:0;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);border-radius:8px;padding:12px}
+.mdr-editor{margin:8px 0;display:flex;flex-direction:column;gap:8px;min-width:0}
 .mdr-editor .cmp-composer{min-width:0}
-.mdr-editor-quote{min-width:0;font-size:12px;color:var(--dsw-alias-label-secondary);border-left:3px solid var(--dsw-alias-state-business-primary);padding-left:8px;max-height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
+.mdr-editor-quote{min-width:0;font-size:12px;line-height:1.6;color:var(--dsw-alias-label-tertiary);border-left:2px solid var(--dsw-alias-border-l3);padding-left:8px;max-height:64px;overflow-y:auto;white-space:pre-wrap;word-break:break-word}
 
 /* ══ markdown 渲染(官方字阶,13 基准) ══ */
 .mdr-content .mdr-h{font-weight:600;color:var(--dsw-alias-label-primary);margin:20px 0 8px;line-height:1.4}
@@ -79,7 +79,7 @@ export const mdrCss = `
 .mdr-li{margin:4px 0}
 .mdr-hr{border:none;border-top:1px solid var(--dsw-alias-border-l2);margin:16px 0}
 .mdr-img{max-width:100%;height:auto;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);display:inline-block;vertical-align:middle}
-.mdr-a{color:var(--dsw-alias-brand-primary);text-decoration:none}
+.mdr-a{color:var(--dsw-alias-state-business-primary);text-decoration:none} /* 宿主 markdown 链接实测(MarkdownText.module.css) */
 .mdr-a:hover{text-decoration:underline}
 .mdr-table-wrap{overflow-x:auto;margin:12px 0}
 .mdr-table{border-collapse:collapse;width:100%;font-size:13px}

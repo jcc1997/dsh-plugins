@@ -97,7 +97,7 @@
 - 状态胶囊: 11px + radius 999px + padding 1px 8px;文字用 state-* 语义色。
 - 评论气泡: radius 8 + bg-layer-2;变更记录: 时间 tabular-nums、操作者 11px 蓝徽章。
 - 空状态: 居中 + tertiary + 一句引导;无图标。
-- 链接: `--dsw-alias-brand-primary`,hover underline;focus-visible ring。
+- 链接: `--dsw-alias-state-business-primary`(宿主 markdown 链接实测 MarkdownText.module.css),hover underline;focus-visible ring。
 - 滚动条: 容器内部滚动,scrollbar tokens(见 tokens.md §2.9)。
 
 ## 八、交互状态总表

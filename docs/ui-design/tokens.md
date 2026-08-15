@@ -87,7 +87,7 @@
 
 | token | 用途 | 注意 |
 | --- | --- | --- |
-| `--dsw-alias-brand-primary` | 品牌主色(链接/强调) | |
+| `--dsw-alias-brand-primary` | 品牌主色(浅色主题=近黑 bluish-1000;**勿当链接色**,链接用 state-business-primary,宿主实测) | |
 | `--dsw-alias-brand-primary-invert` | 反色品牌主色 | |
 | `--dsw-alias-brand-text` | 品牌文字 | |
 | `--dsw-alias-brand-primary-new-colorprimary-new-color` | 品牌新主色(宿主命名遗留,慎用) | 名字含 new-color,待宿主清理 |

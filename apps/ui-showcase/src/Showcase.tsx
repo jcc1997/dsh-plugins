@@ -108,7 +108,7 @@ export function Showcase() {
           <button className="mdr-icon-btn mdr-icon-confirm"><IconCheckOutline16 /></button>
         </>} />
       </Section>
-      <Section title="划词批注框(左:选中原文 / 右:批注输入)">
+      <Section title="划词批注框(引用 + 胶囊输入)">
         <div className="mdr-editor">
           <div className="mdr-editor-quote">选中原文示例:这是一段被划词选中的文字,出现在批注框左侧。</div>
           <Composer value="" onChange={() => {}} placeholder="对这段的批注…" actions={<>
