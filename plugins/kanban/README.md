@@ -5,7 +5,8 @@ DSH 看板插件（正式 bundle 形态）：嵌入侧边栏的全功能看板�
 ## 能力
 
 - **看板**：竖线分隔列、拖拽排序与跨列移动、分组（按 git 仓库）、归档/恢复、富文本内容（Notion 式块编辑器）、标签、评论、变更记录。
-- **外部关联（refs）**：github-repo / github-branch / github-mr / local-repo / session 等；git 插件经子槽位 kanban.card.actions 注入同步按钮。
+- **外部关联（refs）**：github-repo / github-branch / github-mr / local-repo / session 等；git 插件经子槽位 kanban.
+- **会话自动关联**：`kanban_create` 由 agent 调用时自动挂 `{kind:'session', externalId:<agent.session.id>}` 引用（会话「任务」tab 按它列出本会话创建的卡）；历史卡可 `kanban_link(kind='session')` 手动补挂。card.actions 注入同步按钮。
 - **门禁（Gate）**：门禁是**门禁库里的独立实体**（单独配置，卡片/模板按 id 勾选复用）——move（移动状态）/ tags（增减标签）/ archive（归档）触发时检查，不通过则拒绝动作。检查器统一抽象为 **checker**：内置条件 / 沙箱代码 / pipeline 三种写法，唯一执行底层是沙箱 code。详见下文「面向 Agent 的门禁指南」。
 - **创建模板**：预设 description / tags / content / 门禁勾选（gate_ids 引用门禁库），新建卡片时引用免重复输入。agent（kanban_create(template=) 或 kanban_template_* 工具）与手动创建（创建弹窗模板下拉 + 预填）均可用。
 - **跨插件服务**：ctx.provide('kanban')（getCard / updateCard / listCards / getCardStatus / moveCard）。
