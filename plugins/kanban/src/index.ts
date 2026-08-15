@@ -183,6 +183,24 @@ export function apply(ctx: KanbanCtx) {
       return out
     },
     /** 卡片所在列名（供 git 等插件做状态检查；归档返回 status=归档） */
+    /** 给卡片追加一条评论（供门禁等程序动作落评审意见；返回最后一条评论文本供去重） */
+    addComment: async (cardId: string, textToAdd: string) => {
+      const text2 = String(textToAdd || '').trim()
+      if (!text2) return { ok: false, error: 'text is required' }
+      return mutateBoard(fs, (board: any) => {
+        const hit = findCardAny(board, String(cardId))
+        if (!hit) return { ok: false, error: 'card not found: ' + cardId }
+        const card = hit.card
+        if (!Array.isArray(card.comments)) card.comments = []
+        const last = card.comments[card.comments.length - 1]
+        if (last && last.text === text2) return { ok: true, card_id: card.id, comment_id: last.id, duplicated: true }
+        const cid = safeId('m')
+        card.comments.push({ id: cid, text: text2, createdAt: now() })
+        card.updatedAt = now()
+        appendActivity(card, '添加评论')
+        return { ok: true, card_id: card.id, comment_id: cid, duplicated: false }
+      })
+    },
     getCardStatus: async (cardId: string) => {
       const dataDir = await resolveDataDir(fs)
       const board = (await readBoard(fs, dataDir)) || defaultBoard()

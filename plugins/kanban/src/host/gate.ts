@@ -134,6 +134,9 @@ return { ok: open.length === 0, reason: open.length ? 'MR 未合并：' + open.m
 const card = await gate.card({});
 const outs = await Promise.all(ids.map(id => gate.runPipeline({pipelineId: id, inputs: {card}})));
 const bad = outs.filter(o => o && o.error);
+if (bad.length > 0) {
+  try { await gate.call({service: 'kanban', method: 'addComment', args: [card.id, '评审未通过：' + bad.map(o => o.error).join('；').slice(0, 2000)]}) } catch (e) {}
+}
 return { ok: bad.length === 0, reason: bad.length ? 'pipeline 失败：' + bad.map(o => o.error).join('；') : '' }`
   }
   throw new Error('unknown preset checker type: ' + type)
@@ -221,7 +224,15 @@ nativeCheckers['pipeline'] = async (card, gate, cfg, deps) => {
   }))
   const failed = results.filter((r) => !r.ok)
   if (failed.length > 0) {
-    return { name: gate.name || 'pipeline', type: 'pipeline', reason: failed.map((f) => 'pipeline ' + f.pid + ' 失败：' + String(f.out && f.out.error ? f.out.error : 'unknown')).join('；') }
+    const reason = failed.map((f) => 'pipeline ' + f.pid + ' 失败：' + String(f.out && f.out.error ? f.out.error : 'unknown')).join('；')
+    // 评审问题自动落卡评论（失败不影响门禁判定）
+    try {
+      const kanban = deps.getService ? deps.getService('kanban') : undefined
+      if (kanban && typeof kanban.addComment === 'function') {
+        await kanban.addComment(String(card.id), '评审未通过：' + reason.slice(0, 2000))
+      }
+    } catch { /* 评论失败不影响门禁判定 */ }
+    return { name: gate.name || 'pipeline', type: 'pipeline', reason }
   }
   return null
 }
