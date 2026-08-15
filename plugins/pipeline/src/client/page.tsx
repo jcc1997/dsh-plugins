@@ -78,22 +78,25 @@ export function PipelinePage(props: { onClose: () => void; focusRunId?: string |
       </header>
       {error ? <div className="plp-error">{error}</div> : null}
       <div className="plp-body">
-        <aside className="plp-app-side">
-          <div className="plp-nav-section">管理</div>
-          <button type="button" className={'plp-nav-item' + (view === 'list' || view === 'editor' ? ' plp-nav-on' : '')} onClick={() => nav('list')}>
-            <span className="plp-nav-label">流水线</span>
-            <span className="plp-nav-badge">{doc ? doc.pipelines.length : 0}</span>
-          </button>
-          <button type="button" className={'plp-nav-item' + (view === 'runs' ? ' plp-nav-on' : '')} onClick={() => nav('runs')}>
-            <span className="plp-nav-label">运行与队列</span>
-            <span className="plp-nav-badge">{doc ? doc.runs.filter((r: any) => r.status === 'running' || r.status === 'queued').length : 0}</span>
-          </button>
-          <div className="plp-nav-section">其他</div>
-          <button type="button" className={'plp-nav-item' + (view === 'settings' ? ' plp-nav-on' : '')} onClick={() => nav('settings')}>
-            <span className="plp-nav-label">说明</span>
-          </button>
-        </aside>
-        <main className="plp-main">
+        {/* 编辑页隐藏左侧导航（画布全幅）；其余视图保留 */}
+        {view !== 'editor' ? (
+          <aside className="plp-app-side">
+            <div className="plp-nav-section">管理</div>
+            <button type="button" className={'plp-nav-item' + (view === 'list' ? ' plp-nav-on' : '')} onClick={() => nav('list')}>
+              <span className="plp-nav-label">流水线</span>
+              <span className="plp-nav-badge">{doc ? doc.pipelines.length : 0}</span>
+            </button>
+            <button type="button" className={'plp-nav-item' + (view === 'runs' ? ' plp-nav-on' : '')} onClick={() => nav('runs')}>
+              <span className="plp-nav-label">运行与队列</span>
+              <span className="plp-nav-badge">{doc ? doc.runs.filter((r: any) => r.status === 'running' || r.status === 'queued').length : 0}</span>
+            </button>
+            <div className="plp-nav-section">其他</div>
+            <button type="button" className={'plp-nav-item' + (view === 'settings' ? ' plp-nav-on' : '')} onClick={() => nav('settings')}>
+              <span className="plp-nav-label">说明</span>
+            </button>
+          </aside>
+        ) : null}
+        <main className={'plp-main' + (view === 'editor' ? ' plp-main-editor' : '')}>
           {!doc ? <div className="plp-loading">加载中…</div> : null}
           {doc && view === 'list' ? <ListView doc={doc} host={host} onOpen={openEditor} onChanged={load} /> : null}
           {doc && view === 'editor' && editing ? <EditorView host={host} pipelineId={editing} onBack={backToList} onChanged={load} /> : null}

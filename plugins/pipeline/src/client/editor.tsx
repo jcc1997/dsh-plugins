@@ -47,6 +47,8 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
   const [runResult, setRunResult] = useState<any>(null)
   // 边中点插入的类型选择（from→to）
   const [edgeInsert, setEdgeInsert] = useState<{ from: string; to: string } | null>(null)
+  // 右侧浮窗开关（编辑画布全幅时浮于其上）
+  const [sideOpen, setSideOpen] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -195,6 +197,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
         <span className="plp-version">最新 {p.latestVersion}</span>
         {p.publishedVersion ? <span className="plp-version">已发布 {p.publishedVersion}</span> : <span className="plp-badge">未发布</span>}
         <div className="plp-header-actions">
+          <button className="plp-btn" type="button" onClick={() => setSideOpen(!sideOpen)} title="显示/隐藏右侧浮窗">{sideOpen ? '收起面板' : '打开面板'}</button>
           <button className="plp-btn" type="button" onClick={() => setShowRun(true)} disabled={busy}>运行调试</button>
           <button className="plp-btn" type="button" onClick={() => setShowPublish(true)} disabled={busy}>发布新版本</button>
           <button className="plp-btn plp-primary" type="button" onClick={save} disabled={busy}>{busy ? '保存中…' : '保存'}</button>
@@ -233,7 +236,7 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
         ) : null}
       </div>
 
-      {/* ── 主区：图 + 右面板 ── */}
+      {/* ── 主区：画布全幅（浮窗侧栏覆盖其上） ── */}
       <div className="plp-editor-body">
         <div className="plp-graph-scroll">
           <NodeGraph
@@ -247,29 +250,37 @@ export function EditorView(props: { host: HostLike; pipelineId: string; onBack: 
             onAddTail={(type) => { const last = sortedNodes[sortedNodes.length - 1] || null; insertNode(last ? last.id : null, type) }}
           />
         </div>
-        <aside className="plp-editor-side">
-          {sel ? (
-            <NodePanel
-              node={sel}
-              allNodes={sortedNodes}
-              onPatch={(patch) => patchNode(sel.id, patch)}
-              onDelete={() => deleteNode(sel.id)}
-            />
-          ) : (
-            <div className="plp-panel-empty">点击图中节点编辑配置<br />边中点 + 可插入节点</div>
-          )}
-          <div className="plp-ver-block">
-            <div className="plp-section-title">版本（semver）</div>
-            {(p.versions || []).map((v) => (
-              <div key={v.version} className="plp-ver-row">
-                <span className={'plp-ver-chip ' + (v.published ? 'plp-ver-published' : 'plp-ver-draft')}>{v.version}</span>
-                {v.version === p.latestVersion ? <span className="plp-ver-latest">最新</span> : null}
-                {v.version === p.publishedVersion ? <span className="plp-ver-latest">已发布</span> : null}
-                <span className="plp-ver-meta">{v.published ? (v.changelog || '已发布') : '草稿'}</span>
+        {sideOpen ? (
+          <aside className="plp-editor-side">
+            <div className="plp-side-head">
+              <span className="plp-side-title">{sel ? '节点编辑' : '面板'}</span>
+              <button className="plp-icon-btn" type="button" title="收起面板" onClick={() => setSideOpen(false)}>×</button>
+            </div>
+            <div className="plp-side-body">
+              {sel ? (
+                <NodePanel
+                  node={sel}
+                  allNodes={sortedNodes}
+                  onPatch={(patch) => patchNode(sel.id, patch)}
+                  onDelete={() => deleteNode(sel.id)}
+                />
+              ) : (
+                <div className="plp-panel-empty">点击图中节点编辑配置<br />边中点 + 可插入节点</div>
+              )}
+              <div className="plp-ver-block">
+                <div className="plp-section-title">版本（semver）</div>
+                {(p.versions || []).map((v) => (
+                  <div key={v.version} className="plp-ver-row">
+                    <span className={'plp-ver-chip ' + (v.published ? 'plp-ver-published' : 'plp-ver-draft')}>{v.version}</span>
+                    {v.version === p.latestVersion ? <span className="plp-ver-latest">最新</span> : null}
+                    {v.version === p.publishedVersion ? <span className="plp-ver-latest">已发布</span> : null}
+                    <span className="plp-ver-meta">{v.published ? (v.changelog || '已发布') : '草稿'}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </aside>
+            </div>
+          </aside>
+        ) : null}
       </div>
 
       {/* ── 边中点插入类型选择 ── */}

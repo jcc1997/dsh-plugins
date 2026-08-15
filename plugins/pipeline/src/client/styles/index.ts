@@ -22,6 +22,7 @@ export const plpCss = `
 
 /* ══ 主区 ══ */
 .plp-main{flex:1;min-width:0;overflow-y:auto;padding:20px 24px}
+.plp-main-editor{padding:0;overflow:hidden;display:flex;flex-direction:column}
 
 /* ══ 表单 ══ */
 .plp-field{display:block;margin-bottom:16px}
@@ -163,11 +164,17 @@ export const plpCss = `
 .plp-basic-toggle{display:inline-flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;color:var(--dsw-alias-label-secondary);font-size:12px;font-family:inherit;padding:4px 0}
 .plp-basic-toggle:hover{color:var(--dsw-alias-label-primary)}
 .plp-basic-grid{display:grid;grid-template-columns:1fr 2fr 200px 1fr;gap:16px;padding:8px 0 12px}
-.plp-editor-body{flex:1;display:flex;min-height:0}
-.plp-graph-scroll{flex:1;min-width:0;overflow:auto;padding:16px}
-.plp-editor-side{width:320px;flex:none;border-left:1px solid var(--dsw-alias-border-l2);padding:16px;overflow-y:auto}
+.plp-editor-body{flex:1;position:relative;min-height:0}
+.plp-graph-scroll{position:absolute;inset:0;overflow:auto;padding:16px}
+.plp-editor-side{position:absolute;top:12px;right:12px;bottom:12px;width:320px;z-index:5;display:flex;flex-direction:column;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:14px;box-shadow:var(--dsw-shadow-lv3);overflow:hidden}
+.plp-side-head{display:flex;align-items:center;justify-content:space-between;padding:12px 12px 10px 16px;border-bottom:1px solid var(--dsw-alias-border-l2);flex:none}
+.plp-side-title{font-size:13px;font-weight:600}
+.plp-side-body{flex:1;overflow-y:auto;padding:16px}
 .plp-panel-empty{padding:32px 16px;text-align:center;font-size:12px;line-height:2;color:var(--dsw-alias-label-tertiary);border:1px dashed var(--dsw-alias-border-l2);border-radius:12px;margin-bottom:16px}
 .plp-ver-block{margin-top:20px}
+
+/* ══ 浮窗侧栏 ══ */
+.plp-editor-side .plp-panel-empty{margin-bottom:0}
 
 /* ══ React Flow 容器与节点卡片 ══ */
 .plp-rf-wrap{width:100%;height:100%;position:relative}
