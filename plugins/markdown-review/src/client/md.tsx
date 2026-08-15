@@ -5,7 +5,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import mermaid from 'mermaid'
 
 function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  // 含引号转义:文本与属性(href/src)共用,防属性注入
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 /** 行内解析:**bold** *italic* `code` ~~strike~~ [text](url);单层递归(粗体内可再解析行内) */
@@ -148,7 +149,8 @@ function MermaidBlock(props: { code: string }) {
   const [error, setError] = useState('')
   useEffect(() => {
     let stopped = false
-    const dark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+    // 跟随宿主主题(宿主用 body[data-ds-dark-theme],非系统 prefers-color-scheme)
+    const dark = typeof document !== 'undefined' && !!document.body && document.body.hasAttribute('data-ds-dark-theme')
     const id = 'mdr-mmd-' + Math.random().toString(36).slice(2, 10)
     try {
       mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' })

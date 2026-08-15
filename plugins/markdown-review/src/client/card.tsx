@@ -96,9 +96,9 @@ export function MdDocCard(props: ToolViewProps) {
   return (
     <div className="mdr-card">
       <div className="mdr-card-head">
-        <svg width={14} height={14} viewBox="0 0 16 16" fill="none" className="mdr-card-icon">
-          <path d="M4 1.5h6.5L13.5 4.5v10H4c-1.1 0-2-.9-2-2v-9c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-          <path d="M10 1.5v3h3M6 8h4M6 10.5h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        <svg width={16} height={16} viewBox="0 0 16 16" fill="none" className="mdr-card-icon">
+          <path d="M4 1.5h6.5L13.5 4.5v10H4c-1.1 0-2-.9-2-2v-9c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M10 1.5v3h3M6 8h4M6 10.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <span className="mdr-card-title">文档审阅</span>
         <span className="mdr-card-file" title={path}>{title}</span>
@@ -141,6 +141,15 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
   const [submitting, setSubmitting] = useState(false)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const blocks = useMemo(() => parseMarkdownBlocks(props.doc.markdown || ''), [props.doc])
+
+  /* ── Esc 关闭浮层(components.md §九-2) ── */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') props.onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [props.onClose])
 
   /* ── 划词:单块内选区 → 在该块下方嵌入批注框;跨块/mermaid 区域拒绝 ── */
   function onMouseUp(e: React.MouseEvent) {
@@ -227,6 +236,7 @@ export function MdViewer(props: { doc: DocInfo; onClose: () => void; onSubmit: (
                 value={comment}
                 onChange={setComment}
                 placeholder="总评(可选):整体意见…"
+                onSubmit={doSubmit}
                 actions={
                   <>
                     <button className="mdr-icon-btn" type="button" title="取消" aria-label="取消" onClick={props.onClose}>
@@ -275,6 +285,7 @@ function AnnotationEditor(props: { text: string; note: string; onNote: (v: strin
         onChange={props.onNote}
         placeholder="对这段的批注…"
         autoFocus
+        onSubmit={props.onAdd}
         actions={
           <>
             <button className="mdr-icon-btn" type="button" title="取消" aria-label="取消" onClick={props.onCancel}>

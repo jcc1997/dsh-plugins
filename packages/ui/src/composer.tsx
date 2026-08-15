@@ -14,6 +14,8 @@ export function Composer(props: {
   /** 输入区最大高度(px),超过后内部滚动;默认 160 */
   maxHeight?: number
   className?: string
+  /** Enter 提交(Shift+Enter 换行);不传则 Enter 为普通换行。交互契约见 docs/ui-design/components.md §九 */
+  onSubmit?: () => void
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null)
   const [multiline, setMultiline] = useState(false)
@@ -39,6 +41,13 @@ export function Composer(props: {
         onChange={(e) => {
           props.onChange(e.target.value)
           grow()
+        }}
+        onKeyDown={(e) => {
+          if (!props.onSubmit) return
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            props.onSubmit()
+          }
         }}
       />
       {props.actions ? <div className="cmp-composer-actions">{props.actions}</div> : null}
