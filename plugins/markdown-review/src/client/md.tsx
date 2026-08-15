@@ -153,17 +153,33 @@ export function parseMarkdownBlocks(md: string): MdBlock[] {
   return out
 }
 
-/** mermaid 代码块:官方库渲染,失败降级为原文 + 错误提示 */
+/** 宿主暗黑主题状态:监听 body[data-ds-dark-theme] 属性变化(mermaid 等需按主题渲染的内容用) */
+function useDarkTheme(): boolean {
+  const [dark, setDark] = useState(
+    () => typeof document !== 'undefined' && !!document.body && document.body.hasAttribute('data-ds-dark-theme')
+  )
+  useEffect(() => {
+    const body = document.body
+    if (!body) return
+    const obs = new MutationObserver(() => setDark(body.hasAttribute('data-ds-dark-theme')))
+    obs.observe(body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+    return () => obs.disconnect()
+  }, [])
+  return dark
+}
+
+/** mermaid 代码块:官方库渲染,跟随宿主主题(切换主题自动重渲染),失败降级为原文 + 错误提示 */
 function MermaidBlock(props: { code: string }) {
   const [svg, setSvg] = useState('')
   const [error, setError] = useState('')
+  const dark = useDarkTheme()
   useEffect(() => {
     let stopped = false
-    // 跟随宿主主题(宿主用 body[data-ds-dark-theme],非系统 prefers-color-scheme)
-    const dark = typeof document !== 'undefined' && !!document.body && document.body.hasAttribute('data-ds-dark-theme')
     const id = 'mdr-mmd-' + Math.random().toString(36).slice(2, 10)
+    // 主题直接在渲染时读 body 属性(不依赖闭包 state;dark 仅作重渲染触发器)
+    const isDark = typeof document !== 'undefined' && !!document.body && document.body.hasAttribute('data-ds-dark-theme')
     try {
-      mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' })
+      mermaid.initialize({ startOnLoad: false, theme: isDark ? 'dark' : 'default', securityLevel: 'strict' })
       mermaid.render(id, props.code).then((res) => {
         if (stopped) return
         setSvg(res.svg)
@@ -176,7 +192,7 @@ function MermaidBlock(props: { code: string }) {
       if (!stopped) setError(String((e as Error).message || e))
     }
     return () => { stopped = true }
-  }, [props.code])
+  }, [props.code, dark])
   return (
     <div className="mdr-mermaid" data-mdr-noselect>
       <div className="mdr-pre-lang">mermaid</div>
