@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: 带门禁的软件开发看板工作流指南(workflow-template):10 列阶段语义、9 条门禁、确认标签、MR 收尾。Use when 用户在使用带门禁的看板开发流程、推进列、打确认标签、解释门禁不通过原因、导入/自定义流程配置时。关键词:workflow、开发流程、看板工作流、进入下一列、确认标签、rd-confirmed、td-confirmed、uc-confirmed、review-1-done、tests-passed、review-2-done。
+description: 带门禁的软件开发看板工作流指南(workflow-template):10 列阶段语义、11 条门禁、确认标签、MR 收尾。Use when 用户在使用带门禁的看板开发流程、推进列、打确认标签、解释门禁不通过原因、导入/自定义流程配置时。关键词:workflow、开发流程、看板工作流、进入下一列、确认标签、rd-confirmed、td-confirmed、uc-confirmed、review-1-done、tests-passed、review-2-done。
 ---
 
 # workflow — 带门禁的软件开发看板流程
@@ -33,7 +33,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | Stage | 预发布/待合并 | 标签 `review-2-done` | 复审通过后打标签 |
 | Done | 完成 | **MR 已合并** | git 插件合并 MR 后自动放行 |
 
-## 三、门禁清单(9 条)
+## 三、门禁清单(11 条)
 
 | 门禁名 | 触发 | 检查器 | config |
 |---|---|---|---|
@@ -41,6 +41,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | RD 确认才能进 TD | move → TD | tag-required | `{"tags":["rd-confirmed"]}` |
 | TD 确认才能进 UC | move → UC | tag-required | `{"tags":["td-confirmed"]}` |
 | 验收用例确认才能开发 | move → In Dev | tag-required | `{"tags":["uc-confirmed"]}` |
+| 进入 In Dev 需建 workflow 分支（bug 模板用） | move → In Dev | branch-linked | 无（需 github-repo + github-branch 关联） |
 | 进入评审需关联 MR | move → 1st Review | mr-linked | 无 |
 | 1st review 通过才能测试 | move → Testing | tag-required | `{"tags":["review-1-done"]}` |
 | Review pipeline 通过才能进 Testing | move → Testing | pipeline | `{"pipelines":["p-workflow-review"]}`（agent 评审 OK 才放行，失败自动落卡评论） |
@@ -97,7 +98,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 > 确认方式分两类：**文档确认（RD/TD/UC）用 `md_doc_open`**；**代码评审（1st/2nd review）用 `ask_user_question` + MR 链接**。不通过则把意见整理进卡评论/MR,卡停在当前列。
 
-**建卡**:`kanban_create(title, template: "workflow")` —— 自动带入 9 条门禁、预置描述与标签。
+**建卡**:`kanban_create(title, template: "workflow")` —— 自动带入 10 条门禁、预置描述与标签;bug 类用 `template: "bug"`(7 条门禁,见「三-ter、bug 快捷流程」)。
 
 **推进列**:`kanban_move(card_id, status)`。门禁不通过时返回「门禁未通过:<原因>」——向用户解释缺什么,并给出补救动作:
 

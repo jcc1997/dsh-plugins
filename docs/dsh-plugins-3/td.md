@@ -33,7 +33,7 @@ kanban.templates: [ workflow, { name: "bug", description: "...", tags: ["bug","d
 ## 4. 验证（导入后）
 
 - kanban_import_config 导入后：门禁库 11 条、模板 2 个；
-- 建 bug 测试卡：无分支 move→In Dev 拒；建分支后过；无 MR move→1st Review 拒；关联 MR 后过；无 review-1-done move→Testing 被 tag 门禁拒（review pipeline 不触发——门禁短路语义）；
+- 建 bug 测试卡：无分支 move→In Dev 拒；建分支后过；无 MR move→1st Review 拒；关联 MR 后过；无 review-1-done move→Testing 被 tag 门禁拒（门禁不短路：pipeline 门禁同样会触发 agent 评审）；
 - workflow 模板不受影响（仍 10 门禁）。
 
 ## 5. 风险
