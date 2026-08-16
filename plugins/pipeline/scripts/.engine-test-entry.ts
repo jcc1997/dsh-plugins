@@ -122,6 +122,33 @@ async function runPipeline(runLlm: any, nodes: any[], inputs: Record<string, unk
   assert(!!l2 && l2.config.prompt === 'p1' && l2.config.cardIdPath === '{input.card.id}', 'A-5f 节点内容与首次一致', l2 && l2.config)
 }
 
+// A-5g 脏草稿保护：本地未发布草稿与模板不一致时不被覆盖
+{
+  const defs: any = [
+    { id: 'p-draft-guard', name: '草稿守卫', kind: 'atomic', published: true,
+      nodes: [{ id: 'in', title: '输入', type: 'input', order: 0, inputs: [], config: {} },
+              { id: 'out', title: '输出', type: 'output', order: 100, inputs: ['in'], config: {} }] },
+  ]
+  await mutateDoc(fs, (doc: any) => importPipelines(doc, defs))
+  // 制造脏草稿：改最新草稿节点（发布后最新是草稿？发布即 latest=published；先导入未发布版本做草稿）
+  const defsDraft: any = [
+    { id: 'p-draft-guard', name: '草稿守卫', kind: 'atomic', published: false,
+      nodes: [{ id: 'in', title: '输入', type: 'input', order: 0, inputs: [], config: {} },
+              { id: 'custom', title: '用户自定义节点', type: 'transform', order: 50, inputs: ['in'], config: {} },
+              { id: 'out', title: '输出', type: 'output', order: 100, inputs: ['custom'], config: {} }] },
+  ]
+  const rDraft = await mutateDoc(fs, (doc: any) => importPipelines(doc, defsDraft))
+  const docD = await readDoc(fs)
+  const pd = findPipeline(docD, 'p-draft-guard')
+  assert(!!pd && pd.versions.some((v: any) => !v.published && v.nodes.some((n: any) => n.id === 'custom')), 'A-5g 草稿创建成功（含用户自定义节点）', pd && pd.versions.map((v: any) => v.version + (v.published ? '(pub)' : '(draft)')))
+  // 重导模板（published 定义）——不得覆盖脏草稿
+  const r2 = await mutateDoc(fs, (doc: any) => importPipelines(doc, defs))
+  const doc2 = await readDoc(fs)
+  const p2 = findPipeline(doc2, 'p-draft-guard')
+  const draftNode = p2 && p2.versions.find((v: any) => !v.published && v.nodes.some((n: any) => n.id === 'custom'))
+  assert(!!r2.ok && !!draftNode, 'A-5g 脏草稿未被模板覆盖', { draftNode: !!draftNode, imported: r2.imported })
+}
+
 // 拓扑排序不回归
 {
   const t = topologicalOrder(llmNodes('p'))

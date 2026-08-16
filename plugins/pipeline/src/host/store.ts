@@ -277,8 +277,8 @@ function sameNodes(a: PipelineNode[], b: PipelineNode[]): boolean {
  *   published 且（尚无发布版本 或 模板节点与最新已发布版本不一致）→ 把最新草稿发布为新的已发布版本。
  * - 重复导入相同定义 → 内容一致则不再发布、不产生新版本（幂等）。
  */
-export function importPipelines(doc: PipelineDoc, defs: ImportPipelineDef[]): { ok: boolean; imported?: { id: string; status: 'created' | 'updated' }[]; error?: string } {
-  const out: { id: string; status: 'created' | 'updated' }[] = []
+export function importPipelines(doc: PipelineDoc, defs: ImportPipelineDef[]): { ok: boolean; imported?: { id: string; status: 'created' | 'updated'; note?: string }[]; error?: string } {
+  const out: { id: string; status: 'created' | 'updated'; note?: string }[] = []
   for (const def of defs) {
     if (!def || typeof def !== 'object') return { ok: false, error: '非法 pipeline 定义' }
     const id = String(def.id || '').trim()
@@ -287,11 +287,23 @@ export function importPipelines(doc: PipelineDoc, defs: ImportPipelineDef[]): { 
     const exist = findPipeline(doc, id)
     if (exist) {
       const latest = findLatest(exist)
-      // 幂等：节点/输入 schema 未变化时不触碰版本（已发布最新版本不可变，避免空转开草稿）
+      const pubVersions = exist.versions.filter((v) => v.published)
+      const latestPub = pubVersions.sort((a, b) => String(b.version).localeCompare(String(a.version), undefined, { numeric: true }))[0]
       const nodesChanged = nodesN !== undefined && !sameNodes(latest.nodes, nodesN)
       const schemaChanged = def.input_schema !== undefined && JSON.stringify(latest.inputSchema) !== JSON.stringify(def.input_schema)
-      const effectiveNodes = latest.published ? (nodesChanged ? nodesN : undefined) : nodesN
-      const effectiveSchema = latest.published ? (schemaChanged ? def.input_schema : undefined) : def.input_schema
+      if (!latest.published) {
+        // 本地存在未发布草稿：与模板不一致时**不覆盖**（用户草稿是工作产物），仅提示；一致则无事发生
+        if (nodesChanged || schemaChanged) {
+          out.push({ id, status: 'updated', note: '存在与模板不一致的本地草稿，未覆盖（保留用户改动）' })
+          continue
+        }
+        updatePipeline(doc, id, { name: def.name, description: def.description, tags: def.tags })
+        out.push({ id, status: 'updated' })
+        continue
+      }
+      // 最新为已发布版本（无草稿）：模板与已发布版本不一致才开新草稿；随后 published 时发布该草稿
+      const effectiveNodes = nodesChanged ? nodesN : undefined
+      const effectiveSchema = schemaChanged ? def.input_schema : undefined
       updatePipeline(doc, id, {
         name: def.name,
         description: def.description,
@@ -300,8 +312,6 @@ export function importPipelines(doc: PipelineDoc, defs: ImportPipelineDef[]): { 
         inputSchema: effectiveSchema,
       })
       if (def.published) {
-        const pubVersions = exist.versions.filter((v) => v.published)
-        const latestPub = pubVersions.sort((a, b) => String(b.version).localeCompare(String(a.version), undefined, { numeric: true }))[0]
         const changed = !latestPub || (nodesN !== undefined && !sameNodes(latestPub.nodes, nodesN))
         if (changed) publishPipeline(doc, id, { version: findLatest(exist).version, changelog: def.changelog || 'imported' })
       }
