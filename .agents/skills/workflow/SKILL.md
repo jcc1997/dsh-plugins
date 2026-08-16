@@ -120,7 +120,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 **人工审批分两类**:
 - **文档确认（RD/TD/UC）**:用 `md_doc_open`(依赖 dsh-markdown-review 插件)把要审的文档展示给人,划词批注 + 总评;
-- **代码评审（1st/2nd review）**:**不用 md_doc_open**,直接用 `ask_user_question` 提问,把 **MR 链接**和变更摘要发给用户,选项「通过/不通过」;通过即打对应确认标签。
+- **代码评审（1st/2nd review）**:**不用 md_doc_open**,直接用 `ask_user_question` 提问,MR 链接用**可跳转 markdown 格式**([MR #n](url));改动摘要**放 MR 里**、不进提问正文;选项「通过/不通过」;通过即打对应确认标签。
 
 - agent 调 `md_doc_open(path: "<仓库路径>/docs/<taskId>/<doc>.md", context: "…请审阅…")` → 对话流出现「打开文档」卡片;
 - 用户点开大浮窗,划词批注 + 底部总评,点「提交」;
