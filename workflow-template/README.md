@@ -6,7 +6,7 @@
 
 传统看板只记录「卡在哪」；这套 workflow 把**整条研发流程的规则**沉淀成配置 + 知识卡：
 
-- **流程即配置**：10 个阶段列、10 条行为门禁、1 个创建模板，全部声明在 `workflow.json`（配套 `pipelines.json` 定义评审 pipeline），一键导入、可导出分享、复制即得自己的流程；
+- **流程即配置**：10 个阶段列、11 条行为门禁、2 个创建模板（workflow / bug），全部声明在 `workflow.json`（配套 `pipelines.json` 定义评审 pipeline），一键导入、可导出分享、复制即得自己的流程；
 - **门禁兜底**：进入下一列必须满足条件（分支已建 / 确认标签 / MR 已合并），不满足动作被拒绝——人不会漏流程，agent 不会跳过环节；
 - **人在环上**：每次需要拍板（RD/TD/UC 确认、两轮 review）都先把文档在对话流里打开给你看（划词批注 + 总评），你提交后 agent 自动继续；
 - **文档随代码演进**：每个任务在 `docs/<taskId>/` 产出 rd.md / td.md / uc.md，跟随 `workflow/<taskId>` 分支一起进 MR，合并即归档；
@@ -48,7 +48,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ### 完成自检
 
-- 看板有 10 列（Backlog → Done）、门禁库有 10 条门禁、创建模板里有 `workflow`；pipeline 列表里有 `代码评审`（p-workflow-review）；
+- 看板有 10 列（Backlog → Done）、门禁库有 11 条门禁、创建模板里有 `workflow` 与 `bug` 两个；pipeline 列表里有 `代码评审`（p-workflow-review）；
 - 对一张卡 `kanban_move(card, "RD")` 会被「进入 RD 需建 workflow 分支」拒绝——说明门禁生效；
 - 对一张处于 1st Review、已打 `review-1-done` 的卡 `kanban_move(card, "Testing")`：先触发「代码评审」pipeline，agent 未给出 OK 则被拒绝且卡上出现评审评论——说明 review 门禁生效；
 - **新建会话的预设选择器里能看到「workflow 模式」**（复制 `agent-presets/workflow/` 后刷新页面即可看到，无需重启 dsh）；
@@ -56,7 +56,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ## 日常使用
 
-1. **建卡**：`kanban_create(title, template: "workflow")` 自动带入 9 条门禁与预置标签；或看板列头「+」手动建。
+1. **建卡**：`kanban_create(title, template: "workflow")` 自动带入 10 条门禁与预置标签；bug 类用 `template: "bug"`（跳过 RD/TD，7 条门禁，见 SKILL「三-ter、bug 快捷流程」）；或看板列头「+」手动建。
 2. **会话编排（默认流程，agent 自动走）**：
 
    1. 你陈述功能 → agent 复述确认 → 建卡进 Backlog（自动认领 taskId）；
@@ -70,7 +70,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 3. **门禁不通过时**：agent 会告诉你缺什么并给补救动作（建分支 / 打标签 / 合并 MR），你只需确认。
 4. **确认 = 打标签**：`rd-confirmed` / `td-confirmed` / `uc-confirmed` / `review-1-done` / `tests-passed` / `review-2-done`，由对应角色确认后打上。
 
-## 门禁清单（10 条）
+## 门禁清单（11 条）
 
 | # | 门禁名 | 触发 | 检查器 | config |
 |---|---|---|---|---|
@@ -78,14 +78,22 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | 2 | RD 确认才能进 TD | move → TD | tag-required | `{"tags":["rd-confirmed"]}` |
 | 3 | TD 确认才能进 UC | move → UC | tag-required | `{"tags":["td-confirmed"]}` |
 | 4 | 验收用例确认才能开发 | move → In Dev | tag-required | `{"tags":["uc-confirmed"]}` |
-| 5 | 进入评审需关联 MR | move → 1st Review | mr-linked | 无 |
-| 6 | 1st review 通过才能测试 | move → Testing | tag-required | `{"tags":["review-1-done"]}` |
-| 7 | Review pipeline 通过才能进 Testing | move → Testing | pipeline | `{"pipelines":["p-workflow-review"]}`（agent 评审 OK 才放行；失败自动落卡评论；下轮续评注入上轮意见） |
-| 7 | 测试通过才能进 2nd review | move → 2nd review | tag-required | `{"tags":["tests-passed"]}` |
-| 8 | 2nd review 通过才能 Stage | move → Stage | tag-required | `{"tags":["review-2-done"]}` |
-| 9 | MR 已合并才能进 Done | move → Done | mr-merged | 无 |
+| 5 | 进入 In Dev 需建 workflow 分支 | move → In Dev | branch-linked | 无 |
+| 6 | 进入评审需关联 MR | move → 1st Review | mr-linked | 无 |
+| 7 | 1st review 通过才能测试 | move → Testing | tag-required | `{"tags":["review-1-done"]}` |
+| 8 | Review pipeline 通过才能进 Testing | move → Testing | pipeline | `{"pipelines":["p-workflow-review"]}`（agent 评审 OK 才放行；失败自动落卡评论；下轮续评注入上轮意见） |
+| 9 | 测试通过才能进 2nd review | move → 2nd review | tag-required | `{"tags":["tests-passed"]}` |
+| 10 | 2nd review 通过才能 Stage | move → Stage | tag-required | `{"tags":["review-2-done"]}` |
+| 11 | MR 已合并才能进 Done | move → Done | mr-merged | 无 |
 
 > 门禁是看板库里的独立实体，可复用；检查器统一走沙箱 code 执行，可用 `code` 写任意检查、`pipeline` 现场跑流水线。详见 [kanban 的 Agent 门禁指南](../plugins/kanban/README.md#面向-agent-的门禁指南)。
+
+## 创建模板（2 个）
+
+| 模板 | 用途 | 门禁数 | 说明 |
+|---|---|---|---|
+| workflow | 标准功能开发 | 10 | Backlog→RD→TD→UC→In Dev→1st Review→Testing→2nd review→Stage→Done，全文档确认 |
+| bug | Bug 轻量处理 | 7 | Backlog→In Dev 直进（跳过 RD/TD/UC），复现步骤+验收点写卡描述；评审/测试门禁保留（见 SKILL「三-ter、bug 快捷流程」） |
 
 ## 自定义：复制成你自己的流程
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "dsh-workflow-template",
-  "description": "软件开发工作流配置样例:Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd review → Stage → Done(10 列 + 9 门禁 + workflow 模板)。导入后即可获得一套完整的带门禁研发流程。",
+  "description": "软件开发工作流配置样例:Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd review → Stage → Done(10 列 + 11 门禁 + 2 个创建模板 workflow/bug)。导入后即可获得一套完整的带门禁研发流程;bug 类卡片用 bug 模板跳过 RD/TD 直进开发。",
   "kanban": {
     "columns": [
       "Backlog",
@@ -130,6 +130,15 @@
         "checker": {
           "type": "mr-merged"
         }
+      },
+      {
+        "name": "进入 In Dev 需建 workflow 分支",
+        "on": "move",
+        "to": "In Dev",
+        "checker": {
+          "type": "branch-linked",
+          "config": {}
+        }
       }
     ],
     "templates": [
@@ -145,6 +154,23 @@
           "RD 确认才能进 TD",
           "TD 确认才能进 UC",
           "验收用例确认才能开发",
+          "进入评审需关联 MR",
+          "1st review 通过才能测试",
+          "Review pipeline 通过才能进 Testing",
+          "测试通过才能进 2nd review",
+          "2nd review 通过才能 Stage",
+          "MR 已合并才能进 Done"
+        ]
+      },
+      {
+        "name": "bug",
+        "description": "Bug 处理轻量流程：Backlog→In Dev 直进（跳过 RD/TD/UC 文档确认，复现步骤+验收点写卡描述）；分支/MR 照建；1st Review 双门禁（人审 + agent 评审 pipeline）保留。",
+        "tags": [
+          "bug",
+          "default"
+        ],
+        "gates": [
+          "进入 In Dev 需建 workflow 分支",
           "进入评审需关联 MR",
           "1st review 通过才能测试",
           "Review pipeline 通过才能进 Testing",
