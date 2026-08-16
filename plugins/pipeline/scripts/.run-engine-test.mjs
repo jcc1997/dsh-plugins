@@ -1,5 +1,5 @@
 // 引擎级回归测试（UC A 组）：esbuild 打包 .engine-test-entry.ts → /tmp 执行
-// 用法：node scripts/run-engine-test.mjs
+// 用法：node scripts/.run-engine-test.mjs
 import { build } from 'esbuild'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'

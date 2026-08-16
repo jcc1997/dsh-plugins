@@ -45,6 +45,26 @@ export function apply(ctx: PipelineCtx) {
     return ''
   }
 
+  /** 评审对象摘要：按 kind 解析 refs（refs 为追加顺序，不能取 0 位） */
+  const enrichReviewTarget = (up: Record<string, unknown>): string => {
+    try {
+      const inputOut: any = (up as any).in || up
+      const card = inputOut && inputOut.card
+      const refs = card && Array.isArray(card.refs) ? card.refs : []
+      const byKind = (kind: string) => refs.find((r: any) => r && r.kind === kind && r.externalId)
+      const repo = byKind('github-repo')
+      const branch = byKind('github-branch')
+      const mr = byKind('github-mr')
+      const local = byKind('local-repo')
+      const parts: string[] = []
+      if (local) parts.push('local-repo=' + String(local.externalId))
+      if (repo) parts.push('repo=' + String(repo.externalId))
+      if (branch) parts.push('branch=' + String(branch.externalId))
+      if (mr) parts.push('mr=#' + String(mr.externalId))
+      return parts.length ? '【评审对象】' + parts.join(' ') + '\n' : ''
+    } catch { return '' }
+  }
+
   /** 读取卡片上一条「评审未通过」评论（续评上下文：让本轮评审核验上轮 findings 是否已修复） */
   const lastReviewComment = async (cardId: string): Promise<string> => {
     try {
@@ -73,8 +93,9 @@ export function apply(ctx: PipelineCtx) {
           const reviewPersona = typeof conf.persona === 'string' && conf.persona.trim()
             ? conf.persona
             : '你是代码评审 agent。只评审、不改码、不提交。严格按收到的评审指令与仓库内 workflow-template/prompts/review.md 执行，最终输出以最后一行 REVIEW_VERDICT:{"ok":true|false,"issues":[...]} 结尾。'
-          // 续评：把上一轮评审意见注入本轮 prompt（agent 逐条核验修复情况，未修复继续列为未解决问题）
-          let fullPrompt = prompt
+          // 评审对象摘要（refs 按 kind 解析）+ 续评注入（上轮评审意见）
+          const target = enrichReviewTarget(up)
+          let fullPrompt = target ? target + prompt : prompt
           if (conf.cardId) {
             const prev = await lastReviewComment(String(conf.cardId))
             if (prev) fullPrompt = '【上一轮评审意见（请逐条核验是否已修复；未修复的继续列为未解决问题，已修复的不再列入）】\n' + prev + '\n\n【本轮评审任务】\n' + prompt

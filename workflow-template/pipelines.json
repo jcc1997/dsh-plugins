@@ -31,9 +31,14 @@
             "in"
           ],
           "config": {
-            "prompt": "你是 DSH 仓库的代码评审 agent。入参 card 是待评审卡片：title=《{input.card.title}》，关联 github-repo={input.card.refs.0.externalId}（若有 local-repo 关联以它为准定位本地仓库），评审对象为 workflow 分支相对 main 的 MR 变更。\n\n步骤：\n1. 定位仓库（本地路径优先 card refs 的 local-repo；否则用当前工作目录，git status/git branch 确认分支）；\n2. 读取仓库内 workflow-template/prompts/review.md 获取完整评审要求；\n3. 用 git diff origin/main...HEAD 与 git log 查看本任务变更，按 review.md 的三个维度评审（代码逻辑 / 设计规范 / 文档纪律）；\n4. 若本轮 prompt 附带了【上一轮评审意见】，先逐条核验其是否已修复（未修复继续列为未解决问题）；\n5. 全部问题已解决（本轮无未解决问题）才给出 OK，否则列出未解决问题。\n\n最终输出必须以最后一行 REVIEW_VERDICT:{\"ok\":true|false,\"issues\":[...]} 结尾；issues 每项含 file/location/severity/message。",
+            "prompt": "你是 DSH 仓库的代码评审 agent。入参 card 是待评审卡片：title=《{input.card.title}》；评审对象见本轮 prompt 附带的【评审对象】摘要（repo/branch/mr/local-repo 已按 kind 解析，refs 顺序不保证）。\n\n步骤：\n1. 定位仓库（【评审对象】的 local-repo/repo 优先；否则当前工作目录，git status/git branch 确认分支）；\n2. 读取仓库内 workflow-template/prompts/review.md 获取完整评审要求；\n3. 用 git diff origin/main...HEAD 与 git log 查看本任务变更，按 review.md 的三个维度评审（代码逻辑 / 设计规范 / 文档纪律）；\n4. 若本轮 prompt 附带了【上一轮评审意见】，先逐条核验其是否已修复（未修复继续列为未解决问题）；\n5. 全部问题已解决（本轮无未解决问题）才给出 OK，否则列出未解决问题。",
             "cardIdPath": "{input.card.id}",
-            "toolFilter": ["read", "glob", "grep", "bash"],
+            "toolFilter": [
+              "read",
+              "glob",
+              "grep",
+              "bash"
+            ],
             "timeoutMs": 600000,
             "persona": "你是代码评审 agent。只评审、不改码、不提交。严格按收到的评审指令与仓库内 workflow-template/prompts/review.md 执行，最终输出以最后一行 REVIEW_VERDICT:{\"ok\":true|false,\"issues\":[...]} 结尾。"
           }
