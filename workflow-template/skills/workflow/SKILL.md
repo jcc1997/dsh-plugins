@@ -68,6 +68,19 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 - 新环境：`pipeline_import_config`（导入 `workflow-template/pipelines.json`，稳定 id `p-workflow-review` 幂等）→ `kanban_import_config`（导入 `workflow.json`）→ 门禁即生效。
 - 插件改动（pipeline/kanban 源码）需重建并重启 dsh 后生效（动态插件会话内存态重启即失）。
 
+## 三-ter、bug 快捷流程（跳过 RD/TD）
+
+> bug 类卡片走轻量流程：不写 rd.md/td.md/uc.md（复现步骤 + 验收点写卡描述），从 Backlog 直进 In Dev；分支/MR 照建，评审门禁与后续列全保留。建卡用 `kanban_create(title, template: "bug")`（自动挂 7 条门禁：In Dev 建分支 / 1st Review 关联 MR / Testing 双门禁 / tests-passed / review-2-done / mr-merged）。
+
+### bug 流程编排
+
+1. 建卡（template: bug）→ `git_create_branch`（建 workflow/<taskId> 分支并关联）→ `kanban_move(card, "In Dev")`（过 branch-linked 门禁）；
+2. 修复开发：复现步骤 + 验收点写进卡描述；修复 commit + push；
+3. `git_create_mr` → move 1st Review → 人审（ask_user_question + MR 链接）→ review-1-done + agent 评审 pipeline OK；
+4. Testing（修复验证）→ tests-passed → 2nd review（复审）→ review-2-done → Stage → `git_merge_pr` 合并 → Done。
+
+> 与 workflow 流程的差异：跳过 RD/TD/UC 三列与对应确认标签；其余（评审/测试/收尾）一致。
+
 ## 四、Agent 操作手册
 
 ### 会话编排(默认流程,每次对话都按此走)

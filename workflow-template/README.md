@@ -56,7 +56,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ## 日常使用
 
-1. **建卡**：`kanban_create(title, template: "workflow")` 自动带入 9 条门禁与预置标签；或看板列头「+」手动建。
+1. **建卡**：`kanban_create(title, template: "workflow")` 自动带入 10 条门禁与预置标签；bug 类用 `template: "bug"`（跳过 RD/TD，7 条门禁，见 SKILL「三-ter、bug 快捷流程」）；或看板列头「+」手动建。
 2. **会话编排（默认流程，agent 自动走）**：
 
    1. 你陈述功能 → agent 复述确认 → 建卡进 Backlog（自动认领 taskId）；
@@ -70,7 +70,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 3. **门禁不通过时**：agent 会告诉你缺什么并给补救动作（建分支 / 打标签 / 合并 MR），你只需确认。
 4. **确认 = 打标签**：`rd-confirmed` / `td-confirmed` / `uc-confirmed` / `review-1-done` / `tests-passed` / `review-2-done`，由对应角色确认后打上。
 
-## 门禁清单（10 条）
+## 门禁清单（11 条）
 
 | # | 门禁名 | 触发 | 检查器 | config |
 |---|---|---|---|---|
@@ -78,7 +78,8 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | 2 | RD 确认才能进 TD | move → TD | tag-required | `{"tags":["rd-confirmed"]}` |
 | 3 | TD 确认才能进 UC | move → UC | tag-required | `{"tags":["td-confirmed"]}` |
 | 4 | 验收用例确认才能开发 | move → In Dev | tag-required | `{"tags":["uc-confirmed"]}` |
-| 5 | 进入评审需关联 MR | move → 1st Review | mr-linked | 无 |
+| 5 | 进入 In Dev 需建 workflow 分支（bug 模板用） | move → In Dev | branch-linked | 无 |
+| 6 | 进入评审需关联 MR | move → 1st Review | mr-linked | 无 |
 | 6 | 1st review 通过才能测试 | move → Testing | tag-required | `{"tags":["review-1-done"]}` |
 | 7 | Review pipeline 通过才能进 Testing | move → Testing | pipeline | `{"pipelines":["p-workflow-review"]}`（agent 评审 OK 才放行；失败自动落卡评论；下轮续评注入上轮意见） |
 | 7 | 测试通过才能进 2nd review | move → 2nd review | tag-required | `{"tags":["tests-passed"]}` |
