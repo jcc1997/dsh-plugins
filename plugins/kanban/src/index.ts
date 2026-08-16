@@ -3,7 +3,7 @@
 // 接入点（正式形态）：ctx.webServer.register 暴露 /api/kanban/*（client UI 数据通道）；
 //       ctx.tools.register(defineTool(...)) 注册 agent 工具；ctx.provide('kanban') 跨插件服务。
 // v4：门禁引擎（host/gate.ts）+ 创建模板（board.templates）；credentials 供 mr-merged 门禁查 GitHub。
-import { FsLike, findCardAny, findCardGlobal, mutateBoard, readBoard, resolveDataDir, resolveColumn, defaultBoard, appendActivity, now, normalizeBoard } from './host/board'
+import { FsLike, findCardAny, findCardGlobal, mutateBoard, readBoard, resolveDataDir, resolveColumn, defaultBoard, appendActivity, now, normalizeBoard, safeId } from './host/board'
 import { buildToolDefs } from './host/tools'
 import { checkGates, GateAction } from './host/gate'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -90,8 +90,17 @@ export function apply(ctx: KanbanCtx) {
     const board = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
     const hit = findCardAny(board, String(a.card_id))
     if (!hit) return { ok: false, error: 'card not found: ' + a.card_id }
-    const res = await checkGates(hit.card, board, a.action as GateAction, gateDeps, { to: a.to ? String(a.to) : undefined })
-    return { ok: res.ok, failed: res.failed }
+    // UI 预检无 agent 上下文：pipeline 门禁（现场跑 agent 评审）不在此执行，改为「需 agent 发起」提示
+    const clone: any = { ...hit.card, gateIds: (hit.card.gateIds || []).slice() }
+    const lib: any[] = Array.isArray(board.gateLibrary) ? board.gateLibrary : []
+    const pipelineGateIds = lib.filter((x: any) => x.checker && x.checker.type === 'pipeline').map((x: any) => x.id)
+    const skipped = clone.gateIds.filter((id: string) => pipelineGateIds.includes(id))
+    clone.gateIds = clone.gateIds.filter((id: string) => !pipelineGateIds.includes(id))
+    const res = await checkGates(clone, board, a.action as GateAction, gateDeps, { to: a.to ? String(a.to) : undefined })
+    if (res.ok && skipped.length > 0) {
+      return { ok: true, failed: [], skipped_pipeline_gates: skipped, note: 'agent 评审门禁需由 agent 发起 move 时现场执行（UI 预检不触发评审）' }
+    }
+    return { ok: res.ok, failed: res.failed, ...(skipped.length ? { skipped_pipeline_gates: skipped, note: 'agent 评审门禁需由 agent 发起 move 时现场执行' } : {}) }
   })
   // 整板保存（client 侧 mutate 后全量落盘；归档/富文本随板）
   route('/kanban-api/save', async (args: any) => {

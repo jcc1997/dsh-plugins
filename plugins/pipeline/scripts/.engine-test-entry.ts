@@ -101,7 +101,7 @@ async function runPipeline(runLlm: any, nodes: any[], inputs: Record<string, unk
       published: true,
       nodes: [
         { id: 'in', title: '输入', type: 'input', order: 0, inputs: [], config: {} },
-        { id: 'review', title: 'Agent 评审', type: 'llm', order: 10, inputs: ['in'], config: { prompt: 'p1', sessionKey: 'review-{input.card.id}', timeoutMs: 600000, agentPreset: 'review' } },
+        { id: 'review', title: 'Agent 评审', type: 'llm', order: 10, inputs: ['in'], config: { prompt: 'p1', cardIdPath: '{input.card.id}', toolFilter: ['read', 'glob', 'grep', 'bash'], persona: '你是代码评审 agent。', timeoutMs: 600000 } },
         { id: 'out', title: '输出', type: 'output', order: 100, inputs: ['review'], config: {} },
       ],
     },
@@ -112,14 +112,14 @@ async function runPipeline(runLlm: any, nodes: any[], inputs: Record<string, unk
   assert(!!r1.ok && r1.imported && r1.imported[0].status === 'created', 'A-5a 首次导入 created', r1)
   assert(!!p1 && p1.publishedVersion === '0.1.0', 'A-5b 导入后稳定 id 可查且已发布', p1 && p1.publishedVersion)
   const llmNode = p1 && p1.versions.find((v) => v.version === p1.latestVersion)!.nodes.find((n: any) => n.type === 'llm')
-  assert(!!llmNode && llmNode.config.sessionKey === 'review-{input.card.id}' && llmNode.config.agentPreset === 'review', 'A-5c llm 节点 config 完整', llmNode && llmNode.config)
+  assert(!!llmNode && llmNode.config.cardIdPath === '{input.card.id}' && Array.isArray(llmNode.config.toolFilter) && llmNode.config.toolFilter.includes('bash'), 'A-5c llm 节点 config 完整（cardIdPath/toolFilter/persona）', llmNode && llmNode.config)
   const r2 = await mutateDoc(fs, (doc: any) => importPipelines(doc, defs))
   const doc2 = await readDoc(fs)
   const p2 = findPipeline(doc2, 'p-workflow-review')
   assert(!!r2.ok && r2.imported[0].status === 'updated', 'A-5d 重复导入 updated', r2)
   assert(!!p2 && p2.publishedVersion === '0.1.0' && p2.versions.length === 1, 'A-5e 幂等：不 bump 版本、不产生新版本', { publishedVersion: p2 && p2.publishedVersion, versions: p2 && p2.versions.length })
   const l2 = p2 && p2.versions[0].nodes.find((n: any) => n.type === 'llm')
-  assert(!!l2 && l2.config.prompt === 'p1', 'A-5f 节点内容与首次一致', l2 && l2.config)
+  assert(!!l2 && l2.config.prompt === 'p1' && l2.config.cardIdPath === '{input.card.id}', 'A-5f 节点内容与首次一致', l2 && l2.config)
 }
 
 // 拓扑排序不回归

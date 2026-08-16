@@ -45,18 +45,6 @@ export function apply(ctx: PipelineCtx) {
     return ''
   }
 
-  const parseVerdict = (text: string): { ok: boolean; issues?: unknown[] } | null => {
-    if (typeof text !== 'string') return null
-    const m = text.match(/REVIEW_VERDICT:\s*(\{[\s\S]*\})\s*$/)
-    if (!m) return null
-    try {
-      const v = JSON.parse(m[1])
-      if (v && typeof v === 'object' && typeof (v as any).ok === 'boolean') {
-        return { ok: (v as any).ok, issues: Array.isArray((v as any).issues) ? (v as any).issues : [] }
-      }
-    } catch { /* 非法 JSON → null（fail-closed） */ }
-    return null
-  }
   /** 读取卡片上一条「评审未通过」评论（续评上下文：让本轮评审核验上轮 findings 是否已修复） */
   const lastReviewComment = async (cardId: string): Promise<string> => {
     try {
@@ -277,11 +265,13 @@ export function apply(ctx: PipelineCtx) {
     run: async (pipelineId: string, inputs: Record<string, unknown>, version?: string, opts?: { parentAgent?: unknown; externalSignal?: AbortSignal | undefined }) => {
       const result = await queue.submitSync(String(pipelineId), version || 'latest', inputs || {}, 'plugin', opts)
       try {
+        // 仅评审类失败落卡（error 含「评审未通过」，其自身已带前缀，不再重复拼接）；其他 pipeline 失败不写评语
         const card = inputs && (inputs as any).card
-        if (result && result.error && card && typeof card.id === 'string') {
+        const err = result && result.error ? String(result.error) : ''
+        if (err.includes('评审未通过') && card && typeof card.id === 'string') {
           const kanban = ctx.get('kanban') as any
           if (kanban && typeof kanban.addComment === 'function') {
-            await kanban.addComment(String(card.id), '评审未通过：' + String(result.error).slice(0, 2000))
+            await kanban.addComment(String(card.id), err.slice(0, 2000))
           }
         }
       } catch { /* 评论失败不影响运行结果 */ }

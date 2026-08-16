@@ -17,7 +17,7 @@ export interface ShellLike {
 }
 
 export interface PipelineSvcLike {
-  run(pipelineId: string, inputs: Record<string, unknown>, version?: string): Promise<Record<string, unknown>>
+  run(pipelineId: string, inputs: Record<string, unknown>, version?: string, opts?: { parentAgent?: unknown; externalSignal?: AbortSignal }): Promise<Record<string, unknown>>
 }
 
 export interface GateCheckDeps {
@@ -384,6 +384,7 @@ export async function checkGates(
   const prev = (deps as any)._execCtx
   ;(deps as any)._execCtx = execCtx || null
   const failed: GateFailure[] = []
+  try {
   for (const g of gates) {
     const type = (g.checker && g.checker.type) || ''
     const cfg = (g.checker && g.checker.config) || {}
@@ -404,8 +405,10 @@ export async function checkGates(
     }
     if (f) failed.push(f)
   }
-  ;(deps as any)._execCtx = prev
   return { ok: failed.length === 0, failed }
+  } finally {
+    ;(deps as any)._execCtx = prev
+  }
 }
 
 /** 内置预设类型（全部经 code 沙箱执行） */

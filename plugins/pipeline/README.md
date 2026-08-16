@@ -36,7 +36,7 @@ DSH Pipeline 流水线插件（正式 bundle 形态）。类似 dify 的可复�
 
 - exec 节点依赖宿主 shell 沙箱执行器；未挂载时返回可读错误。
 - 队列为进程内存 + 磁盘记录：重启后排队中的运行不会自动恢复执行（记录保留）。
-- 常驻评审 agent（失败轮次保留）按卡持有，ok:true 释放；空闲清理策略未做（后续路线）。
+- 评审 agent 每轮 fresh spawn（subagents 单次通道），运行结束 dispose；续评采用上下文注入式（上轮评审意见注入 prompt），无常驻 agent。
 
 ## 开发
 

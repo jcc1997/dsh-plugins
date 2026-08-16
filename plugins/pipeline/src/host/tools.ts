@@ -299,7 +299,7 @@ export function buildToolDefs(env: ToolEnv): any[] {
   const lossless = (v: any): any => (v === undefined ? null : JSON.parse(JSON.stringify(v)))
   for (const t of defs) {
     const raw = t.execute
-    t.execute = async (args: any) => lossless(await raw(args))
+    t.execute = async (args: any, exec: any) => lossless(await raw(args, exec))
   }
   return defs
 }
