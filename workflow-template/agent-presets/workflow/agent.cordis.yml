@@ -248,28 +248,6 @@
         subagentProvider: spawn
         maxRounds: 64
 
-# ── dsh-plugins（per-session 挂载：kanban/git/pipeline/markdown-review）──
-# 插件原在 profile bundles 全局注册（污染极简模式等内置模式）；现改为仅 workflow
-# 模式会话挂载。前提：profile 的 package.json 里保留这四个插件依赖（node_modules 可解析），
-# 但 dsh.profile.bundles 不再包含它们。服务与工具在同一 isolate realm 内互相可见。
-- id: dsh-plugins
-  name: cordis:group
-  group: true
-  isolate:
-    dshPlugins: true
-  config:
-    - id: dsh-kanban
-      name: 'dsh-kanban'
-
-    - id: dsh-git
-      name: 'dsh-git'
-
-    - id: dsh-pipeline
-      name: 'dsh-pipeline'
-
-    - id: dsh-markdown-review
-      name: 'dsh-markdown-review'
-
 # ── remaining model-facing rows ─────────────────────────────────────────────
 
 - id: tool-ask-user
