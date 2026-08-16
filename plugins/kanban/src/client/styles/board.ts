@@ -54,7 +54,7 @@ export const boardCss = `
 .kbnb-tag-input{width:120px;padding:4px 10px;font-size:12px;border-radius:999px;flex:none}
 .kbnb-add-card{background:none;border:none;cursor:pointer;color:var(--dsw-alias-label-tertiary);font-size:13px;padding:10px 0;border-radius:8px;text-align:left;flex:none;transition:all 150ms cubic-bezier(.4, 0, .2, 1);font-family:inherit}
 .kbnb-add-card:hover{color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover-accent)}
-.kbnb-drop-line{height:3px;background:var(--dsw-alias-state-business-primary);border-radius:2px;margin:-2px 0;box-shadow:0 0 6px rgba(65, 118, 230, .18);flex:none}
+.kbnb-drop-line{height:3px;background:var(--dsw-alias-state-business-primary);border-radius:2px;margin:-2px 0;box-shadow:0 0 6px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);flex:none}
 
 /* ══ 归档视图 ══ */
 .kbnb-archive{flex:1;overflow-y:auto;padding:16px 20px;min-width:0}

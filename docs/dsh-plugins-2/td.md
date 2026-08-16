@@ -29,15 +29,15 @@ move→Testing（kanban gate）
                  └─ 门禁失败 → kanban 写卡评论（失败时） + 拒绝原因带摘要
 ```
 
-## 3. 宿主 agents 服务接线细节（需求二）
+## 3. 宿主 subagents 服务接线（需求二）
 
-### 3.1 类型依据（@deepseek-ai/dsh-agent lib/types）
+### 3.1 类型依据（@deepseek-ai/dsh-subagent lib/types）
 
-- `CreateAgentOptions`：`{ sessionId, meta?: { cwd?, parentSession?, seedLength?, origin?: 'subagent', delegationDepth?, agentPreset? }, seed?, agentOptions?: { provider?, model?, maxTokens? }, signal?, setup? }`。
-- `AgentHandle`：`{ agent: Agent, dispose(): Promise<void> }`；`Agent`：`id, options, session, inbox, status, cancel(cause, opts?), whenIdle(): Promise<void>, runMaintenance(task), send(msg,target,wakeup), followup(msg), steer(msg), inject(msg)`。
-- 无「直接取最后一条消息」的同步 API：最终输出从 `agent.session`（dsh-session）读取——实现用 `agent` 事件或 session query 服务（`ctx.get('sessionQuery')` / `ctx.get('sessionProjections')`）；最低成本方案：监听 `agent/turn-stopping` / `agent/status`（idle）后查询 session 最近 assistant 消息。
-  - 具体读取：`ctx.get('sessionQuery')` 提供查询接口（dsh-session types 中 `sessionQuery` 服务存在）；若不可用，退路：用 `agent.session` 的 log 事件（`session/event`）在 whenIdle 前累积最后一条 `assistant` 消息。
-  - 实现顺序：先接 `sessionQuery`，单测用 mock；宿主侧联调时按实际 d.ts 微调（RD §5 已列风险与缓解）。
+- `ctx.subagents.start(name, request: SubagentStartRequest)` → `Promise<SubagentRun>`：
+  - request：`{ label?, prompt: ContentBlock[], parent: Agent（必填）, signal: AbortSignal（必填）, agentOptions?, outputSchema?, maxDepth?, toolFilter?: { allow?: string[], deny?: string[] }, persona?: string }`；
+  - SubagentRun：`{ id, localAgent?, result: Promise<SubagentResult>, dispose() }`；SubagentResult：`{ output: ContentBlock[], structured?, stopReason: 'completed'|'aborted'|'error'|'max-tokens'|'refusal' }`；
+  - spawn provider 支持全部能力（outputSchema/depthLimit/toolFilter/persona）；`inheritsParentContext=false`（每轮全新子 agent，上下文靠 prompt 注入）。
+- 备选（会话级续评）：`startContinuable({ provider, label, request, signal })` + `followup(parent, childId, content, { source, signal })`——留作后续演进。
 
 ### 3.2 评审连续性（上下文注入式续评）
 
@@ -51,48 +51,42 @@ move→Testing（kanban gate）
 - **裁掉无关能力（token 节省）**：subagents.start 的 `toolFilter: { allow: ["read","glob","grep","bash"] }`（spawn provider 支持；只读 + git，无写工具、无 kanban/git/pipeline/web/skill/subagent 等）＋ persona 阴影覆盖部署 persona（一段话，不挂 agent-instructions 大文档）。评审规范由 agent 自行 fs 读仓库文件（review.md / docs/ui-design / AGENTS.md）。
 - `workflow-template/agent-presets/review/` 预设文件保留作参考（continuable 会话续评路径将来可能使用）。
 
-### 3.4 runLlm 实现（index.ts 注入）
+### 3.4 runLlm 接线核心（index.ts 注入）
 
 ```ts
-const agents = ctx.get('agents') as AgentRegistry | undefined
-const runLlm = agents
+const subagents = ctx.get('subagents') as any
+const runLlm = subagents && typeof subagents.start === 'function'
   ? async (prompt: string, up: Record<string, unknown>, conf: Record<string, unknown>) => {
-      const sessionId = safeId('a')
-      const handle = await agents.create({
-        sessionId,
-        meta: { cwd: process.cwd(), origin: 'subagent', agentPreset: String(conf.agentPreset || 'review') },
-        agentOptions: {
-          ...(conf.provider ? { provider: String(conf.provider) } : {}),
-          ...(conf.model ? { model: String(conf.model) } : {}),
-          ...(typeof conf.maxTokens === 'number' ? { maxTokens: conf.maxTokens } : {}),
-        },
+      const parent = conf.parentAgent
+      if (!parent) throw new Error('缺少调用方 agent 上下文（parentAgent 未注入）')
+      // 续评：注入上轮「评审未通过」评论
+      if (conf.cardId) { const prev = await lastReviewComment(String(conf.cardId)); if (prev) prompt = '【上一轮评审意见…】' + prev + '\n【本轮评审任务】' + prompt }
+      const run = await subagents.start('spawn', {
+        label: 'review-' + (conf.cardId || 'x'),
+        prompt: [{ type: 'text', text: prompt }],
+        parent,
+        signal: conf.externalSignal || new AbortController().signal,
+        persona: String(conf.persona || '…'),
+        toolFilter: { allow: (conf.toolFilter || ['read', 'glob', 'grep', 'bash']).map(String) },
       })
-      const timeoutMs = typeof conf.timeoutMs === 'number' ? conf.timeoutMs : 600000
-      const timer = setTimeout(() => handle.agent.cancel('timeout' as any), timeoutMs)
-      try {
-        handle.agent.followup({ role: 'user', content: prompt } as any)
-        await handle.agent.whenIdle()
-        const text = await readLastAssistantText(handle.agent)  // §3.1
-        return text
-      } finally {
-        clearTimeout(timer)
-        await handle.dispose().catch(() => {})
-      }
+      const result = await Promise.race([run.result, timeoutReject(conf.timeoutMs || 600000, run)])
+      if (result.stopReason !== 'completed') throw new Error('评审 agent 未正常完成：' + result.stopReason)
+      return blockText(result.output)
     }
-  : async () => { throw new Error('agent 服务未激活：llm 节点无法执行（fail-closed）') }
+  : undefined  // 未接入 → 引擎 fail-closed
 ```
 
 - verdict 解析放引擎（engine.ts runLlmNode），不放接线层——引擎单测可覆盖（mock runLlm 直接返回文本）。
+- 评审失败落卡评论：pipeline 服务 run() 在 result.error 时经 kanban addComment 统一写入（门禁侧不再写，单点落评论）。
 
-### 3.3 引擎 llm 节点改造（engine.ts）
+### 3.5 引擎 llm 节点改造（engine.ts）
 
 ```ts
 async function runLlmNode(node, ctx) {
   const prompt = typeof node.config.prompt === 'string' ? interpolate(node.config.prompt, ctx) : truncate(JSON.stringify(ctx.up))
   if (!ctx.runLlm) throw new Error('LLM 节点未接入 agent 服务（runLlm 未注入，fail-closed）')
   const text = await ctx.runLlm(prompt, ctx.up, node.config)
-  // verdict 判定（fail-closed）：解析失败按不通过
-  const verdict = parseVerdict(text)   // 正则 REVIEW_VERDICT:s*({.*}) 尾行
+  const verdict = parseVerdict(text)
   if (verdict && verdict.ok === true) return { output: text, verdict }
   const issues = Array.isArray(verdict?.issues) ? verdict.issues : []
   const summary = issues.slice(0, 20).map(i => String(i.file || '') + (i.location ? ':' + i.location : '') + ' ' + String(i.message || '')).join('；') || 'verdict 解析失败：' + text.slice(-200)
@@ -101,6 +95,7 @@ async function runLlmNode(node, ctx) {
 ```
 
 - 注意：`executePipeline` 对节点结果 `result.error` 非空即 throw（isSoftError=false）→ 节点 failed → pipeline failed → 门禁拒绝。✓ 现有语义不用改。
+- 调用上下文透传：conf.parentAgent / conf.externalSignal / conf.cardId（cardIdPath 插值）由引擎注入，接线层消费。
 
 ## 4. pipeline_import_config（需求二，tools.ts + index.ts + store.ts）
 

@@ -36,9 +36,9 @@
 - 关联：TD §4 / RD §4.3.3。
 
 ### A-6 会话连续性（engine 层契约）
-- 前置：runLlm 注入点按 sessionKey 分发（接线层实现，引擎层验证 prompt 插值与 config 传递）。
-- 步骤：engine 对 `config.sessionKey` 做占位符插值（`{input.card.id}` → 实际值）。
-- 期望：llm 节点 config.sessionKey 正确插值后传给 runLlm。
+- 前置：llm 节点 `cardIdPath` 配置（接线层续评注入用；引擎层验证占位符插值与 config 传递）。
+- 步骤：engine 对 `config.cardIdPath` 做占位符插值（`{input.card.id}` → 实际值）。
+- 期望：llm 节点 config.cardIdPath 插值出 card.id 后传给 runLlm；接线层据此读取卡片上一条「评审未通过」评论注入 prompt。
 - 关联：TD §3.2。
 
 ## B. 需求一：Review Agent（宿主级，用户重启 dsh 后验证）

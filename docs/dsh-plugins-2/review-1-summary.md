@@ -9,10 +9,10 @@
 
 | 文件 | 改动 |
 |---|---|
-| src/host/engine.ts | llm 节点 fail-closed（无 runLlm 即节点失败，替换原「占位成功」）；verdict 尾行解析（REVIEW_VERDICT:{"ok":true|false,"issues":[...]}）；ok:false/解析失败 → error 带 issues 摘要 → pipeline 失败；sessionKey 占位符插值 |
+| src/host/engine.ts | llm 节点 fail-closed（无 runLlm 即节点失败，替换原「占位成功」）；verdict 尾行解析（REVIEW_VERDICT:{"ok":true|false,"issues":[...]}）；ok:false/解析失败 → error 带 issues 摘要 → pipeline 失败；cardIdPath 插值透传 |
 | src/host/store.ts | 新增 importPipelines（按稳定 id 幂等 upsert：内容比对防空转、发布草稿本身不 bump、重复导入不产生新版本） |
 | src/host/tools.ts | 新增 pipeline_import_config 工具（第 12 个） |
-| src/index.ts | runLlm 接线宿主 agents 服务：sessionKey 续评（常驻 handle / resume / create 三态）、ok:true 闭环释放、超时 cancel、/pipeline-api/import 路由 |
+| src/index.ts | runLlm 接线宿主 subagents 服务（spawn：parent/signal 透传 + persona/toolFilter 精简 + 上轮评审意见注入续评）、/pipeline-api/import 路由 |
 | scripts/verify-dist.mjs | 工具数 11→12、import 路由断言 |
 | scripts/.engine-test-entry.ts + .run-engine-test.mjs | 引擎级回归测试（UC A 组，13 例） |
 
@@ -39,14 +39,14 @@
 
 1. **fail-closed 优先**：llm 节点未接入 agent 服务时 pipeline 失败 → 门禁拒绝；绝不假放行。
 2. **双门禁**：人审标签 + agent 评审 pipeline 都过才进 Testing。
-3. **续评**：sessionKey=review-{card.id}；失败轮次保留 agent 会话，下轮 resume 接着评（记得上轮 findings、核验修复）；ok:true 释放。
+3. **续评（上下文注入式）**：cardIdPath 传 card.id，接线层读卡片上一条「评审未通过」评论注入 prompt，agent 逐条核验修复情况。
 4. **token 节省**：review 预设只挂 fs+bash；评审规范由 agent 自己读仓库文件。
 5. **评审意见落卡评论**（失败时）+ 拒绝原因带摘要。
 6. **模板可移植**：pipelines.json + 稳定 id + pipeline_import_config，新环境导入即用。
 
 ## 验证结果
 
-- 引擎级测试（mock runLlm）：**13/13 PASS**（A-1 fail-closed / A-2 ok:false / A-3 ok:true / A-4 非法 verdict / A-5 导入幂等 / A-6 sessionKey 插值）
+- 引擎级测试（mock runLlm）：**13/13 PASS**（A-1 fail-closed / A-2 ok:false / A-3 ok:true / A-4 非法 verdict / A-5 导入幂等 / A-6 cardIdPath 插值）
 - 插件构建 + workflow-ci-check（kanban/git/pipeline/markdown-review）：**ALL PASS**
 - 线上环境：pipeline 存储已含 p-workflow-review v0.1.0（published）；看板门禁库 10 条（含新 pipeline 门禁）；模板已挂 10 门禁；review 预设已装 ~/.dsh/.agent-presets/review/
 - 宿主级（B 组）验证需在**重启 dsh 后**进行：move→Testing 触发真实 agent 评审（本会话宿主仍跑旧插件 bundle，不在此处触发，避免假放行）

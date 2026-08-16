@@ -69,7 +69,7 @@
 #### 4.2.2 review agent 精简上下文（token 节省）
 
 - review agent 用**精简预设**（`workflow-template/agent-presets/review/`）：只注册评审所需的最小工具集——fs 读写/搜索 + bash（跑 git diff），**不注册** skills、web、subagent、workflow、pipeline 等与评审无关的能力；persona 一段话，不叠多余 prompt 段。
-- llm 节点 config `agentPreset: "review"` 指定；评审所需的规范/红线知识由 agent 自己用 fs 读仓库内文件（review.md / docs/ui-design / AGENTS.md），不靠 skill 目录。
+- llm 节点 config `toolFilter`（默认 read/glob/grep/bash）+ `persona`（阴影覆盖部署 persona）实现精简；评审所需的规范/红线知识由 agent 自己用 fs 读仓库内文件（review.md / docs/ui-design / AGENTS.md），不靠 skill 目录。
 - 卡片上下文只注入必要字段（repo/branch/mr 关联 + 标题），不整卡全量塞 prompt。
 
 #### 4.2.3 review prompt 真源（workflow-template/prompts/review.md）
@@ -124,11 +124,11 @@
 #### 4.3.2 插件接线（plugins/pipeline/src/index.ts）
 
 - `const agents = ctx.get('agents')`；构造 RunQueue deps 时注入 `runLlm` 实现：
-  - 入参：`prompt`（已插值）、`up`（上游输出）、`conf`（节点 config：`model`/`maxTokens`/`timeoutMs`/`agentPreset`）；
-  - 流程：`agents.create({ sessionId: safeId('a'), meta: { cwd, origin: 'subagent', agentPreset: conf.agentPreset || 'review' }, agentOptions: { provider, model }, signal })` → `agent.followup({ role:'user', content: prompt })` → `await agent.whenIdle()` → 读会话最后一条 assistant 消息文本 → `handle.dispose()`；
-  - verdict 解析：正则提取尾行 `REVIEW_VERDICT:\s*(\{.*\})` → `{ok, issues}`；解析失败视为不通过（fail-closed，错误信息提示 prompt 格式要求）；
-  - 超时：`conf.timeoutMs`（默认 10 分钟）用 AbortSignal 与 `whenIdle` 竞速，超时 dispose 并报错。
-- 若 `agents` 服务不可得：注入恒抛错实现（fail-closed），llm 节点报「agent 服务未激活」。
+  - 入参：`prompt`（已插值）、`up`（上游输出）、`conf`（节点 config：`model`/`maxTokens`/`timeoutMs`/`persona`/`toolFilter`/`cardIdPath` + 引擎注入的 `parentAgent`/`externalSignal`/`cardId`）；
+  - 流程：`subagents.start('spawn', { label, prompt, parent, signal, persona, toolFilter })` → `await run.result` → `stopReason === 'completed'` 且输出非空才成功 → `run.dispose()`；
+  - verdict 解析：引擎 runLlmNode 正则提取尾行 `REVIEW_VERDICT:\s*(\{.*\})` → `{ok, issues}`；解析失败视为不通过（fail-closed，错误信息提示 prompt 格式要求）；
+  - 超时：`conf.timeoutMs`（默认 10 分钟）竞速 run.result，超时 dispose 并报错。
+- 若 `subagents` 服务不可得：runLlm 不注入 → 引擎 fail-closed，llm 节点报「未接入 agent 服务」。
 
 #### 4.3.3 pipeline_import_config 新工具（plugins/pipeline/src/host/tools.ts + index.ts）
 

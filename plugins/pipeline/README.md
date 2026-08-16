@@ -25,7 +25,7 @@ DSH Pipeline 流水线插件（正式 bundle 形态）。类似 dify 的可复�
 - **fail-closed**：宿主未注入 runLlm / agent 服务不可用 / verdict 无法解析 → 节点失败、pipeline 失败（**不再返回占位成功**，避免门禁假放行）。
 - **verdict 契约**：agent 输出尾行 `REVIEW_VERDICT:{"ok":true|false,"issues":[...]}`；`ok:true` 节点成功，否则节点失败（error 带 issues 摘要）。
 - **评审连续性（上下文注入式）**：节点 config `cardIdPath`（占位符插值出 card.id）+ 接线层读取卡片上一条「评审未通过」评论注入 prompt，实现跨轮核验修复（等价续评）；`toolFilter` 可配（默认 `["read","glob","grep","bash"]`，评审只读 + git）。
-- 其他 config：`timeoutMs`（默认 600000）、`model`/`provider`/`maxTokens`（透传 agentOptions）、`agentPreset`（默认 review）。
+- 其他 config：`timeoutMs`（默认 600000）、`model`/`provider`/`maxTokens`（透传 agentOptions）、`persona`（阴影覆盖部署 persona，评审场景由 pipeline config 提供）、`toolFilter`（allow 名单，默认 read/glob/grep/bash）。
 
 ## pipeline_import_config（模板分发）
 
