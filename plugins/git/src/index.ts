@@ -182,7 +182,7 @@ export function apply(ctx: GitCtx) {
         const kanban = kanbanSvc()
         if (!kanban) return { ok: false, error: 'kanban service unavailable（先激活 kanban 插件）' }
         const kind = spec && spec.kind ? String(spec.kind).trim() : ''
-        const ext = spec && spec.external_id !== undefined ? String(spec.external_id).trim() : ''
+        const ext = spec && (spec.external_id !== undefined ? String(spec.external_id) : spec.externalId !== undefined ? String(spec.externalId) : '').trim() || ''
         if (!kind) return { ok: false, error: 'kind is required' }
         if (!ext) return { ok: false, error: 'external_id is required' }
         if (kind === 'local-repo' && fs) {
@@ -602,7 +602,12 @@ export function apply(ctx: GitCtx) {
             } else {
               push = await runGit('git push -u origin ' + branch)
             }
-            if (push.exitCode !== 0) return { ok: false, error: 'git push 失败: ' + push.out.slice(0, 400) + '（确认 GitHub token 已配置 git_configure，或本机 git 凭据可推送）' }
+            if (push.exitCode !== 0) {
+              // 失败输出可能回显带 token 的 push URL——脱敏后再返回
+              let out = push.out
+              if (token) { try { out = out.split(token).join('***') } catch { /* ignore */ } }
+              return { ok: false, error: 'git push 失败: ' + out.slice(0, 400) + '（确认 GitHub token 已配置 git_configure，或本机 git 凭据可推送）' }
+            }
             let linkRes: any = null
             try {
               linkRes = await linkRef(cardId, { kind: 'github-branch', externalId: branch, display: branch, meta: repo ? { repo: repo.owner + '/' + repo.name } : undefined })

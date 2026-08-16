@@ -6,7 +6,7 @@
 
 传统看板只记录「卡在哪」；这套 workflow 把**整条研发流程的规则**沉淀成配置 + 知识卡：
 
-- **流程即配置**：10 个阶段列、9 条行为门禁、1 个创建模板，全部声明在 `workflow.json`，一键导入、可导出分享、复制即得自己的流程；
+- **流程即配置**：10 个阶段列、10 条行为门禁、1 个创建模板，全部声明在 `workflow.json`（配套 `pipelines.json` 定义评审 pipeline），一键导入、可导出分享、复制即得自己的流程；
 - **门禁兜底**：进入下一列必须满足条件（分支已建 / 确认标签 / MR 已合并），不满足动作被拒绝——人不会漏流程，agent 不会跳过环节；
 - **人在环上**：每次需要拍板（RD/TD/UC 确认、两轮 review）都先把文档在对话流里打开给你看（划词批注 + 总评），你提交后 agent 自动继续；
 - **文档随代码演进**：每个任务在 `docs/<taskId>/` 产出 rd.md / td.md / uc.md，跟随 `workflow/<taskId>` 分支一起进 MR，合并即归档；
@@ -28,7 +28,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | **dsh-kanban** | 必选 | 看板 + 门禁引擎 + 配置导入导出 |
 | **dsh-git** | 推荐 | `git_create_branch` / `git_create_mr` / `git_merge_pr` 等 git 工具，门禁 `branch-linked` / `mr-linked` / `mr-merged` 依赖它 |
 | **dsh-markdown-review** | 推荐 | 人工审批：`md_doc_open` 在对话流打开文档大浮窗，划词批注 + 总评，提交即回传 |
-| **dsh-pipeline** | 可选 | 把「测试通过」换成真实 pipeline 检查（门禁 `pipeline`） |
+| **dsh-pipeline** | 推荐 | 真实 pipeline 检查（门禁 `pipeline`）：Testing 双门禁的「代码评审」agent 评审靠它执行；含 `pipeline_import_config` 导入工具 |
 
 装好后让用户**打开一次看板**（生成看板数据文件）。
 
@@ -37,18 +37,20 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 1. **git 插件**（进 RD 门禁要建分支，需要本地仓库 + GitHub 仓库 + token）：
    - 会话里说：「用 `git_configure` 配置仓库 owner/repo、本地仓库路径 `<你的仓库路径>`，并设置 GitHub token」；
    - 或 agent 直接依次调用 `git_configure(owner, repo, local_path, token)`。
-2. **（可选）pipeline 插件**：若要「测试通过」走真实流水线，把 Testing 门禁换成 `pipeline` 类型并填 pipeline id。
+2. **pipeline 插件**：进 Testing 双门禁含 agent 评审（`pipeline` 检查器），需先 `pipeline_import_config` 导入 `workflow-template/pipelines.json`（稳定 id `p-workflow-review`，幂等）。
 
 ### 第三步：配置 preset（导入工作流配置）
 
 1. **安装 agent 预设（workflow 模式）**：把本目录 `agent-presets/workflow/` 复制到 `~/.dsh/.agent-presets/workflow/`（agent 执行 `cp -r workflow-template/agent-presets/workflow ~/.dsh/.agent-presets/`）。之后**新建会话**时在预设选择器里选「workflow 模式」，agent 就自动按「会话编排」执行——不需要再交代流程；也可在设置 → Agent 预设里把它设为默认；
 2. agent 读取本目录 `workflow.json`，执行 `kanban_import_config` 导入（整体替换配置层，**旧卡片不受影响**：挪到第一列、门禁挂载清除，导入前自动备份 `board.json.bak-<时间戳>`）；
+3. 执行 `pipeline_import_config`（读取本目录 `pipelines.json`）导入评审 pipeline 定义（按稳定 id 幂等 upsert）；
 3. 把 `skills/workflow/` 复制进当前仓库的 `.agents/skills/`（本仓库已同步，复制到别的仓库时记得带过去）——agent 之后自动加载流程知识。
 
 ### 完成自检
 
-- 看板有 10 列（Backlog → Done）、门禁库有 9 条门禁、创建模板里有 `workflow`；
+- 看板有 10 列（Backlog → Done）、门禁库有 10 条门禁、创建模板里有 `workflow`；pipeline 列表里有 `代码评审`（p-workflow-review）；
 - 对一张卡 `kanban_move(card, "RD")` 会被「进入 RD 需建 workflow 分支」拒绝——说明门禁生效；
+- 对一张处于 1st Review、已打 `review-1-done` 的卡 `kanban_move(card, "Testing")`：先触发「代码评审」pipeline，agent 未给出 OK 则被拒绝且卡上出现评审评论——说明 review 门禁生效；
 - **新建会话的预设选择器里能看到「workflow 模式」**（复制 `agent-presets/workflow/` 后刷新页面即可看到，无需重启 dsh）；
 - 建一张卡试试全流程（见下「日常使用」）。
 
@@ -68,7 +70,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 3. **门禁不通过时**：agent 会告诉你缺什么并给补救动作（建分支 / 打标签 / 合并 MR），你只需确认。
 4. **确认 = 打标签**：`rd-confirmed` / `td-confirmed` / `uc-confirmed` / `review-1-done` / `tests-passed` / `review-2-done`，由对应角色确认后打上。
 
-## 门禁清单（9 条）
+## 门禁清单（10 条）
 
 | # | 门禁名 | 触发 | 检查器 | config |
 |---|---|---|---|---|
@@ -78,6 +80,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | 4 | 验收用例确认才能开发 | move → In Dev | tag-required | `{"tags":["uc-confirmed"]}` |
 | 5 | 进入评审需关联 MR | move → 1st Review | mr-linked | 无 |
 | 6 | 1st review 通过才能测试 | move → Testing | tag-required | `{"tags":["review-1-done"]}` |
+| 7 | Review pipeline 通过才能进 Testing | move → Testing | pipeline | `{"pipelines":["p-workflow-review"]}`（agent 评审 OK 才放行；失败自动落卡评论；下轮续评注入上轮意见） |
 | 7 | 测试通过才能进 2nd review | move → 2nd review | tag-required | `{"tags":["tests-passed"]}` |
 | 8 | 2nd review 通过才能 Stage | move → Stage | tag-required | `{"tags":["review-2-done"]}` |
 | 9 | MR 已合并才能进 Done | move → Done | mr-merged | 无 |

@@ -25,14 +25,14 @@ export const mdrCss = `
 .mdr-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;border:none;border-radius:18px;height:36px;padding:0 14px;font-size:14px;line-height:22px;cursor:pointer;color:var(--dsw-alias-label-primary);background:transparent;font-family:inherit;transition:background 150ms cubic-bezier(.4,0,.2,1)}
 .mdr-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
 .mdr-btn:disabled{cursor:not-allowed;opacity:.4}
-.mdr-btn:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(65,118,230,.18)}
+.mdr-btn:focus-visible{outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}
 .mdr-btn-primary{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}
 .mdr-btn-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}
 /* icon 按钮(§2.2:宿主同款 28×28 圆形 + hover 背景,glyph 16) */
 .mdr-icon-btn{width:28px;height:28px;border:none;background:none;cursor:pointer;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary);transition:background 150ms cubic-bezier(.4,0,.2,1)}
 .mdr-icon-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .mdr-icon-btn:disabled{opacity:.5;cursor:default;pointer-events:none}
-.mdr-icon-btn:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(65,118,230,.18)}
+.mdr-icon-btn:focus-visible{outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}
 .mdr-icon-confirm{color:var(--dsw-alias-state-business-primary)}
 .mdr-icon-confirm:hover{color:var(--dsw-alias-state-business-primary)}
 

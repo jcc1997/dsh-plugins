@@ -85,6 +85,19 @@
         }
       },
       {
+        "name": "Review pipeline 通过才能进 Testing",
+        "on": "move",
+        "to": "Testing",
+        "checker": {
+          "type": "pipeline",
+          "config": {
+            "pipelines": [
+              "p-workflow-review"
+            ]
+          }
+        }
+      },
+      {
         "name": "测试通过才能进 2nd review",
         "on": "move",
         "to": "2nd review",
@@ -143,6 +156,7 @@
           "验收用例确认才能开发",
           "进入评审需关联 MR",
           "1st review 通过才能测试",
+          "Review pipeline 通过才能进 Testing",
           "测试通过才能进 2nd review",
           "2nd review 通过才能 Stage",
           "MR 已合并才能进 Done"

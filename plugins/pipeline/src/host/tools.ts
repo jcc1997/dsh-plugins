@@ -2,7 +2,7 @@
 // 面向 agent 的 11 个工具：查/建/改/删/发布/运行/进度/队列/目录。
 // 工具 execute 阶段接收 { fs, store 访问器, engine } 注入（避免直接依赖 ctx）。
 
-import { FsLike, readDoc, writeDoc, mutateDoc, findPipeline, findVersion, listCatalog, deletePipelineVersion } from './store'
+import { FsLike, readDoc, writeDoc, mutateDoc, findPipeline, findVersion, listCatalog, deletePipelineVersion, importPipelines } from './store'
 import { Pipeline, PipelineNode, PipelineRun } from './models'
 import { RunQueue } from './engine'
 
@@ -158,8 +158,11 @@ export function buildToolDefs(env: ToolEnv): any[] {
       version: STR('版本号，缺省 publishedVersion 或 latest'),
       inputs: OBJ('入参对象（JSON）；input 节点的 keys 会从其中抽取', true),
     },
-    execute: async (args: any) => {
-      const { runId, run } = await queue.submit(String(args.pipeline_id), args.version || 'latest', args.inputs || {}, 'agent')
+    execute: async (args: any, exec: any) => {
+      const { runId, run } = await queue.submit(String(args.pipeline_id), args.version || 'latest', args.inputs || {}, 'agent', {
+        parentAgent: exec && exec.agent,
+        externalSignal: exec && exec.signal,
+      })
       return { ok: true, run_id: runId, status: run.status, queued: true }
     },
     output: {
@@ -260,6 +263,24 @@ export function buildToolDefs(env: ToolEnv): any[] {
     output: outputOf('删除版本结果'),
   }
 
+  const importConfig = {
+    name: 'pipeline_import_config',
+    description: '导入 pipeline 定义（按稳定 id 幂等 upsert，模板可移植，导入即用）：{ pipelines: [{ id, name, kind, description, tags, nodes, input_schema?, published?, changelog? }] }',
+    parameters: {
+      config: OBJ('导入定义容器：{ pipelines: [...] }', true),
+    },
+    execute: async (args: any) => {
+      const defs = (args && args.config && Array.isArray(args.config.pipelines)) ? args.config.pipelines : []
+      if (defs.length === 0) return { ok: false, error: 'config.pipelines 为空' }
+      return mutateDoc(fs, (doc) => {
+        const r = importPipelines(doc, defs)
+        if (!r.ok) return r
+        return { ok: true, imported: r.imported }
+      })
+    },
+    output: outputOf('导入结果'),
+  }
+
   const catalog = {
     name: 'pipeline_catalog',
     description: '列出可复用的已发布单元（catalog）：所有已发布的 pipeline 版本。combined pipeline 可用这些版本作为子节点引用。',
@@ -272,13 +293,13 @@ export function buildToolDefs(env: ToolEnv): any[] {
     output: outputOf('可复用单元目录'),
   }
 
-  const defs = [list, get, create, update, publish, del, delVer, run, status, runs, catalog]
+  const defs = [list, get, create, update, publish, del, delVer, run, status, runs, importConfig, catalog]
   // dsh-tools 要求 execute 返回 canonical value 为 lossless JSON（含 undefined 会被拒绝）。
   // run 未完成时 output/error 等字段为 undefined → 统一做一次 JSON 清洗（undefined 属性被丢弃）。
   const lossless = (v: any): any => (v === undefined ? null : JSON.parse(JSON.stringify(v)))
   for (const t of defs) {
     const raw = t.execute
-    t.execute = async (args: any) => lossless(await raw(args))
+    t.execute = async (args: any, exec: any) => lossless(await raw(args, exec))
   }
   return defs
 }

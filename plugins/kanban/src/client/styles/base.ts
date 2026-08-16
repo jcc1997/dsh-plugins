@@ -16,7 +16,7 @@ export const baseCss = `
 .kbnb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:18px;height:36px;padding:0 14px;font-size:14px;line-height:22px;cursor:pointer;color:var(--dsw-alias-label-primary);background:transparent;font-family:inherit;transition:background 150ms cubic-bezier(.4, 0, .2, 1)}
 .kbnb-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
 .kbnb-btn:disabled{cursor:not-allowed;opacity:.4}
-.kbnb-btn:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(65, 118, 230, .18)}
+.kbnb-btn:focus-visible{outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}
 .kbnb-primary{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}
 .kbnb-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}
 .kbnb-danger{color:var(--dsw-alias-state-error-primary)}
@@ -24,7 +24,7 @@ export const baseCss = `
 .kbnb-icon-btn{width:28px;height:28px;background:none;border:none;cursor:pointer;padding:0;border-radius:50%;color:var(--dsw-alias-label-secondary);display:inline-flex;align-items:center;justify-content:center;transition:background 150ms cubic-bezier(.4, 0, .2, 1)}
 .kbnb-icon-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .kbnb-icon-btn:disabled{opacity:.3;cursor:default}
-.kbnb-icon-btn:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(65, 118, 230, .18)}
+.kbnb-icon-btn:focus-visible{outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}
 
 /* ══ 错误条 ══ */
 .kbnb-error{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);padding:8px 16px;font-size:13px;border-bottom:1px solid var(--dsw-alias-state-error-secondary)}

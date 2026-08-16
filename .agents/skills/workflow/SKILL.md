@@ -28,7 +28,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | UC | 写验收用例 | 标签 `td-confirmed` | TD 确认后打标签 |
 | In Dev | 开发实现 | 标签 `uc-confirmed` | UC 确认后打标签 |
 | 1st Review | 代码评审(首轮) | 已关联 MR | 关联 MR |
-| Testing | 测试(可用 pipeline 自动跑) | 标签 `review-1-done` | 评审通过后打标签 |
+| Testing | 测试(可用 pipeline 自动跑) | 双门禁：标签 `review-1-done`（人审确认）+ Review pipeline 通过（agent 评审 OK，见 §三-bis） | 人审打标签 + agent 评审 pipeline 现场跑 |
 | 2nd review | 上线前复审(第二轮) | 标签 `tests-passed` | 测试通过后打标签 |
 | Stage | 预发布/待合并 | 标签 `review-2-done` | 复审通过后打标签 |
 | Done | 完成 | **MR 已合并** | git 插件合并 MR 后自动放行 |
@@ -43,11 +43,30 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | 验收用例确认才能开发 | move → In Dev | tag-required | `{"tags":["uc-confirmed"]}` |
 | 进入评审需关联 MR | move → 1st Review | mr-linked | 无 |
 | 1st review 通过才能测试 | move → Testing | tag-required | `{"tags":["review-1-done"]}` |
+| Review pipeline 通过才能进 Testing | move → Testing | pipeline | `{"pipelines":["p-workflow-review"]}`（agent 评审 OK 才放行，失败自动落卡评论） |
 | 测试通过才能进 2nd review | move → 2nd review | tag-required | `{"tags":["tests-passed"]}` |
 | 2nd review 通过才能 Stage | move → Stage | tag-required | `{"tags":["review-2-done"]}` |
 | MR 已合并才能进 Done | move → Done | mr-merged | 无 |
 
 > 门禁是门禁库独立实体;检查器统一走沙箱 code 执行,内置类型是预设代码模板。可用 `code` 写任意检查、`pipeline` 现场跑流水线(详见 dsh-kanban README 的 Agent 门禁指南)。
+
+## 三-bis、review pipeline（agent 评审门禁）
+
+> 进 Testing 双门禁之一：`1st review 通过才能测试`（人审标签）+ `Review pipeline 通过才能进 Testing`（agent 评审 OK）。配套文件：`workflow-template/pipelines.json`（pipeline 定义）、`workflow-template/prompts/review.md`（review prompt 真源）、`workflow-template/agent-presets/review/`（精简评审预设）。
+
+### 触发与语义
+
+- move → Testing 时，pipeline 门禁**现场运行**「代码评审」pipeline（`p-workflow-review`，llm 节点）：
+  - 评审 agent 按 review prompt 评 **MR diff（代码逻辑）+ 设计规范（docs/ui-design、--dsw-* tokens、AGENTS.md 红线）+ 文档纪律** 三个维度；
+  - agent 输出尾行 verdict：`REVIEW_VERDICT:{"ok":true|false,"issues":[...]}`；`ok:true` 才放行；
+  - 未通过：门禁拒绝 + **评审问题自动落卡评论**（与最后一条相同不重复写）+ 拒绝原因带问题摘要。
+- **fail-closed**：llm 节点未接入 agent 服务 / verdict 解析失败 → pipeline 失败 → 门禁拒绝（宁可拒绝不可假放行）。
+- **续评（上下文注入式）**：每轮评审为全新 agent，但 llm 节点会读取卡片上一条「评审未通过」评论，作为【上一轮评审意见】注入本轮 prompt——agent 逐条核验上轮 findings 是否已修复（未修复继续列为未解决问题），功能等价于「接着上次评」。
+
+### 导入与验证
+
+- 新环境：`pipeline_import_config`（导入 `workflow-template/pipelines.json`，稳定 id `p-workflow-review` 幂等）→ `kanban_import_config`（导入 `workflow.json`）→ 门禁即生效。
+- 插件改动（pipeline/kanban 源码）需重建并重启 dsh 后生效（动态插件会话内存态重启即失）。
 
 ## 四、Agent 操作手册
 
@@ -60,7 +79,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 3. **RD 设计**:用 `grill-me` skill 拷问方案到共识 → 按 `workflow-template/templates/rd.md` 模板产出 `docs/<taskId>/rd.md`(与分支一起演进);
 4. **RD 确认**:`md_doc_open(path: "…/docs/<taskId>/rd.md")` 展示给人审阅(划词批注 + 总评)→ 通过 → `kanban_tags(card_id, add: ["rd-confirmed"])`;
 5. **建 MR**:RD 确认后 `git_create_mr(card_id)` 提交 MR(标题带 `[taskId]` 自动关联)→ `kanban_move(card_id, "TD")`;
-6. **逐阶段推进**:TD(写 td.md → 审阅 → td-confirmed)→ UC(验收用例 → uc-confirmed)→ In Dev(开发)→ 1st Review(评审 → review-1-done)→ Testing(测试 → tests-passed)→ 2nd review(复审 → review-2-done)→ Stage;
+6. **逐阶段推进**:TD(写 td.md → md_doc_open 审阅 → td-confirmed)→ UC(验收用例 → md_doc_open → uc-confirmed)→ In Dev(开发)→ 1st Review(ask_user_question + MR 链接评审 → review-1-done + agent 评审 pipeline 通过)→ Testing(测试 → tests-passed)→ 2nd review(复审 → review-2-done)→ Stage;
 7. **收尾**:`git_merge_pr` 合并 MR(自动进 Done);文档与代码随 MR 一起演进,合并即归档。
 
 > 确认方式分两类：**文档确认（RD/TD/UC）用 `md_doc_open`**；**代码评审（1st/2nd review）用 `ask_user_question` + MR 链接**。不通过则把意见整理进卡评论/MR,卡停在当前列。
@@ -81,7 +100,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | `rd-confirmed` | RD 确认设计 | TD |
 | `td-confirmed` | TD 确认技术设计 | UC |
 | `uc-confirmed` | 验收用例确认 | In Dev |
-| `review-1-done` | 1st Review 通过 | Testing |
+| `review-1-done` | 1st Review 人审通过（进 Testing 还需 agent 评审 pipeline OK） | Testing |
 | `tests-passed` | 测试通过 | 2nd review |
 | `review-2-done` | 2nd review 通过 | Stage |
 

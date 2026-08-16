@@ -77,7 +77,7 @@ export const drawerCss = `
 .kbnb-status-label{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .kbnb-status-select{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:5px 10px;font-size:13px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);cursor:pointer;max-width:200px;font-family:inherit;transition:all 150ms cubic-bezier(.4, 0, .2, 1)}
 .kbnb-status-select:hover{border-color:var(--dsw-alias-border-l3)}
-.kbnb-status-select:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(65, 118, 230, .18)}
+.kbnb-status-select:focus-visible{outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}
 .kbnb-spacer{flex:1}
 
 /* ══ 区块（评论/变更记录） ══ */
