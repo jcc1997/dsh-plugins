@@ -53,7 +53,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ## 三-bis、review pipeline（agent 评审门禁）
 
-> 进 Testing 双门禁之一：`1st review 通过才能测试`（人审标签）+ `Review pipeline 通过才能进 Testing`（agent 评审 OK）。配套文件：`workflow-template/pipelines.json`（pipeline 定义）、`workflow-template/prompts/review.md`（review prompt 真源）、`workflow-template/agent-presets/review/`（精简评审预设）。
+> 进 Testing 双门禁：`1st review 通过才能测试`（人审标签）+ `Review pipeline 通过才能进 Testing`（agent 评审 OK）。**顺序约定：agent 评审 pipeline 必须先行且成功，之后才发起人审**（review-1-done 在 agent 评审通过后由人审确认打上；agent 评审未过不消耗人审）。配套文件：`workflow-template/pipelines.json`（pipeline 定义）、`workflow-template/prompts/review.md`（review prompt 真源）、`workflow-template/agent-presets/review/`（精简评审预设）。
 
 ### 触发与语义
 
@@ -77,7 +77,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 1. 建卡（template: bug）→ `git_create_branch`（建 workflow/<taskId> 分支并关联）→ `kanban_move(card, "In Dev")`（过 branch-linked 门禁）；
 2. 修复开发：复现步骤 + 验收点写进卡描述；修复 commit + push；
-3. `git_create_mr` → move 1st Review → 人审（ask_user_question + MR 链接）→ review-1-done + agent 评审 pipeline OK；
+3. `git_create_mr` → move Testing 触发 agent 评审 pipeline（**agent 评审通过后才发起人审**）→ 人审（ask_user_question + MR 链接）→ review-1-done → 再 move Testing 通过；
 4. Testing（修复验证）→ tests-passed → 2nd review（复审）→ review-2-done → Stage → `git_merge_pr` 合并 → Done。
 
 > 与 workflow 流程的差异：跳过 RD/TD/UC 三列与对应确认标签；其余（评审/测试/收尾）一致。
@@ -93,7 +93,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 3. **RD 设计**:用 `grill-me` skill 拷问方案到共识 → 按 `workflow-template/templates/rd.md` 模板产出 `docs/<taskId>/rd.md`(与分支一起演进);
 4. **RD 确认**:`md_doc_open(path: "…/docs/<taskId>/rd.md")` 展示给人审阅(划词批注 + 总评)→ 通过 → `kanban_tags(card_id, add: ["rd-confirmed"])`;
 5. **建 MR**:RD 确认后 `git_create_mr(card_id)` 提交 MR(标题带 `[taskId]` 自动关联)→ `kanban_move(card_id, "TD")`;
-6. **逐阶段推进**:TD(写 td.md → md_doc_open 审阅 → td-confirmed)→ UC(验收用例 → md_doc_open → uc-confirmed)→ In Dev(开发)→ 1st Review(ask_user_question + MR 链接评审 → review-1-done + agent 评审 pipeline 通过)→ Testing(测试 → tests-passed)→ 2nd review(复审 → review-2-done)→ Stage;
+6. **逐阶段推进**:TD(写 td.md → md_doc_open 审阅 → td-confirmed)→ UC(验收用例 → md_doc_open → uc-confirmed)→ In Dev(开发)→ 1st Review(建 MR,move→Testing 触发 agent 评审 pipeline,**agent 评审通过后才发起人审** ask_user_question + MR 链接 → review-1-done)→ Testing(测试 → tests-passed)→ 2nd review(复审 → review-2-done)→ Stage;
 7. **收尾**:`git_merge_pr` 合并 MR(自动进 Done);文档与代码随 MR 一起演进,合并即归档。
 
 > 确认方式分两类：**文档确认（RD/TD/UC）用 `md_doc_open`**；**代码评审（1st/2nd review）用 `ask_user_question` + MR 链接**。不通过则把意见整理进卡评论/MR,卡停在当前列。
@@ -114,7 +114,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | `rd-confirmed` | RD 确认设计 | TD |
 | `td-confirmed` | TD 确认技术设计 | UC |
 | `uc-confirmed` | 验收用例确认 | In Dev |
-| `review-1-done` | 1st Review 人审通过（进 Testing 还需 agent 评审 pipeline OK） | Testing |
+| `review-1-done` | 1st Review 人审通过（**agent 评审 pipeline 成功之后**由人审确认打上） | Testing |
 | `tests-passed` | 测试通过 | 2nd review |
 | `review-2-done` | 2nd review 通过 | Stage |
 
