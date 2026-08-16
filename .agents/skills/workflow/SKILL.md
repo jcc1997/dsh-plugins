@@ -41,7 +41,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 | RD 确认才能进 TD | move → TD | tag-required | `{"tags":["rd-confirmed"]}` |
 | TD 确认才能进 UC | move → UC | tag-required | `{"tags":["td-confirmed"]}` |
 | 验收用例确认才能开发 | move → In Dev | tag-required | `{"tags":["uc-confirmed"]}` |
-| 进入 In Dev 需建 workflow 分支（bug 模板用） | move → In Dev | branch-linked | 无（需 github-repo + github-branch 关联） |
+| 进入 In Dev 需建 workflow 分支 | move → In Dev | branch-linked | 无（需 github-repo + github-branch 关联） |
 | 进入评审需关联 MR | move → 1st Review | mr-linked | 无 |
 | 1st review 通过才能测试 | move → Testing | tag-required | `{"tags":["review-1-done"]}` |
 | Review pipeline 通过才能进 Testing | move → Testing | pipeline | `{"pipelines":["p-workflow-review"]}`（agent 评审 OK 才放行，失败自动落卡评论） |
