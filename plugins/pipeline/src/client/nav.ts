@@ -1,5 +1,6 @@
-// client/nav.ts — 面板内跳转总线（模块级 pub/sub，同一 bundle 内共享）
+// client/nav.ts — 面板内跳转总线
 // conversation.view 槽位的「流水线」tab 卡片点击 → 侧边栏主面板打开并定位到对应 run。
+// (useEscClose 已提升至 @dsh-plugins/ui 共享,勿在此重复定义)
 type OpenHandler = (runId: string) => void
 
 let handler: OpenHandler | null = null

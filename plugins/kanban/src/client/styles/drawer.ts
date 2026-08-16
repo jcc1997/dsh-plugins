@@ -30,7 +30,7 @@ export const drawerCss = `
 .kbnb-gate-detail-pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:160px;overflow-y:auto}
 
 /* ══ 门禁卡（v4）：挂在此卡上的行为门禁 ══ */
-.kbnb-gates-card{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.kbnb-gates-card{display:flex;flex-direction:column;gap:6px;width:100%;box-sizing:border-box;margin-bottom:16px}
 .kbnb-gate-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0}
 .kbnb-gate-name{font-weight:600;color:var(--dsw-alias-label-primary);flex:none;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kbnb-gate-meta{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary)}
@@ -77,7 +77,7 @@ export const drawerCss = `
 .kbnb-status-label{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .kbnb-status-select{box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:5px 10px;font-size:13px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);cursor:pointer;max-width:200px;font-family:inherit;transition:all 150ms cubic-bezier(.4, 0, .2, 1)}
 .kbnb-status-select:hover{border-color:var(--dsw-alias-border-l3)}
-.kbnb-status-select:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(65, 118, 230, .18)}
+.kbnb-status-select:focus-visible{outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}
 .kbnb-spacer{flex:1}
 
 /* ══ 区块（评论/变更记录） ══ */
@@ -93,7 +93,7 @@ export const drawerCss = `
 .kbnb-activity{display:flex;gap:4px;font-size:12px;padding:5px 0;color:var(--dsw-alias-label-secondary);align-items:baseline;border-bottom:1px dashed var(--dsw-alias-border-l2)}
 .kbnb-activity:last-child{border-bottom:none}
 .kbnb-activity-time{flex:none;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
-.kbnb-activity-actor{flex:none;color:var(--dsw-alias-state-business-primary);background:rgba(65, 118, 230, .08);border-radius:6px;padding:0 5px;font-size:11px;white-space:nowrap}
+.kbnb-activity-actor{flex:none;color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover-accent);border-radius:6px;padding:0 5px;font-size:11px;white-space:nowrap}
 .kbnb-activity-text{min-width:0;word-break:break-word}
 
 /* ══ 列配置 ══ */
@@ -126,7 +126,7 @@ button.kbnb-ref-link{background:none;border:none;padding:0;font:inherit;cursor:p
 .kbnb-ref-add .kbnb-btn{padding:4px 12px;font-size:12px;flex:none}
 /* Git 关联卡片 + 外部关联卡片 */
 .kbnb-card-actions{display:inline-flex;align-items:center;gap:8px}
-.kbnb-git-card,.kbnb-refs-card{margin-bottom:16px;padding:14px 16px;border-radius:12px;cursor:default}
+.kbnb-git-card,.kbnb-refs-card{width:100%;box-sizing:border-box;margin-bottom:16px;padding:14px 16px;border-radius:12px;cursor:default}
 .kbnb-card-sec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .kbnb-card-sec-title{font-size:13px;font-weight:600;color:var(--dsw-alias-label-secondary)}
 .kbnb-git-repo{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px}

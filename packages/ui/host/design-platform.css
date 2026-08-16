@@ -1,11 +1,10 @@
-/* 官方 DSH 设计平台 tokens（浅色 + 深色 data-ds-dark-theme）
- * 来源: @deepseek-ai/dsh-client-ui-theme@0.1.0-rc.6 lib/styles/design-platform.css
- * 仓库: github.com/deepseek-ai/deepseek-harness (MIT)
- * 用途: 插件样式与宿主规范统一的权威色板参考；运行时宿主已注入同名变量，直接使用
+/* 官方 DSH 设计平台 tokens(浅色 + 深色 data-ds-dark-theme)
+ * 来源: @deepseek-ai/dsh-client-ui-theme@0.1.0-rc.5 (vendor/deepseek-harness submodule)
+ * 仓库: github.com/deepseek-ai/deepseek-harness (packages/client/ui-theme, MIT)
+ * 用途: 插件样式与宿主规范统一的权威色板;运行时宿主已注入同名变量,直接使用
+ * 同步: node scripts/sync-host-tokens.mjs(宿主升级后重跑本脚本)
+ * 警告: 本文件由脚本生成,勿手改;改动请改宿主或追加到 docs/ui-design/ 规范
  */
-/* Figma font-weight 510 (an SF Pro variable-font weight) always renders as
-   font-weight: 500 in this UI — non-variable webfonts snap intermediate
-   weights unpredictably across platforms. */
 body {
   --dsw-static-amber-100: rgb(254, 245, 231);
   --dsw-static-amber-400: rgb(247, 173, 49);

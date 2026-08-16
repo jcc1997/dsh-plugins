@@ -5,7 +5,7 @@ import React from 'react'
 import xyflowCss from '@xyflow/react/dist/style.css'
 import { plpCss, xyflowThemeCss } from './styles'
 import { PipelinePage } from './page'
-import { PipelineCallCard } from './call-card'
+import { PipelineDock } from './dock'
 import { registerOpenHandler } from './nav'
 
 export const name = 'pipeline'
@@ -35,13 +35,14 @@ export function makeHostBridge(): HostLike {
   }
 }
 
+// 自绘 pipeline 图标(宿主无此语义;风格对齐 ic_ds_*:stroke 1.3 + round cap/join)
 function IconPipelineGlyph() {
-  return React.createElement('svg', { width: 15, height: 15, viewBox: '0 0 16 16', fill: 'none', xmlns: 'http://www.w3.org/2000/svg', className: 'plp-nav-icon' },
-    React.createElement('rect', { x: 1.5, y: 3, width: 3.4, height: 3.4, rx: 1, stroke: 'currentColor', strokeWidth: 1.2 }),
-    React.createElement('rect', { x: 11.1, y: 9.6, width: 3.4, height: 3.4, rx: 1, stroke: 'currentColor', strokeWidth: 1.2 }),
-    React.createElement('path', { d: 'M4.9 4.7h2.6c.55 0 1 .45 1 1v1.6', stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round' }),
-    React.createElement('path', { d: 'M8.5 8.8v.5c0 .55.45 1 1 1h1.6', stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round' }),
-    React.createElement('circle', { cx: 3.2, cy: 4.7, r: 1.4, stroke: 'currentColor', strokeWidth: 1.2 }),
+  return React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', xmlns: 'http://www.w3.org/2000/svg', className: 'plp-nav-icon' },
+    React.createElement('rect', { x: 1.5, y: 3, width: 3.4, height: 3.4, rx: 1, stroke: 'currentColor', strokeWidth: 1.3, strokeLinejoin: 'round' }),
+    React.createElement('rect', { x: 11.1, y: 9.6, width: 3.4, height: 3.4, rx: 1, stroke: 'currentColor', strokeWidth: 1.3, strokeLinejoin: 'round' }),
+    React.createElement('path', { d: 'M4.9 4.7h2.6c.55 0 1 .45 1 1v1.6', stroke: 'currentColor', strokeWidth: 1.3, strokeLinecap: 'round' }),
+    React.createElement('path', { d: 'M8.5 8.8v.5c0 .55.45 1 1 1h1.6', stroke: 'currentColor', strokeWidth: 1.3, strokeLinecap: 'round' }),
+    React.createElement('circle', { cx: 3.2, cy: 4.7, r: 1.4, stroke: 'currentColor', strokeWidth: 1.3 }),
   )
 }
 
@@ -100,12 +101,8 @@ export function apply(ctx: { get(name: string): unknown }) {
     ),
   )
 
-  // 对话流工具卡片：接管 pipeline_run / pipeline_run_status 的渲染
-  // （tool.call.toolview keyed 槽位，key = 工具名；实时进度 + 点击跳转主面板详情）
-  slots.inject('tool.call.toolview', () =>
-    slots.register({ name: 'tool.call.toolview', key: 'pipeline_run', locale: 'conversation' }, PipelineCallCard),
-  )
-  slots.inject('tool.call.toolview', () =>
-    slots.register({ name: 'tool.call.toolview', key: 'pipeline_run_status', locale: 'conversation' }, PipelineCallCard),
+  // 常驻 dock 条：对话流输入区上方整行(conversation.input.dock,宿主 todo 同款座位)
+  slots.inject('conversation.input.dock', () =>
+    slots.register({ name: 'conversation.input.dock', id: 'pipeline', order: 0, locale: 'conversation' }, PipelineDock),
   )
 }

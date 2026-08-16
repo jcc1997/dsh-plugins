@@ -5,7 +5,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import mermaid from 'mermaid'
 
 function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  // 含引号转义:文本与属性(href/src)共用,防属性注入
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 /** 行内解析:**bold** *italic* `code` ~~strike~~ [text](url);单层递归(粗体内可再解析行内) */
@@ -50,10 +51,14 @@ function renderInline(text: string, keyPrefix: string, depth = 0): React.ReactNo
   return out
 }
 
-export interface ListItem { text: string; ordered: boolean; indent: number }
+export interface ListItem { text: string; ordered: boolean; indent: number; line: number }
 export interface MdBlock {
   key: string
   kind: 'p' | 'h' | 'pre' | 'quote' | 'list' | 'table' | 'hr' | 'mermaid'
+  /** 块起始行号(1-based,原文行),批注定位用 */
+  line: number
+  /** 块结束行号(1-based);单行块 = line */
+  lineEnd: number
   text?: string
   level?: number
   lang?: string
@@ -70,9 +75,10 @@ export function parseMarkdownBlocks(md: string): MdBlock[] {
   let i = 0
   let idx = 0
   let para: string[] = []
+  let paraLine = 1
   const flushPara = () => {
     if (para.length > 0) {
-      out.push({ key: 'b' + idx++, kind: 'p', text: para.join(' ') })
+      out.push({ key: 'b' + idx++, kind: 'p', text: para.join(' '), line: paraLine, lineEnd: paraLine + para.length - 1 })
       para = []
     }
   }
@@ -87,21 +93,24 @@ export function parseMarkdownBlocks(md: string): MdBlock[] {
       i += 1
       while (i < lines.length && !lines[i].trimStart().startsWith('```')) { buf.push(lines[i]); i += 1 }
       i += 1
-      if (lang === 'mermaid') out.push({ key: 'b' + idx++, kind: 'mermaid', code: buf.join('\n') })
-      else out.push({ key: 'b' + idx++, kind: 'pre', lang, code: buf.join('\n') })
+      const startLine = i - buf.length - 1
+      const endLine = i - 1
+      if (lang === 'mermaid') out.push({ key: 'b' + idx++, kind: 'mermaid', code: buf.join('\n'), line: startLine, lineEnd: endLine })
+      else out.push({ key: 'b' + idx++, kind: 'pre', lang, code: buf.join('\n'), line: startLine, lineEnd: endLine })
       continue
     }
     // 标题
     const hm = /^(#{1,6})\s+(.*)$/.exec(line)
-    if (hm) { flushPara(); out.push({ key: 'b' + idx++, kind: 'h', level: hm[1].length, text: hm[2] }); i += 1; continue }
+    if (hm) { flushPara(); out.push({ key: 'b' + idx++, kind: 'h', level: hm[1].length, text: hm[2], line: i + 1, lineEnd: i + 1 }); i += 1; continue }
     // 分隔线
-    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { flushPara(); out.push({ key: 'b' + idx++, kind: 'hr' }); i += 1; continue }
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { flushPara(); out.push({ key: 'b' + idx++, kind: 'hr', line: i + 1, lineEnd: i + 1 }); i += 1; continue }
     // 引用
     if (/^\s*>/.test(line)) {
       flushPara()
+      const startLine = i + 1
       const buf: string[] = []
       while (i < lines.length && /^\s*>/.test(lines[i])) { buf.push(lines[i].replace(/^\s*>\s?/, '')); i += 1 }
-      out.push({ key: 'b' + idx++, kind: 'quote', text: buf.join(' ') })
+      out.push({ key: 'b' + idx++, kind: 'quote', text: buf.join(' '), line: startLine, lineEnd: i })
       continue
     }
     // 表格
@@ -113,7 +122,7 @@ export function parseMarkdownBlocks(md: string): MdBlock[] {
         const rows: string[][] = []
         let j = i + 2
         while (j < lines.length && lines[j].trim().startsWith('|')) { rows.push(cellsOf(lines[j])); j += 1 }
-        out.push({ key: 'b' + idx++, kind: 'table', head, rows })
+        out.push({ key: 'b' + idx++, kind: 'table', head, rows, line: i + 1, lineEnd: j - 1 })
         i = j
         continue
       }
@@ -121,20 +130,22 @@ export function parseMarkdownBlocks(md: string): MdBlock[] {
     // 列表
     if (/^\s*([-*]\s+|\d+[.)]\s+)/.test(line)) {
       flushPara()
+      const startLine = i + 1
       const items: ListItem[] = []
       while (i < lines.length) {
         const um = /^(\s*)[-*]\s+(.*)$/.exec(lines[i])
         const om = /^(\s*)\d+[.)]\s+(.*)$/.exec(lines[i])
-        if (um) items.push({ text: um[2], ordered: false, indent: um[1].length })
-        else if (om) items.push({ text: om[2], ordered: true, indent: om[1].length })
+        if (um) items.push({ text: um[2], ordered: false, indent: um[1].length, line: i + 1 })
+        else if (om) items.push({ text: om[2], ordered: true, indent: om[1].length, line: i + 1 })
         else break
         i += 1
       }
-      out.push({ key: 'b' + idx++, kind: 'list', items })
+      out.push({ key: 'b' + idx++, kind: 'list', items, line: startLine, lineEnd: i })
       continue
     }
     // 空行 → 段落结束
     if (line.trim() === '') { flushPara(); i += 1; continue }
+    if (para.length === 0) paraLine = i + 1
     para.push(line.trim())
     i += 1
   }
@@ -142,16 +153,33 @@ export function parseMarkdownBlocks(md: string): MdBlock[] {
   return out
 }
 
-/** mermaid 代码块:官方库渲染,失败降级为原文 + 错误提示 */
+/** 宿主暗黑主题状态:监听 body[data-ds-dark-theme] 属性变化(mermaid 等需按主题渲染的内容用) */
+function useDarkTheme(): boolean {
+  const [dark, setDark] = useState(
+    () => typeof document !== 'undefined' && !!document.body && document.body.hasAttribute('data-ds-dark-theme')
+  )
+  useEffect(() => {
+    const body = document.body
+    if (!body) return
+    const obs = new MutationObserver(() => setDark(body.hasAttribute('data-ds-dark-theme')))
+    obs.observe(body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+    return () => obs.disconnect()
+  }, [])
+  return dark
+}
+
+/** mermaid 代码块:官方库渲染,跟随宿主主题(切换主题自动重渲染),失败降级为原文 + 错误提示 */
 function MermaidBlock(props: { code: string }) {
   const [svg, setSvg] = useState('')
   const [error, setError] = useState('')
+  const dark = useDarkTheme()
   useEffect(() => {
     let stopped = false
-    const dark = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
     const id = 'mdr-mmd-' + Math.random().toString(36).slice(2, 10)
+    // 主题直接在渲染时读 body 属性(不依赖闭包 state;dark 仅作重渲染触发器)
+    const isDark = typeof document !== 'undefined' && !!document.body && document.body.hasAttribute('data-ds-dark-theme')
     try {
-      mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'default', securityLevel: 'strict' })
+      mermaid.initialize({ startOnLoad: false, theme: isDark ? 'dark' : 'default', securityLevel: 'strict' })
       mermaid.render(id, props.code).then((res) => {
         if (stopped) return
         setSvg(res.svg)
@@ -164,7 +192,7 @@ function MermaidBlock(props: { code: string }) {
       if (!stopped) setError(String((e as Error).message || e))
     }
     return () => { stopped = true }
-  }, [props.code])
+  }, [props.code, dark])
   return (
     <div className="mdr-mermaid" data-mdr-noselect>
       <div className="mdr-pre-lang">mermaid</div>
@@ -180,7 +208,7 @@ function MermaidBlock(props: { code: string }) {
   )
 }
 
-/** 块 → React 节点;extra 按块 key 在对应块下方注入节点(划词批注输入框) */
+/** 块 → React 节点;extra 按块 key 在对应块下方注入节点(划词批注框内嵌文档流) */
 export function renderBlocks(blocks: MdBlock[], extra?: Map<string, React.ReactNode>): React.ReactNode[] {
   const out: React.ReactNode[] = []
   let liSeq = 0
@@ -195,7 +223,7 @@ export function renderBlocks(blocks: MdBlock[], extra?: Map<string, React.ReactN
       while (j < items.length && items[j].indent > item.indent) { children.push(items[j]); j += 1 }
       const content: React.ReactNode[] = renderInline(item.text, liKey)
       if (children.length > 0) content.push(renderItems(children, blockKey))
-      result.push(<li key={liKey} className="mdr-li" data-mdr-block data-mdr-key={liKey}>{content}</li>)
+      result.push(<li key={liKey} className="mdr-li" data-mdr-block data-mdr-key={liKey} data-mdr-line={item.line} data-mdr-line-end={item.line}>{content}</li>)
       const ex = extra && extra.get(liKey)
       if (ex) result.push(<div key={liKey + '-ex'} className="mdr-editor-slot">{ex}</div>)
       idx = j
@@ -205,19 +233,19 @@ export function renderBlocks(blocks: MdBlock[], extra?: Map<string, React.ReactN
   for (const b of blocks) {
     let node: React.ReactNode = null
     if (b.kind === 'p') {
-      node = <p key={b.key} className="mdr-p" data-mdr-block data-mdr-key={b.key}>{renderInline(b.text || '', b.key)}</p>
+      node = <p key={b.key} className="mdr-p" data-mdr-block data-mdr-key={b.key} data-mdr-line={b.line} data-mdr-line-end={b.lineEnd}>{renderInline(b.text || '', b.key)}</p>
     } else if (b.kind === 'h') {
       const Tag = ('h' + (b.level || 1)) as 'h1'
-      node = <Tag key={b.key} className={'mdr-h mdr-h' + (b.level || 1)} data-mdr-block data-mdr-key={b.key}>{renderInline(b.text || '', b.key)}</Tag>
+      node = <Tag key={b.key} className={'mdr-h mdr-h' + (b.level || 1)} data-mdr-block data-mdr-key={b.key} data-mdr-line={b.line} data-mdr-line-end={b.lineEnd}>{renderInline(b.text || '', b.key)}</Tag>
     } else if (b.kind === 'pre') {
       node = (
-        <pre key={b.key} className="mdr-pre" data-mdr-block data-mdr-key={b.key}>
+        <pre key={b.key} className="mdr-pre" data-mdr-block data-mdr-key={b.key} data-mdr-line={b.line} data-mdr-line-end={b.lineEnd}>
           {b.lang ? <div className="mdr-pre-lang">{esc(b.lang)}</div> : null}
           <code>{b.code || ''}</code>
         </pre>
       )
     } else if (b.kind === 'quote') {
-      node = <blockquote key={b.key} className="mdr-quote" data-mdr-block data-mdr-key={b.key}>{renderInline(b.text || '', b.key)}</blockquote>
+      node = <blockquote key={b.key} className="mdr-quote" data-mdr-block data-mdr-key={b.key} data-mdr-line={b.line} data-mdr-line-end={b.lineEnd}>{renderInline(b.text || '', b.key)}</blockquote>
     } else if (b.kind === 'list') {
       const ordered = (b.items || []).length > 0 && b.items![0].ordered
       node = ordered
@@ -225,7 +253,7 @@ export function renderBlocks(blocks: MdBlock[], extra?: Map<string, React.ReactN
         : <ul key={b.key} className="mdr-ul">{renderItems(b.items || [], b.key)}</ul>
     } else if (b.kind === 'table') {
       node = (
-        <div key={b.key} className="mdr-table-wrap" data-mdr-block data-mdr-key={b.key}>
+        <div key={b.key} className="mdr-table-wrap" data-mdr-block data-mdr-key={b.key} data-mdr-line={b.line} data-mdr-line-end={b.lineEnd}>
           <table className="mdr-table">
             <thead><tr>{(b.head || []).map((h, k) => <th key={k} className="mdr-th">{renderInline(h, 'th' + k)}</th>)}</tr></thead>
             <tbody>{(b.rows || []).map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci} className="mdr-td">{renderInline(c, 'td' + ri + '-' + ci)}</td>)}</tr>)}</tbody>

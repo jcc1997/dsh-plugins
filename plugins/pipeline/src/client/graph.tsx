@@ -2,6 +2,7 @@
 // 交互：节点卡片（类型徽章/标题/删除/端口点）；边中点 + 新增节点；点节点选中（右侧编辑面板）。
 // 不支持拖拽节点（nodesDraggable=false）；画布可平移/缩放；连线规则与 host 引擎一致（显式 inputs 优先，否则串联上一个）。
 import React, { useMemo, useState } from 'react'
+import { IconCloseOutline16, IconPlusOutline16, useEscClose } from '@dsh-plugins/ui'
 import { ReactFlow, Background, Controls, Panel, BaseEdge, EdgeLabelRenderer, getBezierPath, MarkerType, Handle, Position, type EdgeProps, type NodeProps } from '@xyflow/react'
 
 export interface GraphNode {
@@ -77,7 +78,7 @@ function PlpNode(props: NodeProps) {
         <span className="plp-rf-node-spacer" />
         {!d.readonly ? (
           <button type="button" className="plp-graph-del" title="删除节点"
-            onClick={(e) => { e.stopPropagation(); d.onDelete(n.id) }}>×</button>
+            onClick={(e) => { e.stopPropagation(); d.onDelete(n.id) }}><IconCloseOutline16 size={12} /></button>
         ) : null}
       </div>
       <div className="plp-rf-node-summary" title={configSummary(n)}>{configSummary(n) || '未配置'}</div>
@@ -110,7 +111,7 @@ function PlpEdge(props: EdgeProps) {
           <button type="button" className="plp-rf-edge-add nodrag nopan" title="在此新增节点"
             style={{ position: 'absolute', transform: 'translate(-50%,-50%) translate(' + labelX + 'px,' + labelY + 'px)', pointerEvents: 'all' }}
             onClick={(e) => { e.stopPropagation(); const d = props.data as unknown as { onAddBetween?: (f: string, t: string) => void } | undefined; if (d && d.onAddBetween) d.onAddBetween(props.source, props.target) }}>
-            <svg width={10} height={10} viewBox="0 0 16 16" fill="none"><path d="M8.6 1.5V7.4H14.5V8.6H8.6V14.5H7.4V8.6H1.5V7.4H7.4V1.5H8.6z" fill="currentColor"/></svg>
+            <IconPlusOutline16 size={10} />
           </button>
         ) : null}
       </EdgeLabelRenderer>
@@ -139,6 +140,7 @@ export function NodeGraph(props: {
   const sorted = useMemo(() => [...props.nodes].sort((a, b) => a.order - b.order), [props.nodes])
   // 顶部「新增节点」类型选择浮层
   const [picker, setPicker] = useState(false)
+  useEscClose(picker, () => setPicker(false))
 
   const rfNodes = useMemo(() => sorted.map((n, i) => ({
     id: n.id,
@@ -192,7 +194,7 @@ export function NodeGraph(props: {
         <Panel position="top-left">
           {!readonly ? (
             <button type="button" className="plp-btn plp-primary" onClick={() => setPicker(true)}>
-              <svg width={14} height={14} viewBox="0 0 16 16" fill="none"><path d="M8.64 1.5V7.35H14.5V8.65H8.64V14.5H7.34V8.65H1.5V7.35H7.34V1.5h1.3z" fill="currentColor"/></svg>
+              <IconPlusOutline16 />
               新增节点
             </button>
           ) : null}
@@ -204,7 +206,7 @@ export function NodeGraph(props: {
           <div className="plp-modal" style={{ width: 380 }} onClick={(e) => e.stopPropagation()}>
             <div className="plp-modal-head">
               <span className="plp-modal-title">新增节点（追加到末尾）</span>
-              <button className="plp-icon-btn" type="button" onClick={() => setPicker(false)}>×</button>
+              <button className="plp-icon-btn" type="button" onClick={() => setPicker(false)}><IconCloseOutline16 /></button>
             </div>
             <div className="plp-modal-body">
               <div className="plp-type-grid">

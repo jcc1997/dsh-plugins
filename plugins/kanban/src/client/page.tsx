@@ -272,18 +272,18 @@ export function KanbanPage(props: {
 function IconBoardGlyph() {
   return (
     <svg width={15} height={15} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="kbnb-nav-icon">
-      <rect x="1.5" y="2" width="4" height="12" rx="1" stroke="currentColor" strokeWidth="1.2" />
-      <rect x="6" y="2" width="4" height="8" rx="1" stroke="currentColor" strokeWidth="1.2" />
-      <rect x="10.5" y="2" width="4" height="5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="1.5" y="2" width="4" height="12" rx="1" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="6" y="2" width="4" height="8" rx="1" stroke="currentColor" strokeWidth="1.3" />
+      <rect x="10.5" y="2" width="4" height="5" rx="1" stroke="currentColor" strokeWidth="1.3" />
     </svg>
   )
 }
 function IconArchiveGlyph() {
   return (
     <svg width={15} height={15} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="kbnb-nav-icon">
-      <rect x="1.5" y="1.5" width="13" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M3 5v8.5c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V5" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M6.5 8.5h3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <rect x="1.5" y="1.5" width="13" height="3.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M3 5v8.5c0 .55.45 1 1 1h8c.55 0 1-.45 1-1V5" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M6.5 8.5h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   )
 }
@@ -294,6 +294,7 @@ const GATE_KIND_OPTIONS: { type: string; label: string }[] = [
   { type: 'tag-required', label: '必须含标签' },
   { type: 'field-nonempty', label: '字段非空' },
   { type: 'mr-linked', label: '已关联 MR' },
+  { type: 'branch-linked', label: '已关联 workflow 分支' },
   { type: 'mr-merged', label: 'MR 已合并' },
   { type: 'pipeline', label: 'pipeline 检查' },
   { type: 'code', label: '代码检查（沙箱）' },
@@ -601,17 +602,17 @@ function TemplateCard(props: { tpl: CardTemplate; lib: CardGate[]; kb: ReturnTyp
 function IconGateGlyph() {
   return (
     <svg width={15} height={15} viewBox="0 0 16 16" fill="none" className="kbnb-nav-icon">
-      <path d="M8 1.5l5.5 2v4.2c0 3.1-2.2 5.6-5.5 6.8-3.3-1.2-5.5-3.7-5.5-6.8V3.5L8 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-      <path d="M5.8 8l1.5 1.5 2.9-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 1.5l5.5 2v4.2c0 3.1-2.2 5.6-5.5 6.8-3.3-1.2-5.5-3.7-5.5-6.8V3.5L8 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M5.8 8l1.5 1.5 2.9-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
 function IconTemplateGlyph() {
   return (
     <svg width={15} height={15} viewBox="0 0 16 16" fill="none" className="kbnb-nav-icon">
-      <rect x="2" y="1.5" width="9" height="13" rx="1" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M5 4.5h3M5 7h3M5 9.5h2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-      <path d="M11 4h1.5c.55 0 1 .45 1 1v8.5c0 .55-.45 1-1 1H12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <rect x="2" y="1.5" width="9" height="13" rx="1" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M5 4.5h3M5 7h3M5 9.5h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M11 4h1.5c.55 0 1 .45 1 1v8.5c0 .55-.45 1-1 1H12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   )
 }

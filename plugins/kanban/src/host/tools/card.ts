@@ -132,7 +132,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     {
       // 新建卡片：title 必填；content 支持块数组或字符串
       name: 'kanban_create',
-      description: '新建卡片。title 必填；status 为列名或列 id（缺省放入第一列）；可带 description、content（富文本块数组或 markdown 字符串）、tags；template 传创建模板名或 id（预填 description/tags/content/gates，显式传参覆盖模板）。',
+      description: '新建卡片。title 必填；status 为列名或列 id（缺省放入第一列）；可带 description、content（富文本块数组或 markdown 字符串）、tags；template 传创建模板名或 id（预填 description/tags/content/gates，显式传参覆盖模板）。自动关联创建者会话（refs 挂 kind=session，会话「任务」tab 可见）。',
       parameters: P({
         title: STR('卡片标题（必填）'),
         status: STR('目标列名或列 id，缺省第一列'),
@@ -141,7 +141,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
         tags: STRS('初始标签列表'),
         template: STR('创建模板名或 id（可选）：预填 description/tags/content/gates；显式传参覆盖模板值'),
       }, ['title']),
-      execute: async (args: any) => {
+      execute: async (args: any, exec: any) => {
         return mutateBoard(fs, (board: any) => {
           const col = resolveColumn(board, args.status)
           if (!col) return { ok: false, error: 'column not found: ' + String(args.status) }
@@ -163,7 +163,12 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
             gateIds: tpl && Array.isArray(tpl.gateIds) ? [...tpl.gateIds] : [],
             createdAt: now(), updatedAt: now(),
           }
-          appendActivity(card, '创建卡片' + (tpl ? '（模板：' + tpl.name + '）' : ''))
+          // 自动关联当前会话（exec.agent 为调用方 agent；会话「任务」tab 按 refs session 过滤）
+          const sessionId = exec && exec.agent && exec.agent.id ? String(exec.agent.id) : ''
+          if (sessionId && !card.refs.some((r: any) => r.kind === 'session' && String(r.externalId) === sessionId)) {
+            card.refs.push({ id: safeId('r'), kind: 'session', platform: 'dsh', externalId: sessionId, url: '', display: '本会话', meta: {}, createdAt: now() })
+          }
+          appendActivity(card, '创建卡片' + (tpl ? '（模板：' + tpl.name + '）' : '') + (sessionId ? '，关联本会话' : ''))
           col.cards.push(card)
           return { card_id: card.id, column: col.title, template: tpl ? tpl.name : null }
         })
@@ -175,15 +180,15 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
       name: 'kanban_move',
       description: '移动卡片到目标状态（列）。status 传列名或列 id，如"进行中"。卡片挂有 move 门禁时，不通过则拒绝移动。',
       parameters: P({ card_id: STR('要移动的卡片 id'), status: STR('目标列名或列 id') }, ['card_id', 'status']),
-      execute: async (args: any) => {
+      execute: async (args: any, exec: any) => {
         const dataDir = await resolveDataDir(fs)
         const board0 = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
         const hit0 = findCardGlobal(board0, String(args.card_id))
         if (!hit0) return { ok: false, error: 'card not found: ' + args.card_id }
         const to0 = resolveColumn(board0, args.status)
         if (!to0) return { ok: false, error: 'column not found: ' + String(args.status) }
-        // 门禁（to 传目标列标题，config.to 可限定目标列）
-        const gate = await checkGates(hit0.card, board0, 'move', gateDeps, { to: to0.title })
+        // 门禁（to 传目标列标题，config.to 可限定目标列）；execCtx 透传调用方 agent/signal（pipeline 门禁评审用）
+        const gate = await checkGates(hit0.card, board0, 'move', gateDeps, { to: to0.title }, { agent: exec && exec.agent, signal: exec && exec.signal })
         if (!gate.ok) return { ok: false, error: '门禁未通过：' + gate.failed.map((f) => f.reason).join('；') }
         return mutateBoard(fs, (board: any) => {
           const hit = findCardGlobal(board, String(args.card_id))

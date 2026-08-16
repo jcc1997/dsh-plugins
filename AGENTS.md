@@ -9,10 +9,9 @@
 | README.md | 外部用户/新贡献者 | 项目介绍：是什么、能力、怎么装。**不写开发过程** |
 | AGENTS.md（本文件） | 在仓库内工作的 agent | 工作规则、流程、红线 |
 | .agents/skills/dsh-dynamic-plugin-dev/SKILL.md | 开发动态插件的 agent | 受限环境约束、代码模板、踩坑清单、编译管线、省 token 流程、宿主源码/跨插件联动速查（§七）。**开发前必须加载** |
-| packages/ui/DESIGN.md | 写 UI 的 agent | 设计规范：与 DSH 宿主统一、tokens、组件契约、间距契约 |
-| packages/ui/dsh/design-platform.css | 写 UI 的 agent | DSH 官方设计 tokens 权威色板（抽取自 dsh-client-ui-theme） |
+| docs/ui-design/（tokens.md / style-guide.md / components.md） | 写 UI 的 agent | 设计规范：与 DSH 宿主统一、tokens 索引、风格指引、组件契约、交互细节、ADR |
+| packages/ui/host/design-platform.css | 写 UI 的 agent | DSH 官方设计 tokens 权威色板快照（sync 脚本从 vendor submodule 同步） |
 | plugins/<name>/README.md | 该插件的使用者/维护者 | 该插件当前状态：能力、目录、数据模型、已知问题。**不是开发过程流水账** |
-| HANDOFF.md（仓库根） | 跨会话接手的 agent | 当前分支/未合并 commit、重建与激活步骤、宿主签名速查、下一步要点。**会话接手先读** |
 
 ## 动态插件开发流程（热更新）
 
@@ -23,7 +22,7 @@
 
 ## 红线
 
-1. **UI 样式一律走宿主 tokens**：直接引用 `--dsw-*`（明暗主题自动适配），禁止自建别名层、禁止硬编码颜色/间距/圆角（见 DESIGN.md）
+1. **UI 样式一律走宿主 tokens**：直接引用 `--dsw-*`（明暗主题自动适配），禁止自建别名层、禁止硬编码颜色/间距/圆角（见 docs/ui-design/）
 2. **禁止 emoji**：UI 任何位置不出现 emoji
 3. **文档纪律**：README 只写对外介绍；开发过程/踩坑写进 skill；插件现状写进插件 README。提交前确认改动涉及文档时文档同步更新
 4. **源码即真相**：`dist/` 产物 gitignore；一切以 `src/` 为准，动态插件会话内存态重启即失，务必及时提交源码

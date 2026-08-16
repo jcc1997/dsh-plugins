@@ -1,6 +1,7 @@
 // client/page.tsx — Pipeline 主界面：顶栏 + 左侧导航（流水线 / 运行 / 设置）+ 主区视图切换
 // 数据操作全部走 HostLike（fetch → /pipeline-api/*）；视图组件在 views.tsx。
 import React, { useState, useEffect, useCallback } from 'react'
+import { IconChevronLeftOutline14, IconCloseOutline16, IconPlusOutline16, useEscClose } from '@dsh-plugins/ui'
 import { EditorView } from './editor'
 
 export interface HostLike { call(method: string, args?: unknown): Promise<any> }
@@ -66,13 +67,13 @@ export function PipelinePage(props: { onClose: () => void; focusRunId?: string |
     <div className="plp-page">
       <header className="plp-header">
         <button className="plp-icon-btn" type="button" title="返回" onClick={props.onClose}>
-          <svg width={16} height={16} viewBox="0 0 14 14" fill="none"><path d="M8.5 2.15L8.08 2.58 5.35 5.3c-.26.26-.43.48-.51.69-.09.22-.09.4 0 .62.08.21.25.43.51.69l2.73 2.72.42.43-.85.85-.42-.43-2.73-2.72c-.28-.28-.53-.56-.7-.84-.16-.27-.24-.56-.24-.88s.08-.61.24-.88c.17-.28.42-.56.7-.84l2.73-2.72.42-.43.85.85z" fill="currentColor"/></svg>
+          <IconChevronLeftOutline14 />
         </button>
         <span className="plp-title">Pipeline</span>
         <span className="plp-saving">{error ? '' : ''}</span>
         <div className="plp-header-actions">
           <button className="plp-btn plp-primary" type="button" onClick={() => setCreating(true)}>
-            <svg width={14} height={14} viewBox="0 0 16 16" fill="none"><path d="M8.64 1.5V7.35H14.5V8.65H8.64V14.5H7.34V8.65H1.5V7.35H7.34V1.5h1.3z" fill="currentColor"/></svg>
+            <IconPlusOutline16 />
             新建流水线
           </button>
         </div>
@@ -112,6 +113,7 @@ export function PipelinePage(props: { onClose: () => void; focusRunId?: string |
 
 /* ── 新建弹窗 ── */
 function CreateModal(props: { host: HostLike; onCreated: (id: string) => void; onClose: () => void }) {
+  useEscClose(true, props.onClose)
   const [name, setName] = useState('')
   const [kind, setKind] = useState<'atomic' | 'combined'>('atomic')
   const [description, setDescription] = useState('')
@@ -135,7 +137,7 @@ function CreateModal(props: { host: HostLike; onCreated: (id: string) => void; o
       <div className="plp-modal">
         <div className="plp-modal-head">
           <span className="plp-modal-title">新建流水线</span>
-          <button className="plp-icon-btn" type="button" onClick={props.onClose}>×</button>
+          <button className="plp-icon-btn" type="button" onClick={props.onClose}><IconCloseOutline16 /></button>
         </div>
         <div className="plp-modal-body">
           {error ? <div style={{ color: 'var(--dsw-alias-state-error-primary)', fontSize: 12, marginBottom: 12 }}>{error}</div> : null}

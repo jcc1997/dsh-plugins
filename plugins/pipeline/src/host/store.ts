@@ -239,6 +239,99 @@ export function listCatalog(doc: PipelineDoc): any[] {
   return out.sort((a, b) => String(b.publishedAt || '').localeCompare(String(a.publishedAt || '')))
 }
 
+/* ── 导入：模板 pipeline 定义（按稳定 id 幂等 upsert，供 pipeline_import_config / 模板分发） ── */
+
+function normalizeNodes(nodes: unknown): PipelineNode[] {
+  const arr = Array.isArray(nodes) ? nodes : []
+  return arr.map((n: any, i: number) => ({
+    id: n && n.id && typeof n.id === 'string' ? n.id : 'n' + i,
+    title: (n && n.title) || ('节点 ' + (i + 1)),
+    type: (n && n.type) || 'transform',
+    order: n && typeof n.order === 'number' ? n.order : i,
+    inputs: n && Array.isArray(n.inputs) ? n.inputs.map(String) : [],
+    config: n && n.config && typeof n.config === 'object' ? n.config : {},
+  }))
+}
+
+export interface ImportPipelineDef {
+  id: string
+  name?: string
+  kind?: 'atomic' | 'combined'
+  description?: string
+  tags?: string[]
+  nodes?: unknown
+  input_schema?: Record<string, unknown>
+  published?: boolean
+  changelog?: string
+}
+
+/** 节点结构比对（导入幂等判定用：模板节点与已发布版本节点一致则无需重新发布） */
+function sameNodes(a: PipelineNode[], b: PipelineNode[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
+/**
+ * 导入 pipeline 定义：按 id 幂等 upsert。
+ * - 不存在 → 新建；published 时把当前草稿版本直接发布（不 bump）。
+ * - 已存在 → 更新元信息 + 最新草稿节点（已发布版本不可变，自动开新草稿）；
+ *   published 且（尚无发布版本 或 模板节点与最新已发布版本不一致）→ 把最新草稿发布为新的已发布版本。
+ * - 重复导入相同定义 → 内容一致则不再发布、不产生新版本（幂等）。
+ */
+export function importPipelines(doc: PipelineDoc, defs: ImportPipelineDef[]): { ok: boolean; imported?: { id: string; status: 'created' | 'updated'; note?: string }[]; error?: string } {
+  const out: { id: string; status: 'created' | 'updated'; note?: string }[] = []
+  for (const def of defs) {
+    if (!def || typeof def !== 'object') return { ok: false, error: '非法 pipeline 定义' }
+    const id = String(def.id || '').trim()
+    if (!id) return { ok: false, error: '缺少 pipeline id' }
+    const nodesN = def.nodes !== undefined ? normalizeNodes(def.nodes) : undefined
+    const exist = findPipeline(doc, id)
+    if (exist) {
+      const latest = findLatest(exist)
+      const pubVersions = exist.versions.filter((v) => v.published)
+      const latestPub = pubVersions.sort((a, b) => String(b.version).localeCompare(String(a.version), undefined, { numeric: true }))[0]
+      const nodesChanged = nodesN !== undefined && !sameNodes(latest.nodes, nodesN)
+      const schemaChanged = def.input_schema !== undefined && JSON.stringify(latest.inputSchema) !== JSON.stringify(def.input_schema)
+      if (!latest.published) {
+        // 本地存在未发布草稿：与模板不一致时**不覆盖**（用户草稿是工作产物），仅提示；一致则无事发生
+        if (nodesChanged || schemaChanged) {
+          out.push({ id, status: 'updated', note: '存在与模板不一致的本地草稿，未覆盖（保留用户改动）' })
+          continue
+        }
+        updatePipeline(doc, id, { name: def.name, description: def.description, tags: def.tags })
+        out.push({ id, status: 'updated' })
+        continue
+      }
+      // 最新为已发布版本（无草稿）：模板与已发布版本不一致才开新草稿；随后 published 时发布该草稿
+      const effectiveNodes = nodesChanged ? nodesN : undefined
+      const effectiveSchema = schemaChanged ? def.input_schema : undefined
+      updatePipeline(doc, id, {
+        name: def.name,
+        description: def.description,
+        tags: def.tags,
+        nodes: effectiveNodes,
+        inputSchema: effectiveSchema,
+      })
+      if (def.published) {
+        const changed = !latestPub || (nodesN !== undefined && !sameNodes(latestPub.nodes, nodesN))
+        if (changed) publishPipeline(doc, id, { version: findLatest(exist).version, changelog: def.changelog || 'imported' })
+      }
+      out.push({ id, status: 'updated' })
+    } else {
+      const r = createPipeline(doc, { name: def.name || id, description: def.description || '', kind: def.kind, tags: def.tags })
+      if (!r.ok || !r.pipeline) return { ok: false, error: r.error || 'create failed: ' + id }
+      r.pipeline.id = id
+      if (nodesN !== undefined) {
+        const latest = findLatest(r.pipeline)
+        latest.nodes = nodesN
+        if (def.input_schema) latest.inputSchema = def.input_schema
+      }
+      if (def.published) publishPipeline(doc, id, { version: findLatest(r.pipeline).version, changelog: def.changelog || 'imported' })
+      out.push({ id, status: 'created' })
+    }
+  }
+  return { ok: true, imported: out }
+}
+
 /* ── 解析：combined 引用子 pipeline（运行时校验） ── */
 
 /** 解析 node type=pipeline 引用的目标（pipelineId + version），支持 '@latest' / 具体版本 */

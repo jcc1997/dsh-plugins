@@ -7,23 +7,24 @@ export const baseCss = `
 /* ══ 顶栏 ══ */
 .kbnb-header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--dsw-alias-border-l2);flex:none;background:var(--dsw-alias-bg-base)}
 .kbnb-back{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px}
-.kbnb-title{font-size:17px;font-weight:600;letter-spacing:.2px}
+.kbnb-title{font-size:16px;font-weight:600;letter-spacing:.2px}
 .kbnb-stats{font-size:12px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;padding:2px 10px;background:var(--dsw-alias-bg-layer-2);border-radius:999px}
 .kbnb-saving{font-size:12px;color:var(--dsw-alias-label-tertiary);transition:opacity 150ms cubic-bezier(.4, 0, .2, 1)}
 .kbnb-header-actions{margin-left:auto;display:flex;gap:8px}
 
-/* ══ 按钮 ══ */
-.kbnb-btn{background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;color:var(--dsw-alias-label-primary);transition:all 150ms cubic-bezier(.4, 0, .2, 1);font-family:inherit}
-.kbnb-btn:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l3)}
-.kbnb-btn:disabled{opacity:.5;cursor:default;pointer-events:none}
-.kbnb-btn:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(65, 118, 230, .18)}
-.kbnb-primary{background:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);color:#fff}
-.kbnb-primary:hover{background:var(--dsw-static-deepseek-600);border-color:var(--dsw-static-deepseek-600)}
-.kbnb-danger{color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-state-error-secondary)}
-.kbnb-danger:hover{background:var(--dsw-alias-interactive-bg-hover-danger);border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}
-.kbnb-icon-btn{background:none;border:none;cursor:pointer;padding:5px;border-radius:6px;color:var(--dsw-alias-label-secondary);display:inline-flex;align-items:center;justify-content:center;transition:all 150ms cubic-bezier(.4, 0, .2, 1)}
+/* ══ 按钮(宿主胶囊契约 components.md §二:r18/h36/padding 0 14;icon 按钮 28×28 圆形) ══ */
+.kbnb-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:18px;height:36px;padding:0 14px;font-size:14px;line-height:22px;cursor:pointer;color:var(--dsw-alias-label-primary);background:transparent;font-family:inherit;transition:background 150ms cubic-bezier(.4, 0, .2, 1)}
+.kbnb-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}
+.kbnb-btn:disabled{cursor:not-allowed;opacity:.4}
+.kbnb-btn:focus-visible{outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}
+.kbnb-primary{background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)}
+.kbnb-primary:hover:not(:disabled){background:var(--dsw-alias-button-primary-hover)}
+.kbnb-danger{color:var(--dsw-alias-state-error-primary)}
+.kbnb-danger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-danger)}
+.kbnb-icon-btn{width:28px;height:28px;background:none;border:none;cursor:pointer;padding:0;border-radius:50%;color:var(--dsw-alias-label-secondary);display:inline-flex;align-items:center;justify-content:center;transition:background 150ms cubic-bezier(.4, 0, .2, 1)}
 .kbnb-icon-btn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
 .kbnb-icon-btn:disabled{opacity:.3;cursor:default}
+.kbnb-icon-btn:focus-visible{outline:none;box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}
 
 /* ══ 错误条 ══ */
 .kbnb-error{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);padding:8px 16px;font-size:13px;border-bottom:1px solid var(--dsw-alias-state-error-secondary)}
@@ -32,19 +33,18 @@ export const baseCss = `
 .kbnb-field{display:block;margin-bottom:16px}
 .kbnb-field-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .kbnb-field-label{font-size:12px;color:var(--dsw-alias-label-secondary)}
-.kbnb-input{display:block;width:100%;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);transition:all 150ms cubic-bezier(.4, 0, .2, 1);font-family:inherit}
-.kbnb-input:hover{border-color:var(--dsw-alias-border-l3)}
-.kbnb-input:focus-visible{outline:none;border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px rgba(65, 118, 230, .18)}
+/* 输入零高亮(ADR-2):focus/hover 不改边框不加 ring,caret 品牌蓝 */
+.kbnb-input{display:block;width:100%;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 8px;font-size:13px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:inherit;caret-color:var(--dsw-alias-state-business-primary)}
+.kbnb-input:focus-visible{outline:none}
 .kbnb-input::placeholder{color:var(--dsw-alias-label-dimmed)}
-.kbnb-textarea{display:block;width:100%;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;font-size:13px;min-height:160px;font-family:inherit;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);transition:all 150ms cubic-bezier(.4, 0, .2, 1);resize:vertical}
-.kbnb-textarea:hover{border-color:var(--dsw-alias-border-l3)}
-.kbnb-textarea:focus-visible{outline:none;border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px rgba(65, 118, 230, .18)}
+.kbnb-textarea{display:block;width:100%;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 8px;font-size:13px;min-height:160px;font-family:inherit;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);resize:vertical;caret-color:var(--dsw-alias-state-business-primary)}
+.kbnb-textarea:focus-visible{outline:none}
 .kbnb-textarea::placeholder{color:var(--dsw-alias-label-dimmed)}
 
 /* ══ 弹窗 ══ */
 .kbnb-mask{position:fixed;inset:0;background:var(--dsw-alias-bg-mask-1);display:flex;align-items:center;justify-content:center;z-index:70;pointer-events:auto}
-.kbnb-modal{background:var(--dsw-alias-bg-base);border-radius:14px;box-shadow:var(--dsw-shadow-lv3);width:480px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
-.kbnb-modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 12px;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.kbnb-modal{background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:14px;box-shadow:var(--dsw-shadow-lv3);width:560px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+.kbnb-modal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--dsw-alias-border-l2)}
 .kbnb-modal-title{font-size:15px;font-weight:600}
 .kbnb-modal-body{padding:16px;overflow-y:auto}
 .kbnb-modal-body .kbnb-input-title-editable{margin-bottom:16px}
@@ -73,17 +73,5 @@ export const baseCss = `
 .hHd-Xa_footerActions{flex-direction:column;gap:4px}
 .hHd-Xa_collapsed .hHd-Xa_footerActions{flex-direction:column;width:auto;align-items:center}
 
-/* ══ 暗色主题适配段（官方模式：body[data-ds-dark-theme] 覆盖；品牌蓝改为亮蓝 deepseek-400 系，保持与 alias state-business-primary 一致） ══ */
-body[data-ds-dark-theme] .kbnb-btn:focus-visible,
-body[data-ds-dark-theme] .kbnb-input:focus-visible,
-body[data-ds-dark-theme] .kbnb-textarea:focus-visible,
-body[data-ds-dark-theme] .kbnb-status-select:focus-visible{box-shadow:0 0 0 2px rgba(103, 158, 254, .25)}
-body[data-ds-dark-theme] .kbnb-primary:hover{background:var(--dsw-static-deepseek-500);border-color:var(--dsw-static-deepseek-500)}
-body[data-ds-dark-theme] .kbnb-tag,
-body[data-ds-dark-theme] .kbnb-activity-actor,
-body[data-ds-dark-theme] .kbnb-arch-col,
-body[data-ds-dark-theme] .kbnb-add-card:hover{background:rgba(103, 158, 254, .12)}
-body[data-ds-dark-theme] .kbnb-drop-line{box-shadow:0 0 6px rgba(103, 158, 254, .3)}
-body[data-ds-dark-theme] .kbnb-arch-row{box-shadow:none}
-body[data-ds-dark-theme] .kbnb-card-active{box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary),0 2px 8px rgba(0, 0, 0, .45)}
+/* 暗色适配全由 alias tokens 承担,不写主题分支(docs/ui-design 红线) */
 `;

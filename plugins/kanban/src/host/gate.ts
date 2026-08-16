@@ -3,6 +3,7 @@
 //   tag-required   内置条件：卡片必须含指定标签
 //   field-nonempty 内置条件：字段非空
 //   mr-linked      内置条件：已关联仓库 + MR
+//   branch-linked  内置条件：已关联 workflow 分支（github-branch）
 //   mr-merged      内置条件：关联 MR 已合并（GitHub API）
 //   code           一段代码：沙箱 node 执行，载荷写临时文件，exit 0 且 stdout {ok:true} 通过
 //   pipeline       一条/多条 pipeline：现场启动并等待全部成功（GitHub CI 门禁语义）
@@ -16,7 +17,7 @@ export interface ShellLike {
 }
 
 export interface PipelineSvcLike {
-  run(pipelineId: string, inputs: Record<string, unknown>, version?: string): Promise<Record<string, unknown>>
+  run(pipelineId: string, inputs: Record<string, unknown>, version?: string, opts?: { parentAgent?: unknown; externalSignal?: AbortSignal }): Promise<Record<string, unknown>>
 }
 
 export interface GateCheckDeps {
@@ -110,6 +111,13 @@ const repo = refs.find(r => r.kind === 'github-repo' && r.externalId);
 const mr = refs.find(r => r.kind === 'github-mr' && r.externalId);
 return { ok: !!(repo && mr), reason: !repo ? '未关联 GitHub 仓库' : '未关联 MR' }`
   }
+  if (type === 'branch-linked') {
+    return `const c = await gate.card({});
+const refs = c.refs || [];
+const repo = refs.find(r => r.kind === 'github-repo' && r.externalId);
+const br = refs.find(r => r.kind === 'github-branch' && r.externalId);
+return { ok: !!(repo && br), reason: !repo ? '未关联 GitHub 仓库' : '未关联 workflow 分支（先 git_create_branch）' }`
+  }
   if (type === 'mr-merged') {
     return `const c = await gate.card({});
 const sync = await gate.call({service: 'git', method: 'sync', args: [c.id]});
@@ -124,7 +132,8 @@ return { ok: open.length === 0, reason: open.length ? 'MR 未合并：' + open.m
     if (ids.length === 0 && cfg.pipelineId) ids = [String(cfg.pipelineId)]
     return `const ids = ${JSON.stringify(ids)};
 const card = await gate.card({});
-const outs = await Promise.all(ids.map(id => gate.runPipeline({pipelineId: id, inputs: {card}})));
+const slim = { id: card.id, title: card.title, description: card.description || '', refs: card.refs || [], meta: card.meta || {}, tags: card.tags || [] };
+const outs = await Promise.all(ids.map(id => gate.runPipeline({pipelineId: id, inputs: {card: slim}})));
 const bad = outs.filter(o => o && o.error);
 return { ok: bad.length === 0, reason: bad.length ? 'pipeline 失败：' + bad.map(o => o.error).join('；') : '' }`
   }
@@ -156,6 +165,15 @@ nativeCheckers['mr-linked'] = async (card, gate) => {
   const snapMrs = snap && Array.isArray(snap.mrs) ? snap.mrs : []
   if (!repoRef || !repoRef.externalId) return { name: gate.name || 'mr-linked', type: 'mr-linked', reason: '卡片未关联 GitHub 仓库（github-repo）' }
   if (mrRefs.length === 0 && snapMrs.length === 0) return { name: gate.name || 'mr-linked', type: 'mr-linked', reason: '卡片未关联 MR（github-mr）' }
+  return null
+}
+
+nativeCheckers['branch-linked'] = async (card, gate) => {
+  const refs: any[] = Array.isArray(card.refs) ? card.refs : []
+  const repoRef = refs.find((r) => r.kind === 'github-repo')
+  const brRefs = refs.filter((r) => r.kind === 'github-branch' && r.externalId)
+  if (!repoRef || !repoRef.externalId) return { name: gate.name || 'branch-linked', type: 'branch-linked', reason: '卡片未关联 GitHub 仓库（github-repo）' }
+  if (brRefs.length === 0) return { name: gate.name || 'branch-linked', type: 'branch-linked', reason: '卡片未关联 workflow 分支（github-branch，先 git_create_branch）' }
   return null
 }
 
@@ -192,11 +210,15 @@ nativeCheckers['pipeline'] = async (card, gate, cfg, deps) => {
   let ids: string[] = Array.isArray(cfg.pipelines) ? cfg.pipelines.map(String).filter(Boolean) : []
   if (ids.length === 0 && cfg.pipelineId) ids = [String(cfg.pipelineId)]
   if (ids.length === 0) return { name: gate.name || 'pipeline', type: 'pipeline', reason: 'pipeline checker 缺少 pipelines 配置' }
-  const inputs: Record<string, unknown> = { card }
-  // 现场启动并等待：全部成功才通过（GitHub CI 门禁语义）
+  const inputs: Record<string, unknown> = { card: slimCardForPipeline(card) }
+  const execCtx = (deps as any)._execCtx || null
+  // 现场启动并等待：全部成功才通过（GitHub CI 门禁语义）；透传调用方 agent/signal（llm 节点 spawn 评审 agent）
   const results = await Promise.all(ids.map(async (pid) => {
     try {
-      const out = await svc.run(pid, inputs)
+      const out = await svc.run(pid, inputs, undefined, {
+        ...(execCtx && execCtx.agent ? { parentAgent: execCtx.agent } : {}),
+        ...(execCtx && execCtx.signal ? { externalSignal: execCtx.signal } : {}),
+      })
       return { pid, ok: !(out && out.error), out }
     } catch (e) {
       return { pid, ok: false, out: { error: String((e as Error).message) } }
@@ -204,6 +226,7 @@ nativeCheckers['pipeline'] = async (card, gate, cfg, deps) => {
   }))
   const failed = results.filter((r) => !r.ok)
   if (failed.length > 0) {
+    // 评审问题落卡评论由 pipeline 服务侧统一写入（单点，见 pipeline 插件 pipelineService.run），门禁只负责拒绝
     return { name: gate.name || 'pipeline', type: 'pipeline', reason: failed.map((f) => 'pipeline ' + f.pid + ' 失败：' + String(f.out && f.out.error ? f.out.error : 'unknown')).join('；') }
   }
   return null
@@ -242,8 +265,12 @@ async function runCodeOnRuntime(code: string, _script: string | null, card: any,
             const svc = deps.getPipelineService ? deps.getPipelineService() : undefined
             if (!svc || typeof svc.run !== 'function') throw new Error('pipeline 服务未激活')
             const pipelineId = args && args.pipelineId ? String(args.pipelineId) : String(args)
-            const inputs = (args && args.inputs) || { card: lossless(card) }
-            return lossless(await svc.run(pipelineId, inputs))
+            const inputs = (args && args.inputs) || { card: slimCardForPipeline(card) }
+            const execCtx = (deps as any)._execCtx || null
+            return lossless(await svc.run(pipelineId, inputs, undefined, {
+              ...(execCtx && execCtx.agent ? { parentAgent: execCtx.agent } : {}),
+              ...(execCtx && execCtx.signal ? { externalSignal: execCtx.signal } : {}),
+            }))
           },
           /** 通用服务桥：调用任意宿主插件服务（gate.call('git','isConfigured') 等） */
           call: async (args: any) => {
@@ -323,11 +350,15 @@ checkerRegistry['pipeline'] = async (card, gate, cfg, deps) => {
   let ids: string[] = Array.isArray(cfg.pipelines) ? cfg.pipelines.map(String).filter(Boolean) : []
   if (ids.length === 0 && cfg.pipelineId) ids = [String(cfg.pipelineId)]
   if (ids.length === 0) return { name: gate.name || 'pipeline', type: 'pipeline', reason: 'pipeline checker 缺少 pipelines 配置' }
-  const inputs: Record<string, unknown> = { card }
-  // 现场启动并等待：全部成功才通过（GitHub CI 门禁语义）
+  const inputs: Record<string, unknown> = { card: slimCardForPipeline(card) }
+  const execCtx = (deps as any)._execCtx || null
+  // 现场启动并等待：全部成功才通过（GitHub CI 门禁语义）；透传调用方 agent/signal（llm 节点 spawn 评审 agent）
   const results = await Promise.all(ids.map(async (pid) => {
     try {
-      const out = await svc.run(pid, inputs)
+      const out = await svc.run(pid, inputs, undefined, {
+        ...(execCtx && execCtx.agent ? { parentAgent: execCtx.agent } : {}),
+        ...(execCtx && execCtx.signal ? { externalSignal: execCtx.signal } : {}),
+      })
       return { pid, ok: !(out && out.error), out }
     } catch (e) {
       return { pid, ok: false, out: { error: String((e as Error).message) } }
@@ -340,17 +371,21 @@ checkerRegistry['pipeline'] = async (card, gate, cfg, deps) => {
   return null
 }
 
-/** 检查卡片上匹配 action 的全部门禁；任一失败即拒绝 */
+/** 检查卡片上匹配 action 的全部门禁；任一失败即拒绝。execCtx 透传调用方 agent/signal（pipeline 检查器 spawn 评审 agent 用） */
 export async function checkGates(
   card: any,
   board: any,
   action: GateAction,
   deps: GateCheckDeps,
   extra?: { to?: string },
+  execCtx?: { agent?: unknown; signal?: AbortSignal },
 ): Promise<{ ok: boolean; failed: GateFailure[] }> {
   const gates = gatesFor(card, action, extra, board)
   if (gates.length === 0) return { ok: true, failed: [] }
+  const prev = (deps as any)._execCtx
+  ;(deps as any)._execCtx = execCtx || null
   const failed: GateFailure[] = []
+  try {
   for (const g of gates) {
     const type = (g.checker && g.checker.type) || ''
     const cfg = (g.checker && g.checker.config) || {}
@@ -372,17 +407,32 @@ export async function checkGates(
     if (f) failed.push(f)
   }
   return { ok: failed.length === 0, failed }
+  } finally {
+    ;(deps as any)._execCtx = prev
+  }
+}
+
+/** pipeline 入参瘦身：评审 agent 只需 id/title/description/refs/meta/tags，丢弃 comments/activity/content 等操作流水噪音 */
+function slimCardForPipeline(card: any): Record<string, unknown> {
+  return {
+    id: card && card.id ? String(card.id) : '',
+    title: card && card.title ? String(card.title) : '',
+    description: card && card.description ? String(card.description) : '',
+    refs: card && Array.isArray(card.refs) ? card.refs : [],
+    meta: card && card.meta && typeof card.meta === 'object' ? card.meta : {},
+    tags: card && Array.isArray(card.tags) ? card.tags : [],
+  }
 }
 
 /** 内置预设类型（全部经 code 沙箱执行） */
-export const presetTypes = ['tag-required', 'field-nonempty', 'mr-linked', 'mr-merged', 'pipeline']
+export const presetTypes = ['tag-required', 'field-nonempty', 'mr-linked', 'branch-linked', 'mr-merged', 'pipeline']
 
 /** 校验门禁定义（新增时输入合法性） */
 export function validateGate(gate: any): string | null {
   if (!gate || typeof gate !== 'object') return '门禁定义缺失'
   const c = gate.checker
   if (!c || typeof c !== 'object' || typeof c.type !== 'string') return '缺少 checker（checker: { type, config? }）'
-  if (!['tag-required', 'field-nonempty', 'mr-linked', 'mr-merged', 'code', 'pipeline'].includes(c.type)) return '未知检查器类型：' + c.type
+  if (!['tag-required', 'field-nonempty', 'mr-linked', 'branch-linked', 'mr-merged', 'code', 'pipeline'].includes(c.type)) return '未知检查器类型：' + c.type
   if (!['move', 'tags', 'archive'].includes(gate.on)) return '未知触发行为：' + gate.on
   const cfg = c.config || {}
   if (c.type === 'tag-required' && (!Array.isArray(cfg.tags) || cfg.tags.length === 0)) return 'tag-required 需要 config.tags 数组'
@@ -396,6 +446,7 @@ export function validateGate(gate: any): string | null {
 export function checkerDefaults(type: string): Record<string, unknown> {
   if (type === 'tag-required') return { tags: [] }
   if (type === 'field-nonempty') return { field: 'description' }
+  if (type === 'branch-linked') return {}
   if (type === 'code') return { code: "const c = await gate.card({});\n// 示例:标题长度必须 > 5\nreturn { ok: String(c.title || '').length > 5, reason: 'title too short' }" }
   if (type === 'pipeline') return { pipelines: [] }
   return {}

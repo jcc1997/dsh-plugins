@@ -29,8 +29,8 @@ const ctx = {
 }
 mod.apply(ctx)
 console.log('host: 工具', registered.length, '| 路由', routes.length, '| 服务', Object.keys(provided).join(','))
-if (registered.length !== 11) throw new Error('工具注册数错误: ' + registered.length)
-for (const p of ['/pipeline-api/load', '/pipeline-api/create', '/pipeline-api/update', '/pipeline-api/publish', '/pipeline-api/delete', '/pipeline-api/run', '/pipeline-api/run-status', '/pipeline-api/get']) {
+if (registered.length !== 12) throw new Error('工具注册数错误: ' + registered.length)
+for (const p of ['/pipeline-api/load', '/pipeline-api/create', '/pipeline-api/update', '/pipeline-api/publish', '/pipeline-api/delete', '/pipeline-api/run', '/pipeline-api/import', '/pipeline-api/run-status', '/pipeline-api/get']) {
   if (!routes.includes(p)) throw new Error('路由缺失: ' + p)
 }
 if (!provided['pipeline'] || typeof provided['pipeline'].run !== 'function') throw new Error('pipeline 服务未提供')
@@ -78,9 +78,7 @@ try {
 console.log('client apply: 槽位注册', slotRegs.map((s) => s.slot + (s.options && s.options.key ? '[' + s.options.key + ']' : '[' + (s.options && s.options.id) + ']')).join(', '))
 const footer = slotRegs.find((s) => s.slot === 'sidebar.footer.action' && s.options && s.options.id === 'pipeline')
 if (!footer || !footer.hasComponent) throw new Error('sidebar.footer.action 槽位注册缺失')
-const toolview = slotRegs.filter((s) => s.slot === 'tool.call.toolview')
-const toolKeys = toolview.map((s) => s.options && s.options.key).sort()
-if (toolKeys.join(',') !== 'pipeline_run,pipeline_run_status') throw new Error('tool.call.toolview 注册错误: ' + toolKeys.join(','))
-if (!toolview.every((s) => s.hasComponent)) throw new Error('tool.call.toolview 组件缺失')
-console.log('client apply: tool.call.toolview key=' + toolKeys.join('/') + ' OK')
+const dock = slotRegs.find((s) => s.slot === 'conversation.input.dock' && s.options && s.options.id === 'pipeline')
+if (!dock || !dock.hasComponent) throw new Error('conversation.input.dock 槽位注册缺失')
+console.log('client apply: conversation.input.dock OK')
 console.log('ALL OK: pipeline 正式形态产物验证通过')

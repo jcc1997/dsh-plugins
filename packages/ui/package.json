@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./icons": "./src/icons.tsx"
+    "./icons": "./host/icons.ts"
   },
   "peerDependencies": {
     "react": "^18.0.0"

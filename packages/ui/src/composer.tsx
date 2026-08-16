@@ -14,21 +14,27 @@ export function Composer(props: {
   /** 输入区最大高度(px),超过后内部滚动;默认 160 */
   maxHeight?: number
   className?: string
+  /** Enter 提交(Shift+Enter 换行);不传则 Enter 为普通换行。交互契约见 docs/ui-design/components.md §九 */
+  onSubmit?: () => void
+  /** 紧凑规格(批注/内嵌小输入):padding/圆角/字号/间距收小,单行时按钮贴右。docs/ui-design/components.md §四 ADR-10 */
+  compact?: boolean
 }) {
   const ref = useRef<HTMLTextAreaElement | null>(null)
   const [multiline, setMultiline] = useState(false)
   const grow = () => {
     const el = ref.current
     if (!el) return
+    const cs = getComputedStyle(el)
+    const single = parseFloat(cs.lineHeight) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom)
     el.style.height = 'auto'
     const max = props.maxHeight || 160
-    el.style.height = Math.min(el.scrollHeight, max) + 'px'
-    // 单行(行高 20 + 上下 padding 8 = 28)以下 = 单行模式;超出即多行
-    setMultiline(el.scrollHeight > 30)
+    // 单行 = 精确 lineHeight+padding(内容顶部对齐无余量,视觉对称);超出即多行按内容增高
+    el.style.height = el.scrollHeight <= single + 2 ? single + 'px' : Math.min(el.scrollHeight, max) + 'px'
+    setMultiline(el.scrollHeight > single + 2)
   }
   useEffect(() => { grow() }, [props.value])
   return (
-    <div className={'cmp-composer' + (multiline ? ' cmp-composer-multi' : '') + (props.className ? ' ' + props.className : '')}>
+    <div className={'cmp-composer' + (multiline ? ' cmp-composer-multi' : '') + (props.compact ? ' cmp-composer-compact' : '') + (props.className ? ' ' + props.className : '')}>
       <textarea
         ref={ref}
         className="cmp-composer-input"
@@ -39,6 +45,13 @@ export function Composer(props: {
         onChange={(e) => {
           props.onChange(e.target.value)
           grow()
+        }}
+        onKeyDown={(e) => {
+          if (!props.onSubmit) return
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            props.onSubmit()
+          }
         }}
       />
       {props.actions ? <div className="cmp-composer-actions">{props.actions}</div> : null}
@@ -56,4 +69,10 @@ export const composerCss = `
 .cmp-composer-multi{flex-wrap:wrap;align-items:flex-end;padding:10px 16px}
 .cmp-composer-multi .cmp-composer-input{flex:1 1 100%;padding:4px 0}
 .cmp-composer-multi .cmp-composer-actions{width:100%;justify-content:flex-end;padding-top:4px}
+/* 紧凑规格(ADR-10):批注等内嵌小输入,克制尺寸 */
+.cmp-composer-compact{border-radius:10px;padding:2px 10px;gap:4px}
+.cmp-composer-compact .cmp-composer-input{font-size:12px;line-height:18px;padding:3px 0;max-height:72px}
+.cmp-composer-compact.cmp-composer-multi{padding:6px 10px 8px}
+.cmp-composer-compact.cmp-composer-multi .cmp-composer-input{flex:1 1 100%;padding:3px 0}
+.cmp-composer-compact.cmp-composer-multi .cmp-composer-actions{padding-top:2px}
 `

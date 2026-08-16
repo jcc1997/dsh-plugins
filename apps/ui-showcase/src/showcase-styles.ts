@@ -1,7 +1,16 @@
 // src/showcase-styles.ts — 展示页自身布局样式(仅开发服务使用)
 export const showcaseCss = `
-.sc-page{padding:24px 32px;max-width:1240px;margin:0 auto;font-family:var(--dsw-font-family, inherit);background:var(--dsw-alias-bg-base);min-height:100vh}
-.sc-head{font-size:16px;margin-bottom:16px}
+.sc-page{padding:24px 32px;max-width:1400px;margin:0 auto;font-family:var(--dsw-font-family, inherit);background:var(--dsw-alias-bg-base);min-height:100vh}
+.sc-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.sc-head h2{font-size:16px;margin:0}
+.sc-head .mdr-btn{display:inline-flex;align-items:center;gap:6px}
+/* 左侧导航 + 内容两栏 */
+.sc-layout{display:flex;gap:24px;align-items:flex-start}
+.sc-tabs{display:flex;flex-direction:column;gap:2px;width:160px;flex:none;padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-base);position:sticky;top:16px}
+.sc-tab{border:none;background:none;cursor:pointer;padding:8px 12px;border-radius:8px;font-size:13px;color:var(--dsw-alias-label-secondary);font-family:inherit;text-align:left;transition:background 150ms cubic-bezier(.4,0,.2,1)}
+.sc-tab:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}
+.sc-tab-on{background:var(--dsw-alias-interactive-bg-active);color:var(--dsw-alias-label-primary);font-weight:600}
+.sc-content{flex:1;min-width:0}
 .sc-sec{margin-bottom:28px}
 .sc-title{font-size:14px;font-weight:600;margin-bottom:12px;color:var(--dsw-alias-label-secondary)}
 .sc-row{display:flex;gap:12px;align-items:center}

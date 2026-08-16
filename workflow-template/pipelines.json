@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "description": "workflow 模板配套 pipeline 定义：经 pipeline_import_config 按稳定 id 导入（幂等）。",
+  "pipelines": [
+    {
+      "id": "p-workflow-review",
+      "name": "代码评审",
+      "kind": "atomic",
+      "description": "workflow 1st Review → Testing 门禁：agent 按 workflow-template/prompts/review.md 评审 MR（代码逻辑 + 设计规范 + 文档纪律），REVIEW_VERDICT ok:true 才放行；失败自动落卡评论并保留会话供续评",
+      "tags": [
+        "workflow",
+        "review"
+      ],
+      "published": true,
+      "changelog": "workflow review 门禁初始版本",
+      "nodes": [
+        {
+          "id": "in",
+          "title": "输入",
+          "type": "input",
+          "order": 0,
+          "inputs": [],
+          "config": {}
+        },
+        {
+          "id": "review",
+          "title": "Agent 评审",
+          "type": "llm",
+          "order": 10,
+          "inputs": [
+            "in"
+          ],
+          "config": {
+            "prompt": "你是 DSH 仓库的代码评审 agent。入参 card 是待评审卡片：title=《{input.card.title}》；评审对象见本轮 prompt 附带的【评审对象】摘要（repo/branch/mr/local-repo 已按 kind 解析，refs 顺序不保证）。\n\n步骤：\n1. 定位仓库（【评审对象】的 local-repo/repo 优先；否则当前工作目录，git status/git branch 确认分支）；\n2. 读取仓库内 workflow-template/prompts/review.md 获取完整评审要求；\n3. 用 git diff origin/main...HEAD 与 git log 查看本任务变更，按 review.md 的三个维度评审（代码逻辑 / 设计规范 / 文档纪律）；\n4. 若本轮 prompt 附带了【上一轮评审意见】，先逐条核验其是否已修复（未修复继续列为未解决问题）；\n5. 全部问题已解决（本轮无未解决问题）才给出 OK，否则列出未解决问题。",
+            "cardIdPath": "{input.card.id}",
+            "toolFilter": [
+              "read",
+              "glob",
+              "grep",
+              "bash"
+            ],
+            "timeoutMs": 600000,
+            "persona": "你是代码评审 agent。只评审、不改码、不提交。严格按收到的评审指令与仓库内 workflow-template/prompts/review.md 执行，最终输出以最后一行 REVIEW_VERDICT:{\"ok\":true|false,\"issues\":[...]} 结尾。"
+          }
+        },
+        {
+          "id": "out",
+          "title": "输出",
+          "type": "output",
+          "order": 100,
+          "inputs": [
+            "review"
+          ],
+          "config": {}
+        }
+      ]
+    }
+  ]
+}
