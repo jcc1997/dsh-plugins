@@ -1,4 +1,4 @@
-// client/drawer-side.tsx — 抽屉右侧栏：状态切换 + 归档/删除 + 标签 + Git 关联卡片 + 外部关联 + 门禁 + 变更记录
+// client/drawer-side.tsx — 抽屉右侧栏：状态切换 + 归档/删除 + 标签 + Git 关联Ticket + 外部关联 + 门禁 + 变更记录
 import React, { useState } from 'react'
 import { IconCloseOutline16, fmtTime } from '@dsh-plugins/ui'
 import { KanbanCard, KanbanColumn, CardGate } from '@dsh-plugins/ui'
@@ -54,7 +54,7 @@ export function DrawerSide(props: {
         </label>
         <span className="kbnb-spacer" />
         {typeof props.onArchive === 'function' ? (
-          <button className="kbnb-btn" type="button" title="移出看板，可在侧边栏归档中找回" onClick={props.onArchive}>
+          <button className="kbnb-btn" type="button" title="移出Kanban，可在侧边栏归档中找回" onClick={props.onArchive}>
             归档
           </button>
         ) : null}
@@ -75,7 +75,7 @@ export function DrawerSide(props: {
         <TagInput onAdd={(t) => props.onUpdateTags([t], [])} />
       </div>
 
-      {/* Git 关联卡片：repo/分支/MR + 同步状态 + 新增 git 关联（git 插件槽位注入同步按钮） */}
+      {/* Git 关联Ticket：repo/分支/MR + 同步状态 + 新增 git 关联（git 插件槽位注入同步按钮） */}
       <GitCard card={props.card} onAddRef={props.onAddRef} onRemoveRef={props.onRemoveRef} actionHost={props.actionHost ? () => props.actionHost!() : null} />
 
       {/* 会话关联：列表 + 新增（仅此两种关联入口：git / 会话） */}
@@ -108,7 +108,7 @@ export function DrawerSide(props: {
   )
 }
 
-/** Git 关联卡片：repo + 分支 + MR 列表 + 同步状态 + 新增 git 关联（新增只有 git / 会话两种入口） */
+/** Git 关联Ticket：repo + 分支 + MR 列表 + 同步状态 + 新增 git 关联（新增只有 git / 会话两种入口） */
 function GitCard(props: {
   card: KanbanCard
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
@@ -221,7 +221,7 @@ function GitCard(props: {
   )
 }
 
-/** 会话关联卡片：列表 + 新增会话 */
+/** 会话关联Ticket：列表 + 新增会话 */
 function SessionCard(props: {
   card: KanbanCard
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
@@ -287,11 +287,11 @@ function TagInput(props: { onAdd: (tag: string) => void }) {
   )
 }
 
-/* ── 门禁卡片（v6）：门禁库勾选挂载 + 展开详情 ── */
+/* ── 门禁Ticket（v6）：门禁库勾选挂载 + 展开详情 ── */
 const GATE_ON_LABEL: Record<string, string> = { move: '移动状态', tags: '增减标签', archive: '归档' }
 const GATE_KIND_LABEL: Record<string, string> = { 'mr-merged': 'MR 已合并', 'mr-linked': '已关联 MR', 'branch-linked': '已关联 workflow 分支', 'tag-required': '必须含标签', 'field-nonempty': '字段非空', 'code': '代码检查', 'pipeline': 'pipeline 检查' }
 
-/** 卡片当前门禁：gateIds → 门禁库解析；旧内联 gates 兜底（宿主已迁移，防御性保留） */
+/** Ticket当前门禁：gateIds → 门禁库解析；旧内联 gates 兜底（宿主已迁移，防御性保留） */
 function gateSig(g: any): string {
   return [g.name, g.on, String(g.to || ''), g.checker ? g.checker.type : g.kind].join('\u0001')
 }

@@ -1,4 +1,4 @@
-// kanban 插件客户端半（正式 bundle 形态）：侧边栏入口 + 全屏看板 + 会话任务 tab
+// kanban 插件客户端半（正式 bundle 形态）：侧边栏入口 + 全屏Kanban + 会话Ticket tab
 // 数据通道：hostBridge（fetch → /api/kanban/* webServer 路由）替代动态形态的 host.call；
 // 样式：apply 时注入 kbnbCss <style>（正式形态无 styles 全局）；
 // 组件层（page/board-view/drawer/rich-text 等）零改动，仅换数据入口。
@@ -63,20 +63,20 @@ export function apply(ctx: CtxLike) {
   if (!slots) return
   const host = makeHostBridge()
 
-  // 侧边栏入口：按钮 + 全屏看板（单一组件，无跨组件状态）
+  // 侧边栏入口：按钮 + 全屏Kanban（单一组件，无跨组件状态）
   // 声明子槽位 kanban.card.actions（list）：git 等插件向其中注册「同步」按钮；
-  // 声明方（本条目）独占渲染授权，经 renderSlot 渲染到卡片抽屉。
+  // 声明方（本条目）独占渲染授权，经 renderSlot 渲染到Ticket抽屉。
   function KanbanEntry(props: { wide: boolean; renderSlot?: (key: string, owner: unknown, opts?: unknown) => unknown }) {
     const [open, setOpen] = React.useState(false)
     return React.createElement('div', null,
       React.createElement('button', {
         className: 'kbnb-side-btn' + (props.wide ? '' : ' kbnb-side-btn-rail') + (open ? ' kbnb-side-btn-on' : ''),
         type: 'button',
-        title: '看板',
-        'aria-label': '看板',
+        title: 'Kanban',
+        'aria-label': 'Kanban',
         onClick: () => setOpen(!open),
       }, props.wide
-        ? React.createElement(React.Fragment, null, React.createElement(IconBoardGlyph, null), React.createElement('span', null, '看板'))
+        ? React.createElement(React.Fragment, null, React.createElement(IconBoardGlyph, null), React.createElement('span', null, 'Kanban'))
         : React.createElement(IconBoardGlyph, null)),
       open ? React.createElement(KanbanPage, { host, onClose: () => setOpen(false), renderSlot: props.renderSlot, sessions }) : null,
     )
@@ -88,7 +88,7 @@ export function apply(ctx: CtxLike) {
         name: 'sidebar.footer.action',
         id: 'kanban',
         order: 10,
-        label: () => '看板',
+        label: () => 'Kanban',
         children: {
           'kanban.card.actions': { kind: 'list', scope: 'root' },
         },
@@ -97,10 +97,10 @@ export function apply(ctx: CtxLike) {
         React.createElement(KanbanEntry, { wide: props.wide, renderSlot: props.renderSlot }),
     ),
   )
-  // 会话「任务」tab：当前会话关联的 task 详情（可编辑）
+  // 会话「Ticket」tab：当前会话关联的 task 详情（可编辑）
   slots.inject('conversation.view', () =>
     slots.register(
-      { name: 'conversation.view', id: 'kanban-task', order: 20, label: () => '任务' },
+      { name: 'conversation.view', id: 'kanban-task', order: 20, label: () => 'Ticket' },
       (props: { sessionId?: string }) => React.createElement(SessionTaskPanel, { sessionId: props.sessionId, host, sessions }),
     ),
   )

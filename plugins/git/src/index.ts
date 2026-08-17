@@ -2,7 +2,7 @@
 // 能力：git_configure（远端 repo / 本地路径 / token）、git_claim_task_id（[ID] 约定）、
 //       git_link（带验证关联）、git_list_mrs / git_sync / git_merge_pr（GitHub API + [ID] 自动关联）
 // 数据：~/.dsh/git/config.json；凭证走宿主 credentials（ref 名 GITHUB_TOKEN）；
-//       GitHub API 优先 bash(curl)+token，退化 ctx.web 匿名抓取；卡片读写走跨插件 kanban 服务
+//       GitHub API 优先 bash(curl)+token，退化 ctx.web 匿名抓取；Ticket读写走跨插件 kanban 服务
 // 接入点（正式形态）：ctx.tools.register(defineTool(...)) 注册 agent 工具；
 //       ctx.webServer.register 暴露 /api/git/sync（client 同步按钮通道）；
 //       ctx.provide('git') 跨插件服务；createComm(env:'deployed-host') 走 ctx.emit 事件
@@ -127,7 +127,7 @@ export function apply(ctx: GitCtx) {
         return String(id || '').toLowerCase()
       }
 
-      /* ── 仓库解析：卡片 refs → 配置 → 入参 ── */
+      /* ── 仓库解析：Ticket refs → 配置 → 入参 ── */
       function repoFromCard(card: any): { owner: string; name: string } | null {
         const refs: any[] = card && Array.isArray(card.refs) ? card.refs : []
         for (const r of refs) {
@@ -160,7 +160,7 @@ export function apply(ctx: GitCtx) {
         const cfg = await readConfig()
         const repoName = repo ? repo.name : (cfg.repo && cfg.repo.name) ? cfg.repo.name : null
         if (!repoName) {
-          return { ok: false, error: '无法认领 taskId：卡片未关联 github-repo 且未配置远端仓库（先 git_configure 配 repo 或用 git_link 关联 github-repo），[ID] 约定要求 <repo-name>-<int>' }
+          return { ok: false, error: '无法认领 taskId：Ticket未关联 github-repo 且未配置远端仓库（先 git_configure 配 repo 或用 git_link 关联 github-repo），[ID] 约定要求 <repo-name>-<int>' }
         }
         let max = 0
         try {
@@ -172,7 +172,7 @@ export function apply(ctx: GitCtx) {
           }
         } catch { max = 0 }
         const taskId = repoName + '-' + (max + 1)
-        const res = await kanban.updateCard(cardId, { meta: { taskId }, activity: '认领任务 ID：' + taskId })
+        const res = await kanban.updateCard(cardId, { meta: { taskId }, activity: '认领 Ticket ID：' + taskId })
         if (!res.ok) return { ok: false, error: res.error || 'updateCard failed' }
         return { ok: true, card_id: cardId, taskId, reused: false }
       }
@@ -226,7 +226,7 @@ export function apply(ctx: GitCtx) {
           const cfg = await readConfig()
           if (cfg.repo && cfg.repo.owner && cfg.repo.name) { o = o || cfg.repo.owner; n = n || cfg.repo.name }
         }
-        if (!o || !n) return { ok: false, error: 'no repo configured（git_configure 或卡片 github-repo 关联）' }
+        if (!o || !n) return { ok: false, error: 'no repo configured（git_configure 或Ticket github-repo 关联）' }
         const gh = await ghFetch(o, n, 'pulls?state=all&per_page=100')
         if (!gh.ok) return { ok: false, error: gh.error || 'github api failed' }
         const items: any[] = Array.isArray(gh.data) ? gh.data : []
@@ -396,7 +396,7 @@ export function apply(ctx: GitCtx) {
       const defs: any[] = [
         {
           name: 'git_configure',
-          description: '配置 git 插件：远端 GitHub 仓库（owner/repo）、本地仓库路径、GitHub token（写入宿主 credentials，ref 名 GITHUB_TOKEN，不落卡片不落盘明文）。任一字段可选。',
+          description: '配置 git 插件：远端 GitHub 仓库（owner/repo）、本地仓库路径、GitHub token（写入宿主 credentials，ref 名 GITHUB_TOKEN，不落Ticket不落盘明文）。任一字段可选。',
           parameters: P({
             owner: STR('GitHub 仓库 owner（可选）'),
             repo: STR('GitHub 仓库名（可选，与 owner 成对）'),
@@ -429,16 +429,16 @@ export function apply(ctx: GitCtx) {
         },
         {
           name: 'git_claim_task_id',
-          description: '为卡片认领自动关联 ID（[ID] 约定，格式 <repo-name>-<int>，如 dsh-plugins-1）。已有 taskId 则原样返回；同 repo 递增。MR 标题携带 [taskId] 即可被 git_sync 自动关联。',
-          parameters: P({ card_id: STR('卡片 id') }, ['card_id']),
+          description: '为Ticket认领自动关联 ID（[ID] 约定，格式 <repo-name>-<int>，如 dsh-plugins-1）。已有 taskId 则原样返回；同 repo 递增。MR 标题携带 [taskId] 即可被 git_sync 自动关联。',
+          parameters: P({ card_id: STR('Ticket id') }, ['card_id']),
           execute: async (args: any) => claimTaskId(String(args.card_id)),
           output: outputOf('taskId 认领结果'),
         },
         {
           name: 'git_link',
-          description: '为卡片建立带验证的外部关联（写入卡片 refs）：github-repo（owner/repo，验证格式）、github-branch、github-mr、local-repo（验证路径可读）。',
+          description: '为Ticket建立带验证的外部关联（写入Ticket refs）：github-repo（owner/repo，验证格式）、github-branch、github-mr、local-repo（验证路径可读）。',
           parameters: P({
-            card_id: STR('卡片 id'),
+            card_id: STR('Ticket id'),
             kind: STR('引用类型：github-repo / github-branch / github-mr / local-repo'),
             external_id: STR('提供方侧 ID：owner/repo、branch 名、MR 号、本地路径'),
             platform: STR('提供方键，缺省从 kind 前缀推导'),
@@ -451,36 +451,36 @@ export function apply(ctx: GitCtx) {
         },
         {
           name: 'git_list_mrs',
-          description: '列出仓库 open MR（GitHub PR）。仓库来源：卡片 github-repo 关联 > git_configure 配置。返回 MR 列表与标题中解析出的 [taskId]。',
+          description: '列出仓库 open MR（GitHub PR）。仓库来源：Ticket github-repo 关联 > git_configure 配置。返回 MR 列表与标题中解析出的 [taskId]。',
           parameters: P({
-            card_id: STR('卡片 id（可选；用于从卡片解析仓库）'),
-            owner: STR('仓库 owner（可选，覆盖卡片/配置）'),
-            repo: STR('仓库名（可选，覆盖卡片/配置）'),
+            card_id: STR('Ticket id（可选；用于从Ticket解析仓库）'),
+            owner: STR('仓库 owner（可选，覆盖Ticket/配置）'),
+            repo: STR('仓库名（可选，覆盖Ticket/配置）'),
           }),
           execute: async (args: any) => listMrs(args.card_id ? String(args.card_id) : undefined, args.owner ? String(args.owner) : undefined, args.repo ? String(args.repo) : undefined),
           output: outputOf('MR 列表'),
         },
         {
           name: 'git_sync',
-          description: '同步卡片关联仓库的 open MR 状态：拉取 GitHub PR → 按 [ID] 约定自动关联本卡 taskId 的 MR（补 github-mr refs）→ 写回卡片 meta.sync.github 快照信封（version/lastSyncAt/error/snapshot）。',
-          parameters: P({ card_id: STR('卡片 id') }, ['card_id']),
+          description: '同步Ticket关联仓库的 open MR 状态：拉取 GitHub PR → 按 [ID] 约定自动关联本卡 taskId 的 MR（补 github-mr refs）→ 写回Ticket meta.sync.github 快照信封（version/lastSyncAt/error/snapshot）。',
+          parameters: P({ card_id: STR('Ticket id') }, ['card_id']),
           execute: async (args: any) => syncCard(String(args.card_id)),
           output: outputOf('同步结果'),
         },
         {
           name: 'git_status',
-          description: '查看卡片当前 git 同步状态：taskId、关联 refs、meta.sync.github 信封（上次同步时间 / 错误 / 快照）。',
-          parameters: P({ card_id: STR('卡片 id') }, ['card_id']),
+          description: '查看Ticket当前 git 同步状态：taskId、关联 refs、meta.sync.github 信封（上次同步时间 / 错误 / 快照）。',
+          parameters: P({ card_id: STR('Ticket id') }, ['card_id']),
           execute: async (args: any) => snapshot(String(args.card_id)),
           output: outputOf('同步状态'),
         },
         {
           name: 'git_merge_pr',
-          description: '合并仓库的 GitHub MR（PR）：合并前检查关联卡片必须处于 Stage 列（workflow 门禁）；合并后自动触发该卡 git_sync 刷新状态，并自动把卡片移入 Done 列。仓库来源：卡片 github-repo 关联 > git_configure 配置。',
+          description: '合并仓库的 GitHub MR（PR）：合并前检查关联Ticket必须处于 Stage 列（workflow 门禁）；合并后自动触发该卡 git_sync 刷新状态，并自动把Ticket移入 Done 列。仓库来源：Ticket github-repo 关联 > git_configure 配置。',
           parameters: P({
-            card_id: STR('卡片 id（可选；用于解析仓库、Stage 状态检查与合并后自动流转）'),
-            owner: STR('仓库 owner（可选，覆盖卡片/配置）'),
-            repo: STR('仓库名（可选，覆盖卡片/配置）'),
+            card_id: STR('Ticket id（可选；用于解析仓库、Stage 状态检查与合并后自动流转）'),
+            owner: STR('仓库 owner（可选，覆盖Ticket/配置）'),
+            repo: STR('仓库名（可选，覆盖Ticket/配置）'),
             mr_number: STR('MR 号（必填）'),
             squash: { type: 'boolean', description: '是否 squash 合并（默认 false）' },
           }, ['mr_number']),
@@ -502,15 +502,15 @@ export function apply(ctx: GitCtx) {
               const cfg = await readConfig()
               if (cfg.repo && cfg.repo.owner && cfg.repo.name) { o = o || cfg.repo.owner; n = n || cfg.repo.name }
             }
-            if (!o || !n) return { ok: false, error: 'no repo configured（git_configure 或卡片 github-repo 关联）' }
-            // workflow 门禁：卡片必须处于 Stage 列才允许合并
+            if (!o || !n) return { ok: false, error: 'no repo configured（git_configure 或Ticket github-repo 关联）' }
+            // workflow 门禁：Ticket必须处于 Stage 列才允许合并
             let stageCheck: any = null
             if (cardId) {
               const kanban = kanbanSvc()
               if (kanban && typeof kanban.getCardStatus === 'function') {
                 stageCheck = await kanban.getCardStatus(cardId)
                 if (!stageCheck || stageCheck.status !== 'Stage') {
-                  return { ok: false, error: '门禁未通过：卡片必须处于 Stage 列才能合并 MR（当前：' + (stageCheck ? stageCheck.status : '未找到卡片') + '）' }
+                  return { ok: false, error: '门禁未通过：Ticket必须处于 Stage 列才能合并 MR（当前：' + (stageCheck ? stageCheck.status : '未找到Ticket') + '）' }
                 }
               }
             }
@@ -540,7 +540,7 @@ export function apply(ctx: GitCtx) {
               return { ok: false, error: 'merge request failed: ' + String(e && (e as Error).message ? (e as Error).message : e) }
             }
             if (status >= 200 && status < 300) {
-              // 合并成功 → 自动同步该卡刷新状态 → 自动把卡片移入 Done 列（workflow 收尾）
+              // 合并成功 → 自动同步该卡刷新状态 → 自动把Ticket移入 Done 列（workflow 收尾）
               let syncRes: any = null
               let moveRes: any = null
               if (cardId) {
@@ -558,8 +558,8 @@ export function apply(ctx: GitCtx) {
         },
         {
           name: 'git_create_branch',
-          description: '为卡片创建 workflow 分支（进 RD 前置，workflow 流程）：本地仓库须干净且在默认分支(main/master)上 → 切出 workflow/<taskId> 并推送到远端(GitHub token 或本机凭据)；成功后自动给卡片关联 github-branch。',
-          parameters: P({ card_id: STR('卡片 id（认领 taskId 并命名分支 workflow/<taskId>）') }, ['card_id']),
+          description: '为Ticket创建 workflow 分支（进 RD 前置，workflow 流程）：本地仓库须干净且在默认分支(main/master)上 → 切出 workflow/<taskId> 并推送到远端(GitHub token 或本机凭据)；成功后自动给Ticket关联 github-branch。',
+          parameters: P({ card_id: STR('Ticket id（认领 taskId 并命名分支 workflow/<taskId>）') }, ['card_id']),
           execute: async (args: any) => {
             const cardId = String(args.card_id)
             const kanban = kanbanSvc()
@@ -618,8 +618,8 @@ export function apply(ctx: GitCtx) {
         },
         {
           name: 'git_create_mr',
-          description: '为卡片创建 GitHub MR（RD 确认后，workflow 流程）：head=workflow/<taskId>（须已 git_create_branch 推送）、base 默认 main；标题自动带 [taskId]（git_sync 按此自动关联）；创建成功后自动给卡片关联 github-mr。',
-          parameters: P({ card_id: STR('卡片 id（取 taskId 与标题）'), base: STR('目标分支（默认 main）'), draft: STR('是否草稿（"true" 时创建 draft PR）') }, ['card_id']),
+          description: '为Ticket创建 GitHub MR（RD 确认后，workflow 流程）：head=workflow/<taskId>（须已 git_create_branch 推送）、base 默认 main；标题自动带 [taskId]（git_sync 按此自动关联）；创建成功后自动给Ticket关联 github-mr。',
+          parameters: P({ card_id: STR('Ticket id（取 taskId 与标题）'), base: STR('目标分支（默认 main）'), draft: STR('是否草稿（"true" 时创建 draft PR）') }, ['card_id']),
           execute: async (args: any) => {
             const cardId = String(args.card_id)
             const kanban = kanbanSvc()
@@ -627,10 +627,10 @@ export function apply(ctx: GitCtx) {
             const card = await kanban.getCard(cardId)
             if (!card) return { ok: false, error: 'card not found: ' + cardId }
             const taskId = taskIdOf(card)
-            if (!taskId) return { ok: false, error: '卡片没有 taskId，先 git_claim_task_id 认领' }
+            if (!taskId) return { ok: false, error: 'Ticket没有 taskId，先 git_claim_task_id 认领' }
             const cfg = await readConfig()
             const repo = (() => { const r = repoFromCard(card); return r || (cfg.repo && cfg.repo.owner && cfg.repo.name ? { owner: cfg.repo.owner, name: cfg.repo.name } : null) })()
-            if (!repo) return { ok: false, error: '未解析到仓库（卡片 github-repo 关联或 git_configure repo）' }
+            if (!repo) return { ok: false, error: '未解析到仓库（Ticket github-repo 关联或 git_configure repo）' }
             const branch = 'workflow/' + taskId
             const base = (args.base && String(args.base).trim()) || 'main'
             let token: string | undefined
@@ -643,7 +643,7 @@ export function apply(ctx: GitCtx) {
               title,
               head: branch,
               base,
-              body: (card.description ? card.description + '\n\n' : '') + 'Workflow 卡片: ' + cardId,
+              body: (card.description ? card.description + '\n\n' : '') + 'Workflow Ticket: ' + cardId,
               ...(String(args.draft) === 'true' ? { draft: true } : {}),
             }
             let data: any = null

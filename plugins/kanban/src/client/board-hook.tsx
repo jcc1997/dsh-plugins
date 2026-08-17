@@ -1,4 +1,4 @@
-// client/board-hook.tsx — useKanbanBoard：看板数据 + 卡片/列/归档操作（KanbanPage 与会话 Task 面板共用）
+// client/board-hook.tsx — useKanbanBoard：Kanban 数据 + Ticket/列/归档操作（KanbanPage 与会话 Task 面板共用）
 // 数据经 host RPC（kanban/load、kanban/save）读写 board.json；纯函数在 board-util.ts。
 import { useEffect, useState } from 'react'
 import { appendActivity, safeId, safeNow } from '@dsh-plugins/ui'
@@ -59,7 +59,7 @@ export function useKanbanBoard(host: HostLike) {
     save(next)
     return result
   }
-  // 按 id 找活动列中的卡片
+  // 按 id 找活动列中的Ticket
   function findCardGlobal(cardId: string): { col: any; card: any } | null {
     if (!board) return null
     for (const col of board.columns || []) {
@@ -92,7 +92,7 @@ export function useKanbanBoard(host: HostLike) {
     }
   }
 
-  /* ── 卡片操作（按 cardId 定位，供看板页 / 会话面板 / 抽屉共用） ── */
+  /* ── Ticket操作（按 cardId 定位，供Kanban页 / 会话面板 / 抽屉共用） ── */
   /** 保存标题/描述/富文本内容（无变化不写盘） */
   function saveCard(cardId: string, title: string, description: string, content?: KanbanBlock[]) {
     mutate((b) => {
@@ -106,7 +106,7 @@ export function useKanbanBoard(host: HostLike) {
       card.description = description
       if (content !== undefined) card.content = nextContent
       card.updatedAt = safeNow()
-      appendActivity(card, '更新卡片')
+      appendActivity(card, '更新Ticket')
     })
   }
   /** 跨列移动（记录状态变更日志；v4 先过 move 门禁） */
@@ -128,7 +128,7 @@ export function useKanbanBoard(host: HostLike) {
       toCol.cards.push(card)
     })
   }
-  /** 删除活动列中的卡片（不可恢复） */
+  /** 删除活动列中的Ticket（不可恢复） */
   function deleteCard(cardId: string) {
     mutate((b) => {
       for (const col of b.columns) {
@@ -150,7 +150,7 @@ export function useKanbanBoard(host: HostLike) {
       card.archivedFrom = (hit as any).col.id
       card.archivedAt = safeNow()
       card.updatedAt = safeNow()
-      appendActivity(card, '归档卡片')
+      appendActivity(card, '归档Ticket')
       b.archive = b.archive || []
       b.archive.push(card)
     })
@@ -168,11 +168,11 @@ export function useKanbanBoard(host: HostLike) {
         b.columns[0]
       if (!col) return
       card.updatedAt = safeNow()
-      appendActivity(card, '恢复卡片（归档）')
+      appendActivity(card, '恢复Ticket（归档）')
       col.cards.push(card)
     })
   }
-  /** 永久删除归档卡片 */
+  /** 永久删除归档Ticket */
   function deleteArchivedCard(cardId: string) {
     mutate((b) => {
       b.archive = b.archive || []
@@ -245,8 +245,8 @@ export function useKanbanBoard(host: HostLike) {
     })
   }
 
-  /* ── 门禁管理（v6）：门禁库实体 + 卡片/模板按 id 勾选 ── */
-  /** 卡片挂载门禁（按门禁库 id 勾选） */
+  /* ── 门禁管理（v6）：门禁库实体 + Ticket/模板按 id 勾选 ── */
+  /** Ticket挂载门禁（按门禁库 id 勾选） */
   function attachGate(cardId: string, gateId: string) {
     mutate((b) => {
       const hit = hitOf(b, cardId)
@@ -260,7 +260,7 @@ export function useKanbanBoard(host: HostLike) {
       appendActivity(card, '挂门禁：' + (g ? g.name : gateId))
     })
   }
-  /** 卡片摘除门禁（按门禁库 id） */
+  /** Ticket摘除门禁（按门禁库 id） */
   function removeGate(cardId: string, gateId: string) {
     mutate((b) => {
       const hit = hitOf(b, cardId)
@@ -285,7 +285,7 @@ export function useKanbanBoard(host: HostLike) {
       return g.id
     })
   }
-  /** 门禁库删除（同时从所有卡片/模板的 gateIds 摘除） */
+  /** 门禁库删除（同时从所有Ticket/模板的 gateIds 摘除） */
   function deleteGate(gateId: string) {
     mutate((b) => {
       b.gateLibrary = (b.gateLibrary || []).filter((g: any) => g.id !== gateId)
@@ -373,7 +373,7 @@ export function useKanbanBoard(host: HostLike) {
     })
   }
 
-  /* ── 会话关联查询：refs 含 session 且 externalId 匹配的卡片（按 updatedAt 倒序，最近在前） ── */
+  /* ── 会话关联查询：refs 含 session 且 externalId 匹配的Ticket（按 updatedAt 倒序，最近在前） ── */
   function cardsBySession(sessionId: string): Array<{ id: string; title: string; status: string; updatedAt: string }> {
     if (!board) return []
     const out: Array<{ id: string; title: string; status: string; updatedAt: string }> = []

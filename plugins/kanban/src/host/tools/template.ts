@@ -42,7 +42,7 @@ export function templateToolDefs(fs: FsLike): any[] {
   return [
     {
       name: 'kanban_template_list',
-      description: '列出创建模板（含预置的 description/tags/content 与勾选的门禁），创建卡片时可引用。',
+      description: '列出创建模板（含预置的 description/tags/content 与勾选的门禁），创建Ticket时可引用。',
       parameters: P({}),
       execute: async () => {
         const dataDir = await resolveDataDir(fs)
@@ -139,7 +139,7 @@ export function templateToolDefs(fs: FsLike): any[] {
     },
     {
       name: 'kanban_template_delete',
-      description: '删除创建模板（不影响已用该模板创建的卡片）。',
+      description: '删除创建模板（不影响已用该模板创建的Ticket）。',
       parameters: P({ template_id: STR('模板 id（或名）', true) }, ['template_id']),
       execute: async (args: any) => {
         return mutateBoard(fs, (board: any) => {

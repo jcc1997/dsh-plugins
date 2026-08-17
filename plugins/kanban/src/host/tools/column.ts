@@ -42,8 +42,8 @@ export function columnToolDefs(fs: FsLike): any[] {
     },
     {
       name: 'kanban_delete_column',
-      description: '删除一列（状态）。column_id 传列名或列 id；列内有卡片时默认拒绝，force=true 可连卡片一起删除（不可恢复）。',
-      parameters: P({ column_id: STR('列名或列 id'), force: { type: 'boolean', description: '列内有卡片时是否强制删除（默认 false）' } }, ['column_id']),
+      description: '删除一列（状态）。column_id 传列名或列 id；列内有Ticket时默认拒绝，force=true 可连Ticket一起删除（不可恢复）。',
+      parameters: P({ column_id: STR('列名或列 id'), force: { type: 'boolean', description: '列内有Ticket时是否强制删除（默认 false）' } }, ['column_id']),
       execute: async (args: any) => {
         return mutateBoard(fs, (board: any) => {
           const colIdx = board.columns.findIndex((col: any) => col.id === args.column_id || col.title === args.column_id)

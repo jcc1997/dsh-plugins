@@ -1,13 +1,13 @@
-// host/tools/config.ts — 看板配置导入/导出 2 个 agent 工具(v7)
-// 导出:只带形态(列标题 + 门禁库 + 创建模板),门禁/模板用名字引用,不含任何卡片/个人数据。
-// 导入:整体替换配置层,旧卡片全挪新板第一列,导入前自动备份 board.json。
+// host/tools/config.ts — Kanban 配置导入/导出 2 个 agent 工具(v7)
+// 导出:只带形态(列标题 + 门禁库 + 创建模板),门禁/模板用名字引用,不含任何Ticket/个人数据。
+// 导入:整体替换配置层,旧Ticket全挪新板第一列,导入前自动备份 board.json。
 import { FsLike, readBoard, writeBoard, resolveDataDir, defaultBoard, normalizeBoard, safeId, now, BOARD_FILE, WRITE_POLICY } from '../board'
 import { migrateGate, validateGate } from '../gate'
 import { P, OBJ, outputOf } from './shared'
 
 export const CONFIG_SCHEMA_VERSION = 1
 
-/** 导出整板配置:列标题 + 门禁库(名字引用)+ 模板(门禁按名引用)。不读任何卡片数据。 */
+/** 导出整板配置:列标题 + 门禁库(名字引用)+ 模板(门禁按名引用)。不读任何Ticket数据。 */
 function exportConfig(board: any): any {
   const lib: any[] = board.gateLibrary || []
   const gates = lib.map((g: any) => {
@@ -29,7 +29,7 @@ function exportConfig(board: any): any {
   return {
     schemaVersion: CONFIG_SCHEMA_VERSION,
     name: firstTpl ? firstTpl.name + '-config' : 'kanban-config',
-    description: '由 kanban_export_config 导出的看板配置(列/门禁/模板)',
+    description: '由 kanban_export_config 导出的Kanban 配置(列/门禁/模板)',
     kanban: {
       columns: (board.columns || []).map((c: any) => c.title),
       gates,
@@ -42,19 +42,19 @@ export function configToolDefs(fs: FsLike): any[] {
   return [
     {
       name: 'kanban_export_config',
-      description: '导出看板配置(不含任何卡片/个人数据):列标题 + 门禁库 + 创建模板。门禁与模板用名字引用,可直接交给他人 kanban_import_config 导入。',
+      description: '导出Kanban 配置(不含任何Ticket/个人数据):列标题 + 门禁库 + 创建模板。门禁与模板用名字引用,可直接交给他人 kanban_import_config 导入。',
       parameters: P({}),
       execute: async () => {
         const dataDir = await resolveDataDir(fs)
         const board = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
         return exportConfig(board)
       },
-      output: outputOf('看板配置(JSON,可保存为文件分享给他人导入)'),
+      output: outputOf('Kanban 配置(JSON,可保存为文件分享给他人导入)'),
     },
     {
       name: 'kanban_import_config',
-      description: '导入看板配置(整体替换配置层):列/门禁库/创建模板按配置重建,旧卡片全部挪到新板第一列(不丢失,门禁挂载清除)。导入前自动备份 board.json。配置格式与 workflow-template 包一致(schemaVersion + kanban.columns/gates/templates)。',
-      parameters: P({ config: OBJ('看板配置对象:直接粘贴 JSON 文件内容', true) }, ['config']),
+      description: '导入Kanban 配置(整体替换配置层):列/门禁库/创建模板按配置重建,旧Ticket全部挪到新板第一列(不丢失,门禁挂载清除)。导入前自动备份 board.json。配置格式与 workflow-template 包一致(schemaVersion + kanban.columns/gates/templates)。',
+      parameters: P({ config: OBJ('Kanban 配置对象:直接粘贴 JSON 文件内容', true) }, ['config']),
       execute: async (args: any) => {
         const cfg = args && args.config
         const c = cfg && cfg.kanban

@@ -20,7 +20,7 @@ export function ArchiveView(props: {
             className="kbnb-btn kbnb-danger"
             type="button"
             onClick={() => {
-              if (window.confirm('清空归档？所有归档卡片将被永久删除，不可恢复。')) {
+              if (window.confirm('清空归档？所有归档Ticket将被永久删除，不可恢复。')) {
                 props.kb.mutate((b) => {
                   b.archive = []
                 })
@@ -32,7 +32,7 @@ export function ArchiveView(props: {
         ) : null}
       </div>
       {archived.length === 0 ? (
-        <div className="kbnb-empty">归档为空。看板卡片右上角「归档」后可在侧边栏这里找回。</div>
+        <div className="kbnb-empty">归档为空。Kanban Ticket 右上角「归档」后可在侧边栏这里找回。</div>
       ) : (
         <div className="kbnb-archive-list">
           {archived.map((card: any) => {
@@ -62,7 +62,7 @@ export function ArchiveView(props: {
                     className="kbnb-btn kbnb-danger"
                     type="button"
                     onClick={() => {
-                      if (window.confirm('永久删除卡片「' + card.title + '」？不可恢复。')) {
+                      if (window.confirm('永久删除Ticket 「' + card.title + '」？不可恢复。')) {
                         props.kb.deleteArchivedCard(card.id)
                       }
                     }}

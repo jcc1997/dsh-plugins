@@ -65,7 +65,7 @@ export function apply(ctx: PipelineCtx) {
     } catch { return '' }
   }
 
-  /** 读取卡片上一条「评审未通过」评论（续评上下文：让本轮评审核验上轮 findings 是否已修复） */
+  /** 读取 Ticket 上一条「评审未通过」评论（续评上下文：让本轮评审核验上轮 findings 是否已修复） */
   const lastReviewComment = async (cardId: string): Promise<string> => {
     try {
       const kanban = ctx.get('kanban') as any

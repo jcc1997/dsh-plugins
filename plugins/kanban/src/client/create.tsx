@@ -1,4 +1,4 @@
-// 新建卡片弹窗：Notion 风格大标题（contentEditable）+ 一句话描述 + 标签 + 富文本内容（可选）
+// 新建Ticket弹窗：Notion 风格大标题（contentEditable）+ 一句话描述 + 标签 + 富文本内容（可选）
 // v4：支持创建模板——选择模板预填描述/标签/内容/门禁，创建时随卡带入。
 import React, { useRef, useState } from 'react'
 import { Modal } from '@dsh-plugins/ui'
@@ -82,7 +82,7 @@ export function CreateCardModal(props: {
     return g ? g.name : id
   })
   return (
-    <Modal title="新建卡片" width={560} onClose={props.onClose}>
+    <Modal title="新建Ticket" width={560} onClose={props.onClose}>
       {templates.length > 0 ? (
         <div className="kbnb-field">
           <div className="kbnb-field-row">
@@ -111,7 +111,7 @@ export function CreateCardModal(props: {
         <EditableLine
           className="kbnb-input-title-editable"
           value={title}
-          placeholder="卡片标题"
+          placeholder="Ticket标题"
           onSubmit={submit}
           onInput={setTitle}
         />

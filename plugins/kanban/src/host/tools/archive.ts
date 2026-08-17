@@ -10,8 +10,8 @@ export function archiveToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
   return [
     {
       name: 'kanban_archive',
-      description: '归档一张卡片：从看板列中移出（隐藏），可在侧边栏「归档」中找回。归档不删除数据。卡片挂有 archive 门禁（如 MR 必须合并）时，不通过则拒绝归档。',
-      parameters: P({ card_id: STR('要归档的卡片 id') }, ['card_id']),
+      description: '归档一张Ticket：从Kanban 列中移出（隐藏），可在侧边栏「归档」中找回。归档不删除数据。Ticket 挂有 archive 门禁（如 MR 必须合并）时，不通过则拒绝归档。',
+      parameters: P({ card_id: STR('要归档的Ticket id') }, ['card_id']),
       execute: async (args: any) => {
         const dataDir = await resolveDataDir(fs)
         const board0 = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
@@ -40,7 +40,7 @@ export function archiveToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
           card.archivedFrom = col.id
           card.archivedAt = now()
           card.updatedAt = now()
-          appendActivity(card, '归档卡片')
+          appendActivity(card, '归档Ticket')
           if (!Array.isArray(board.archive)) board.archive = []
           board.archive.push(card)
           return { card_id: card.id, from: col.title, archived: true }
@@ -50,8 +50,8 @@ export function archiveToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       name: 'kanban_unarchive',
-      description: '从归档恢复卡片到看板。status 传列名或列 id（可选，缺省回到归档前的列，原列已删则回第一列）。',
-      parameters: P({ card_id: STR('归档中的卡片 id'), status: STR('目标列名或列 id（可选，缺省回到原列）') }, ['card_id']),
+      description: '从归档恢复Ticket到Kanban。status 传列名或列 id（可选，缺省回到归档前的列，原列已删则回第一列）。',
+      parameters: P({ card_id: STR('归档中的Ticket id'), status: STR('目标列名或列 id（可选，缺省回到原列）') }, ['card_id']),
       execute: async (args: any) => {
         return mutateBoard(fs, (board: any) => {
           const idx = (board.archive || []).findIndex((k: any) => k.id === String(args.card_id))
@@ -61,7 +61,7 @@ export function archiveToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
           if (!to) to = resolveColumn(board, card.archivedFrom) || resolveColumn(board)
           if (!to) return { ok: false, error: 'no column available' }
           card.updatedAt = now()
-          appendActivity(card, '恢复卡片（归档）')
+          appendActivity(card, '恢复Ticket（归档）')
           to.cards.push(card)
           return { card_id: card.id, column: to.title, restored: true }
         })
@@ -70,7 +70,7 @@ export function archiveToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       name: 'kanban_list_archived',
-      description: '列出归档中的卡片概要（含原列与归档时间）。归档卡片不在看板列中，需本工具或 kanban_search(archived=true) 查询。',
+      description: '列出归档中的Ticket 概要（含原列与归档时间）。归档Ticket不在Kanban 列中，需本工具或 kanban_search(archived=true) 查询。',
       parameters: P({}),
       execute: async () => {
         const dataDir = await resolveDataDir(fs)

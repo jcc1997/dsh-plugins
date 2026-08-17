@@ -1,6 +1,6 @@
-// client/board-view.tsx — 看板视图：顶栏工具行（分组/列配置）+ 列/卡片渲染 + 卡片拖拽
+// client/board-view.tsx — Kanban视图：顶栏工具行（分组/列配置）+ 列/Ticket渲染 + Ticket拖拽
 // 分组：不分组 = 单泳道（整体横向滚动）；Git 仓库 = 按 github-repo 关联分泳道（组内横向滚动）
-// 拖拽：仅卡片（组内排序/跨列移动）；跨组拖拽忽略；列头不可拖拽（列排序走设置页列配置）
+// 拖拽：仅Ticket（组内排序/跨列移动）；跨组拖拽忽略；列头不可拖拽（列排序走设置页列配置）
 import React, { useState } from 'react'
 import { safeNow, appendActivity } from '@dsh-plugins/ui'
 import { KanbanBoard } from '@dsh-plugins/ui'
@@ -30,7 +30,7 @@ export function BoardView(props: {
   const [drag, setDrag] = useState<DragState>(null)
   const [hint, setHint] = useState<{ columnId: string; index: number } | null>(null)
 
-  /** 按鼠标位置计算卡片插入下标（落点指示线用） */
+  /** 按鼠标位置计算Ticket插入下标（落点指示线用） */
   function computeCardIndex(evt: React.DragEvent) {
     const el = evt.currentTarget
     try {
@@ -51,7 +51,7 @@ export function BoardView(props: {
     if (!drag) return
     if (drag.kind === 'card') setHint({ columnId, index: computeCardIndex(evt) })
   }
-  /** 落点：卡片移动（跨组忽略；组内排序 / 跨列移动） */
+  /** 落点：Ticket移动（跨组忽略；组内排序 / 跨列移动） */
   function onColumnDrop(columnId: string, groupKey: string, evt: React.DragEvent) {
     evt.preventDefault()
     if (!drag) return
@@ -124,7 +124,7 @@ export function BoardView(props: {
     return keys.map((k) => map.get(k)!)
   }
 
-  /** 单列渲染：列头（可拖拽排序）+ 卡片列表（独立滚动）+ 添加卡片 */
+  /** 单列渲染：列头（可拖拽排序）+ Ticket列表（独立滚动）+ 添加Ticket */
   function renderColumn(col: any, _colIndex: number, groupKey: string) {
     return (
       <section
@@ -157,7 +157,7 @@ export function BoardView(props: {
               onDragEnd={onDragEnd}
               onClick={() => props.onOpenCard(col.id, card.id)}
             >
-              {/* 卡片展示：title + 标签 + 一句话纯文本描述（单行省略，无预览） */}
+              {/* Ticket展示：title + 标签 + 一句话纯文本描述（单行省略，无预览） */}
               <div className="kbnb-card-title">{card.title}</div>
               {card.tags && card.tags.length > 0 ? (
                 <div className="kbnb-card-tags">
@@ -172,7 +172,7 @@ export function BoardView(props: {
           {hint && hint.columnId === col.id ? <div className="kbnb-drop-line" /> : null}
         </div>
         <button className="kbnb-add-card" type="button" onClick={() => props.onStartCreate(col.id)}>
-          + 添加卡片
+          + 添加Ticket
         </button>
       </section>
     )
@@ -196,7 +196,7 @@ export function BoardView(props: {
         </label>
       </div>
       {props.board.columns.length === 0 ? (
-        <div className="kbnb-empty">空看板，去左侧「设置」添加列</div>
+        <div className="kbnb-empty">空Kanban，去左侧「设置」添加列</div>
       ) : (
         <main className={'kbnb-board' + (props.groupBy === 'repo' ? ' kbnb-board-groups' : '')}>
           {groups.map((g) => (

@@ -1,5 +1,5 @@
 // git 插件客户端半（正式 bundle 形态）：向 kanban.card.actions 槽位注册「同步」按钮
-// onClick → fetch POST /api/git/sync（host webServer 路由）→ 完成后调用 owner 的 onSynced 刷新看板
+// onClick → fetch POST /api/git/sync（host webServer 路由）→ 完成后调用 owner 的 onSynced 刷新Kanban
 // 样式：apply 时注入 <style>（正式形态无 styles 全局，直接用 document）
 import React, { useState } from 'react'
 
@@ -76,7 +76,7 @@ export function apply(ctx: { get(name: string): unknown }) {
         type: 'button',
         disabled: phase === 'busy',
         onClick: run,
-        title: phase === 'done' && !hoverAgain ? '同步完成，悬浮可再次同步' : '拉取该卡片关联仓库的 open MR 并刷新状态',
+        title: phase === 'done' && !hoverAgain ? '同步完成，悬浮可再次同步' : '拉取该Ticket关联仓库的 open MR 并刷新状态',
         onMouseEnter: () => setHoverAgain(true),
         onMouseLeave: () => setHoverAgain(false),
       },

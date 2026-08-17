@@ -1,5 +1,5 @@
-// client/page.tsx — 看板页装配：顶栏 + 左侧边栏导航（看板/归档/设置）+ 主区视图切换
-// 看板视图在 board-view.tsx，归档视图在 archive-view.tsx，设置视图复用 settings.tsx；
+// client/page.tsx — Kanban页装配：顶栏 + 左侧边栏导航（Kanban/归档/设置）+ 主区视图切换
+// Kanban视图在 board-view.tsx，归档视图在 archive-view.tsx，设置视图复用 settings.tsx；
 // 抽屉/新建/列配置弹窗在此装配；数据操作全部走 useKanbanBoard。
 import React, { useState } from 'react'
 import { IconChevronLeftOutline14, IconSettingsOutline16 } from '@dsh-plugins/ui'
@@ -42,11 +42,11 @@ export function KanbanPage(props: {
 
   const board = kb.board
 
-  /* ── 卡片操作回调（透传给抽屉） ── */
+  /* ── Ticket操作回调（透传给抽屉） ── */
   function openCard(columnId: string, cardId: string) {
     setDrawer({ columnId, cardId })
   }
-  /** 门禁视图点击卡片：活动卡开抽屉；归档卡切归档视图 */
+  /** 门禁视图点击Ticket：活动卡开抽屉；归档卡切归档视图 */
   function openCardFromAnywhere(cardId: string) {
     for (const col of (board ? board.columns : [])) {
       if ((col.cards || []).some((k: any) => k.id === cardId)) { setDrawer({ columnId: col.id, cardId }); return }
@@ -104,7 +104,7 @@ export function KanbanPage(props: {
         createdAt: safeNow(),
         updatedAt: safeNow(),
       }
-      appendActivity(card, '创建卡片' + (templateName ? '（模板：' + templateName + '）' : ''))
+      appendActivity(card, '创建Ticket' + (templateName ? '（模板：' + templateName + '）' : ''))
       col.cards.push(card)
     })
   }
@@ -142,12 +142,12 @@ export function KanbanPage(props: {
         <button className="kbnb-icon-btn kbnb-back" type="button" title="返回" onClick={props.onClose}>
           <IconChevronLeftOutline14 />
         </button>
-        <span className="kbnb-title">看板</span>
+        <span className="kbnb-title">Kanban</span>
         <span className="kbnb-saving">{kb.saving ? '保存中…' : ''}</span>
       </header>
       {kb.error ? <div className="kbnb-error">{kb.error}</div> : null}
       <div className="kbnb-body">
-        {/* ══ 左侧边栏：看板 / 归档 / 设置 ══ */}
+        {/* ══ 左侧边栏：Kanban / 归档 / 设置 ══ */}
         <aside className="kbnb-app-side">
           <button
             type="button"
@@ -155,7 +155,7 @@ export function KanbanPage(props: {
             onClick={() => setView('board')}
           >
             <IconBoardGlyph />
-            <span className="kbnb-nav-label">看板</span>
+            <span className="kbnb-nav-label">Kanban</span>
             <span className="kbnb-nav-badge">{activeCount}</span>
           </button>
           <button
@@ -229,7 +229,7 @@ export function KanbanPage(props: {
         </main>
       </div>
 
-      {/* 卡片抽屉（key 按 cardId 重建，保证切换卡片时状态干净） */}
+      {/* Ticket抽屉（key 按 cardId 重建，保证切换Ticket时状态干净） */}
       {drawer && drawerCard ? (
         <CardDrawer
           key={drawer.cardId}
@@ -289,7 +289,7 @@ function IconArchiveGlyph() {
 }
 
 
-/* ── 门禁库视图（v6）：每个门禁是独立实体，单独配置；卡片/模板按 id 勾选 ── */
+/* ── 门禁库视图（v6）：每个门禁是独立实体，单独配置；Ticket/模板按 id 勾选 ── */
 const GATE_KIND_OPTIONS: { type: string; label: string }[] = [
   { type: 'tag-required', label: '必须含标签' },
   { type: 'field-nonempty', label: '字段非空' },
@@ -396,7 +396,7 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
         </section>
       ) : null}
       {lib.length === 0 && !adding ? (
-        <div className="kbnb-settings-empty">暂无 Gates。新建后可在卡片抽屉「Gates」区块勾选挂载、在模板勾选预置（agent 工具：kanban_gate_create / kanban_gate_add）。</div>
+        <div className="kbnb-settings-empty">暂无 Gates。新建后可在Ticket抽屉「Gates」区块勾选挂载、在模板勾选预置（agent 工具：kanban_gate_create / kanban_gate_add）。</div>
       ) : null}
       <div className="kbnb-gates-grid">
         {lib.map((g: any) => {
@@ -411,7 +411,7 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
                     {GATE_ON_LABEL_P[g.on]}{g.to ? '→' + g.to : ''} · {gateTypeLabel(g)}
                   </span>
                 </div>
-                <button className="kbnb-btn kbnb-danger kbnb-gate-del" type="button" title="删除门禁（同时从卡片/模板摘除）" onClick={() => props.kb.deleteGate(g.id)}>删除</button>
+                <button className="kbnb-btn kbnb-danger kbnb-gate-del" type="button" title="删除门禁（同时从Ticket/模板摘除）" onClick={() => props.kb.deleteGate(g.id)}>删除</button>
               </header>
               {cfg && Object.keys(cfg).length > 0 ? (
                 <pre className="kbnb-gate-detail-pre">{JSON.stringify(cfg, null, 2)}</pre>
@@ -422,7 +422,7 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
                     <span className="kbnb-field-label">引用：</span>
                     {users.templates.map((tn) => <span key={'t' + tn} className="kbnb-tag">模板 {tn}</span>)}
                     {users.cards.map((c) => (
-                      <button key={c.id} className="kbnb-gates-cardlink" type="button" title={'打开卡片（' + c.col + '）'} onClick={() => props.onOpenCard(c.id)}>
+                      <button key={c.id} className="kbnb-gates-cardlink" type="button" title={'打开Ticket（' + c.col + '）'} onClick={() => props.onOpenCard(c.id)}>
                         {c.title} <span className="kbnb-gates-col">{c.col}</span>
                       </button>
                     ))}
@@ -437,7 +437,7 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
   )
 }
 
-/* ── 模板视图（v6）：模板卡片展示 + 点击卡片展开编辑；门禁从门禁库勾选 ── */
+/* ── 模板视图（v6）：模板Ticket展示 + 点击Ticket展开编辑；门禁从门禁库勾选 ── */
 function TemplatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanBoard> }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
@@ -494,7 +494,7 @@ function TemplatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKan
           <button className="kbnb-btn kbnb-primary" type="button" disabled={!name.trim()} onClick={create}>创建</button>
         </section>
       ) : null}
-      {templates.length === 0 && !adding ? <div className="kbnb-settings-empty">暂无模板。模板预置描述/标签/内容/门禁，新建卡片时引用免重复输入（agent: kanban_template_create）。</div> : null}
+      {templates.length === 0 && !adding ? <div className="kbnb-settings-empty">暂无模板。模板预置描述/标签/内容/门禁，新建Ticket时引用免重复输入（agent: kanban_template_create）。</div> : null}
       {templates.map((t) => (
         <TemplateCard key={t.id} tpl={t} lib={lib} kb={props.kb} />
       ))}
@@ -502,7 +502,7 @@ function TemplatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKan
   )
 }
 
-/** 单张模板卡片：点击展开编辑（名称/描述/标签/门禁勾选） */
+/** 单张模板Ticket：点击展开编辑（名称/描述/标签/门禁勾选） */
 function TemplateCard(props: { tpl: CardTemplate; lib: CardGate[]; kb: ReturnType<typeof useKanbanBoard> }) {
   const t = props.tpl
   const ids = Array.isArray(t.gateIds) ? t.gateIds : []

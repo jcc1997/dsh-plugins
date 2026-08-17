@@ -136,7 +136,7 @@ export function apply(ctx: KanbanCtx) {
       return { ok: false, error: String(e && (e as Error).message ? (e as Error).message : e) }
     }
   })
-  // 会话「任务」tab 同步桥接：槽位渲染授权仅限 sidebar 条目，会话 tab 内走跨插件服务通道
+  // 会话「Ticket」tab 同步桥接：槽位渲染授权仅限 sidebar 条目，会话 tab 内走跨插件服务通道
   route('/kanban-api/git-sync', async (args: any) => {
     const a = (args || {}) as { cardId?: string }
     if (!a.cardId) return { ok: false, error: 'cardId required' }
@@ -149,7 +149,7 @@ export function apply(ctx: KanbanCtx) {
     }
   })
 
-  /* ── 跨插件服务（数据模型 v2）：其他插件（如 git）经 ctx.get('kanban') 读写卡片 ── */
+  /* ── 跨插件服务（数据模型 v2）：其他插件（如 git）经 ctx.get('kanban') 读写Ticket ── */
   const kanbanService = {
     getCard: async (cardId: string) => {
       const dataDir = await resolveDataDir(fs)
@@ -191,8 +191,8 @@ export function apply(ctx: KanbanCtx) {
       for (const card of board.archive || []) push(card, '归档', true)
       return out
     },
-    /** 卡片所在列名（供 git 等插件做状态检查；归档返回 status=归档） */
-    /** 给卡片追加一条评论（供门禁等程序动作落评审意见；返回最后一条评论文本供去重） */
+    /** Ticket所在列名（供 git 等插件做状态检查；归档返回 status=归档） */
+    /** 给Ticket追加一条评论（供门禁等程序动作落评审意见；返回最后一条评论文本供去重） */
     addComment: async (cardId: string, textToAdd: string) => {
       const text2 = String(textToAdd || '').trim()
       if (!text2) return { ok: false, error: 'text is required' }

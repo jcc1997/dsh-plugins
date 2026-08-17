@@ -80,7 +80,7 @@
 
 ## 五、卡片
 
-- 看板卡片: bg-base + radius 12 + border-l2 + shadow-lv1;hover 边框品牌色 + 阴影微抬;选中 = 边框品牌色 + ring。
+- Kanban Ticket: bg-base + radius 12 + border-l2 + shadow-lv1;hover 边框品牌色 + 阴影微抬;选中 = 边框品牌色 + ring。
 - 对话流工具卡(★宿主工具卡同款): `border:1px solid var(--dsw-alias-border-l1);border-radius:12px;padding:10px 12px;margin:4px 0 4px 4px;flex column;gap:8px`,不加阴影(ADR-5)。
 - 卡片内边距: 上下 14px / 左右 16px。
 
@@ -108,7 +108,7 @@
 | 按钮(全变体) | 底变化(变体表) | 底加深 | 2px accent ring | opacity .4 |
 | icon 按钮 | 背景变化 + 文字升档 | 按下 | 2px accent ring | opacity .5 |
 | 输入/Composer | **无变化** | 无 | **无变化**(零高亮) | — |
-| 看板卡片 | 边框品牌色+阴影微抬 | — | 选中 ring | — |
+| Kanban Ticket | 边框品牌色+阴影微抬 | — | 选中 ring | — |
 | 链接 | underline | — | ring | — |
 
 ## 九、交互细节契约(键盘/操作)

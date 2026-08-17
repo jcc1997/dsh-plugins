@@ -1,6 +1,6 @@
 // host/tools/gate.ts — 门禁类 6 个 agent 工具（v6 门禁库模型）
-// 门禁是独立可复用实体：先 kanban_gate_create 入库，再 kanban_gate_add 把库门禁挂到卡片；
-// 模板用 kanban_template_update(gate_ids) 勾选。动作触发时按卡片 gateIds → 库解析检查。
+// 门禁是独立可复用实体：先 kanban_gate_create 入库，再 kanban_gate_add 把库门禁挂到Ticket；
+// 模板用 kanban_template_update(gate_ids) 勾选。动作触发时按Ticket gateIds → 库解析检查。
 import { FsLike, normalizeBoard } from '../board'
 import { mutateBoard, readBoard, resolveDataDir, defaultBoard, findCardAny, safeId, now } from '../board'
 import { P, STR, OBJ, outputOf } from './shared'
@@ -11,7 +11,7 @@ export function gateToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     {
       // 门禁库：新建独立门禁实体
       name: 'kanban_gate_create',
-      description: '在门禁库中新建一条门禁（独立可复用实体）。checker_type：tag-required / field-nonempty / mr-linked / branch-linked / mr-merged / code（沙箱代码，config.code 或 config.script）/ pipeline（config.pipelines 现场跑并等全部成功）。on：move（可配 to 限目标列）/ tags / archive。创建后用 kanban_gate_add 挂到卡片，或在模板 gates 里引用。',
+      description: '在门禁库中新建一条门禁（独立可复用实体）。checker_type：tag-required / field-nonempty / mr-linked / branch-linked / mr-merged / code（沙箱代码，config.code 或 config.script）/ pipeline（config.pipelines 现场跑并等全部成功）。on：move（可配 to 限目标列）/ tags / archive。创建后用 kanban_gate_add 挂到Ticket，或在模板 gates 里引用。',
       parameters: P({
         name: STR('门禁名（必填，唯一展示名）', true),
         checker_type: STR('检查器类型：tag-required / field-nonempty / mr-linked / branch-linked / mr-merged / code / pipeline', true),
@@ -39,7 +39,7 @@ export function gateToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     {
       // 门禁库：删除门禁实体
       name: 'kanban_gate_delete',
-      description: '从门禁库删除一条门禁（同时从所有卡片/模板的引用中摘除）。',
+      description: '从门禁库删除一条门禁（同时从所有Ticket/模板的引用中摘除）。',
       parameters: P({ gate_id: STR('门禁 id（来自 kanban_gate_list）', true) }, ['gate_id']),
       execute: async (args: any) => {
         return mutateBoard(fs, (board: any) => {
@@ -58,10 +58,10 @@ export function gateToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
       output: outputOf('删除门禁结果'),
     },
     {
-      // 挂载：卡片勾选库门禁
+      // 挂载：Ticket勾选库门禁
       name: 'kanban_gate_add',
-      description: '把门禁库中的一条门禁挂到卡片（卡片勾选引用）。gate_id 来自 kanban_gate_list 的门禁库。',
-      parameters: P({ card_id: STR('卡片 id', true), gate_id: STR('门禁库中的门禁 id', true) }, ['card_id', 'gate_id']),
+      description: '把门禁库中的一条门禁挂到Ticket（Ticket勾选引用）。gate_id 来自 kanban_gate_list 的门禁库。',
+      parameters: P({ card_id: STR('Ticket id', true), gate_id: STR('门禁库中的门禁 id', true) }, ['card_id', 'gate_id']),
       execute: async (args: any) => {
         return mutateBoard(fs, (board: any) => {
           const hit = findCardAny(board, String(args.card_id))
@@ -81,8 +81,8 @@ export function gateToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       name: 'kanban_gate_remove',
-      description: '从卡片摘除一条门禁引用（gate_id 来自 kanban_gate_list）。',
-      parameters: P({ card_id: STR('卡片 id', true), gate_id: STR('门禁 id', true) }, ['card_id', 'gate_id']),
+      description: '从Ticket摘除一条门禁引用（gate_id 来自 kanban_gate_list）。',
+      parameters: P({ card_id: STR('Ticket id', true), gate_id: STR('门禁 id', true) }, ['card_id', 'gate_id']),
       execute: async (args: any) => {
         return mutateBoard(fs, (board: any) => {
           const hit = findCardAny(board, String(args.card_id))
@@ -99,8 +99,8 @@ export function gateToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       name: 'kanban_gate_list',
-      description: '列出门禁库全部门禁（独立实体）与指定卡片已挂的门禁。',
-      parameters: P({ card_id: STR('卡片 id（可选：同时返回该卡已挂门禁）') }),
+      description: '列出门禁库全部门禁（独立实体）与指定Ticket已挂的门禁。',
+      parameters: P({ card_id: STR('Ticket id（可选：同时返回该卡已挂门禁）') }),
       execute: async (args: any) => {
         const dataDir = await resolveDataDir(fs)
         const board = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
@@ -118,9 +118,9 @@ export function gateToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       name: 'kanban_gate_check',
-      description: '手动预检卡片上某行为的门禁（不执行动作）：返回是否通过与失败原因。action 为 move（可带 to 目标列名）/ tags / archive。',
+      description: '手动预检Ticket上某行为的门禁（不执行动作）：返回是否通过与失败原因。action 为 move（可带 to 目标列名）/ tags / archive。',
       parameters: P({
-        card_id: STR('卡片 id', true),
+        card_id: STR('Ticket id', true),
         action: STR('动作：move / tags / archive', true),
         to: STR('move 时的目标列名（可选）'),
       }, ['card_id', 'action']),

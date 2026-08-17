@@ -43,7 +43,7 @@ function SyncButton(props: { cardId: string; host: HostLike; onDone: () => void 
   }
   return (
     <div className="kbnb-card-actions">
-      <button className="kbnb-btn kbnb-primary" type="button" disabled={busy} onClick={run} title="拉取该卡片关联仓库的 open MR 并刷新状态">
+      <button className="kbnb-btn kbnb-primary" type="button" disabled={busy} onClick={run} title="拉取该Ticket关联仓库的 open MR 并刷新状态">
         {busy ? '同步中…' : '同步'}
       </button>
       {done ? <span className="git-sync-done">已同步</span> : null}
@@ -99,14 +99,14 @@ export function SessionTaskPanel(props: SessionTaskPanelProps) {
 
   return (
     <div className="kbnb-session-tasks">
-      {/* ── 左侧：任务列表 ── */}
+      {/* ── 左侧：Ticket 列表 ── */}
       <div className="kbnb-session-side">
         <header className="kbnb-session-side-head">
-          <span className="kbnb-session-tasks-title">关联任务 {related.length}</span>
+          <span className="kbnb-session-tasks-title">关联Ticket {related.length}</span>
         </header>
         {related.length === 0 ? (
           <div className="kbnb-session-tasks-empty">
-            当前会话暂无关联任务。打开看板卡片 → 右侧「关联」→「+ 新增」→ 类型「会话」填入本会话 id 即可关联。
+            当前会话暂无关联Ticket。打开Kanban Ticket → 右侧「关联」→「+ 新增」→ 类型「会话」填入本会话 id 即可关联。
           </div>
         ) : (
           <div className="kbnb-session-tasks-list">
@@ -134,7 +134,7 @@ export function SessionTaskPanel(props: SessionTaskPanelProps) {
         {selectedCard && selectedId ? (
           <CardDetailPane card={selectedCard} columns={kb.board ? kb.board.columns : []} cardId={selectedId} kb={kb} host={props.host} sessions={props.sessions} />
         ) : (
-          <div className="kbnb-session-main-empty">选择左侧任务查看详情</div>
+          <div className="kbnb-session-main-empty">选择左侧Ticket查看详情</div>
         )}
       </div>
     </div>

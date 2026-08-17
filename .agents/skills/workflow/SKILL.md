@@ -1,19 +1,19 @@
 ---
 name: workflow
-description: 带门禁的软件开发看板工作流指南(workflow-template):10 列阶段语义、11 条门禁、确认标签、MR 收尾。Use when 当前处于 workflow 模式，或用户显式要求使用带门禁的看板开发流程、推进列、打确认标签、解释门禁不通过原因、导入/自定义流程配置时。关键词:workflow、开发流程、看板工作流、进入下一列、确认标签、rd-confirmed、td-confirmed、uc-confirmed、review-1-done、tests-passed、review-2-done。
+description: 带门禁的软件开发Kanban 工作流指南(workflow-template):10 列阶段语义、11 条门禁、确认标签、MR 收尾。Use when 当前处于 workflow 模式，或用户显式要求使用带门禁的Kanban 开发流程、推进列、打确认标签、解释门禁不通过原因、导入/自定义流程配置时。关键词:workflow、开发流程、Kanban 工作流、进入下一列、确认标签、rd-confirmed、td-confirmed、uc-confirmed、review-1-done、tests-passed、review-2-done。
 ---
 
-# workflow — 带门禁的软件开发看板流程
+# workflow — 带门禁的软件开发Kanban 流程
 
 > 本文件真源:`workflow-template/skills/workflow/SKILL.md`;仓库根 `.agents/skills/workflow/SKILL.md` 为同步副本。**改动必须两处一起改。**
 > 配套配置:`workflow-template/workflow.json`(经 `kanban_import_config` 导入 dsh-kanban 后生效)。
 > workflow 模式 agent 预设:`workflow-template/agent-presets/workflow/`(复制到 `~/.dsh/.agent-presets/workflow/` 后,新建会话的预设选择器出现「workflow 模式」,agent 自动按本文「会话编排」执行)。
 
-> 适用范围：本流程只在 **workflow 模式**（workflow agent preset）下默认启用；其他模式只有用户**显式要求**使用看板工作流 / 创建 kanban ticket 时才启用。不要在任何非 workflow 模式会话里擅自建卡、建分支或提 MR。**非 workflow 模式下即使要建卡，也必须先用 `ask_user_question` 与用户确认后再创建。**
+> 适用范围：本流程只在 **workflow 模式**（workflow agent preset）下默认启用；其他模式只有用户**显式要求**使用Kanban 工作流 / 创建 kanban ticket 时才启用。不要在任何非 workflow 模式会话里擅自建卡、建分支或提 MR。**非 workflow 模式下即使要建卡，也必须先用 `ask_user_question` 与用户确认后再创建。**
 
 ## 一、这是什么
 
-一套沉淀在看板上的软件开发流程:**Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd review → Stage → Done**。每进入下一列都有门禁检查,不满足则动作被拒绝;人工确认 = 打 confirm 标签;收尾 = MR 合并自动进 Done。
+一套沉淀在Kanban上的软件开发流程:**Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd review → Stage → Done**。每进入下一列都有门禁检查,不满足则动作被拒绝;人工确认 = 打 confirm 标签;收尾 = MR 合并自动进 Done。
 
 ```
 Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ──> Testing ──> 2nd review ──> Stage ──> Done
@@ -64,7 +64,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
   - agent 输出尾行 verdict：`REVIEW_VERDICT:{"ok":true|false,"issues":[...]}`；`ok:true` 才放行；
   - 未通过：门禁拒绝 + **评审问题自动落卡评论**（与最后一条相同不重复写）+ 拒绝原因带问题摘要。
 - **fail-closed**：llm 节点未接入 agent 服务 / verdict 解析失败 → pipeline 失败 → 门禁拒绝（宁可拒绝不可假放行）。
-- **续评（上下文注入式）**：每轮评审为全新 agent，但 llm 节点会读取卡片上一条「评审未通过」评论，作为【上一轮评审意见】注入本轮 prompt——agent 逐条核验上轮 findings 是否已修复（未修复继续列为未解决问题），功能等价于「接着上次评」。
+- **续评（上下文注入式）**：每轮评审为全新 agent，但 llm 节点会读取Ticket上一条「评审未通过」评论，作为【上一轮评审意见】注入本轮 prompt——agent 逐条核验上轮 findings 是否已修复（未修复继续列为未解决问题），功能等价于「接着上次评」。
 
 ### 导入与验证
 
@@ -73,7 +73,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ## 三-ter、bug 快捷流程（跳过 RD/TD）
 
-> bug 类卡片走轻量流程：不写 rd.md/td.md/uc.md（复现步骤 + 验收点写卡描述），从 Backlog 直进 In Dev；分支/MR 照建，评审门禁与后续列全保留。建卡用 `kanban_create(title, template: "bug")`（自动挂 7 条门禁：In Dev 建分支 / 1st Review 关联 MR / Testing 双门禁 / tests-passed / review-2-done / mr-merged）。
+> bug 类Ticket走轻量流程：不写 rd.md/td.md/uc.md（复现步骤 + 验收点写卡描述），从 Backlog 直进 In Dev；分支/MR 照建，评审门禁与后续列全保留。建卡用 `kanban_create(title, template: "bug")`（自动挂 7 条门禁：In Dev 建分支 / 1st Review 关联 MR / Testing 双门禁 / tests-passed / review-2-done / mr-merged）。
 
 ### bug 流程编排
 
@@ -88,7 +88,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ### 会话编排（workflow 模式默认流程）
 
-在 workflow 模式或用户显式要求走看板工作流时，用户陈述功能/需求后 agent 直接进入流程，不要停在提问上；其他模式不要自动建卡。**非 workflow 模式即使显式要求建卡，也必须先用 `ask_user_question` 确认后再 `kanban_create`。**
+在 workflow 模式或用户显式要求走Kanban 工作流时，用户陈述功能/需求后 agent 直接进入流程，不要停在提问上；其他模式不要自动建卡。**非 workflow 模式即使显式要求建卡，也必须先用 `ask_user_question` 确认后再 `kanban_create`。**
 
 1. **确认建卡**:复述理解 → 用 `ask_user_question` 与用户确认 → `kanban_create(title, template: "workflow")` 建卡进 Backlog(自动带入门禁与标签;必要时先 `git_claim_task_id` 认领 taskId);
 2. **进 RD**:`git_create_branch(card_id)` 建 workflow 分支(过 branch-linked 门禁)→ `kanban_move(card_id, "RD")`;
@@ -124,7 +124,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 - **文档确认（RD/TD/UC）**:用 `md_doc_open`(依赖 dsh-markdown-review 插件)把要审的文档展示给人,划词批注 + 总评;
 - **代码评审（1st/2nd review）**:**不用 md_doc_open**,直接用 `ask_user_question` 提问,MR 链接用**可跳转 markdown 格式**([MR #n](url));改动摘要**放 MR 里**、不进提问正文;选项「通过/不通过」;通过即打对应确认标签。
 
-- agent 调 `md_doc_open(path: "<仓库路径>/docs/<taskId>/<doc>.md", context: "…请审阅…")` → 对话流出现「打开文档」卡片;
+- agent 调 `md_doc_open(path: "<仓库路径>/docs/<taskId>/<doc>.md", context: "…请审阅…")` → 对话流出现「打开文档」Ticket;
 - 用户点开大浮窗,划词批注 + 底部总评,点「提交」;
 - 工具返回 `{quotes:[{text,note}], comment}`,agent 据此行动:批注整理进卡评论/MR 评论;通过 → `kanban_tags` 打对应确认标签并 `kanban_move` 推进;不通过 → 把意见回给相关人,卡停在当前列。
 
@@ -133,12 +133,12 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 **git 配合**(dsh-git 插件):
 - `git_create_branch(card_id)` — 进 RD 前置:自动认领 taskId、从主分支切 `workflow/<taskId>` 并推送、自动关联 github-branch(本地仓库须干净且在 main/master);
 - `git_create_mr(card_id)` — RD 确认后:head=`workflow/<taskId>`、base=main,标题自动带 `[taskId]` 并关联 github-mr;
-- `git_merge_pr` — Stage 收尾:合并前检查卡片必须处于 Stage,合并后自动进 Done;
-- 卡片抽屉「+ 新增 git 关联」或 `kanban_link` 可手动关联仓库/MR。
+- `git_merge_pr` — Stage 收尾:合并前检查Ticket必须处于 Stage,合并后自动进 Done;
+- Ticket 抽屉「+ 新增 git 关联」或 `kanban_link` 可手动关联仓库/MR。
 
 **文档约定**:每个 task 的文档放 git 仓库 `docs/<taskId>/`(rd.md / td.md / uc.md 等),随分支 MR 演进;RD/TD/UC 模板见 `workflow-template/templates/`。
 
-**配置流转**:`kanban_export_config` 导出当前形态(列+门禁+模板,不含卡片);`kanban_import_config` 整体替换配置层(旧卡挪第一列,自动备份)。完整指南见 `workflow-template/README.md`。
+**配置流转**:`kanban_export_config` 导出当前形态(列+门禁+模板,不含Ticket);`kanban_import_config` 整体替换配置层(旧卡挪第一列,自动备份)。完整指南见 `workflow-template/README.md`。
 
 ## 五、自定义维护指引(改了 workflow.json 之后)
 

@@ -7,9 +7,9 @@ export function refToolDefs(fs: FsLike): any[] {
   return [
     {
       name: 'kanban_link',
-      description: '给卡片添加外部关联引用（refs）：github-repo / github-branch / github-mr / local-repo / jira-issue 等。kind 格式 <platform>-<type>；platform 缺省取 kind 前缀；重复（同 kind + external_id）拒绝。',
+      description: '给Ticket添加外部关联引用（refs）：github-repo / github-branch / github-mr / local-repo / jira-issue 等。kind 格式 <platform>-<type>；platform 缺省取 kind 前缀；重复（同 kind + external_id）拒绝。',
       parameters: P({
-        card_id: STR('卡片 id'),
+        card_id: STR('Ticket id'),
         kind: STR('引用类型：github-repo / github-branch / github-mr / local-repo / jira-issue 等'),
         external_id: STR('提供方侧 ID：repo 全名（owner/repo）、MR 号、jira key、本地路径等'),
         platform: STR('提供方键（github/jira 等），缺省从 kind 前缀推导'),
@@ -50,8 +50,8 @@ export function refToolDefs(fs: FsLike): any[] {
     },
     {
       name: 'kanban_unlink',
-      description: '移除卡片的某个外部关联引用（refs）。ref_id 来自 kanban_get_card / kanban_link 结果。',
-      parameters: P({ card_id: STR('卡片 id'), ref_id: STR('要移除的 ref id') }, ['card_id', 'ref_id']),
+      description: '移除Ticket的某个外部关联引用（refs）。ref_id 来自 kanban_get_card / kanban_link 结果。',
+      parameters: P({ card_id: STR('Ticket id'), ref_id: STR('要移除的 ref id') }, ['card_id', 'ref_id']),
       execute: async (args: any) => {
         return mutateBoard(fs, (board: any) => {
           const hit = findCardAny(board, String(args.card_id))

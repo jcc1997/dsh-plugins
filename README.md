@@ -1,6 +1,6 @@
 # dsh-plugins
 
-为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)(DSH)开发的插件集合：看板 + 门禁工作流、git 集成、AI 流水线、markdown 文档审阅。所有插件均为**正式 bundle** 形态，安装后重启生效、重启不丢。
+为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)(DSH)开发的插件集合：Kanban + 门禁工作流、git 集成、AI 流水线、markdown 文档审阅。所有插件均为**正式 bundle** 形态，安装后重启生效、重启不丢。
 
 ## 读者导航
 
@@ -17,7 +17,7 @@ https://github.com/jcc1997/dsh-plugins/blob/main/README.md
 
 > 按这个 README 安装 dsh-plugins，并导入 workflow-template 作为我的开发工作流。
 
-agent 会完成：**构建插件 → 挂载到 web profile → 配置 git/pipeline → 导入看板配置 → 提示重启**。你不需要手动敲安装命令。
+agent 会完成：**构建插件 → 挂载到 web profile → 配置 git/pipeline → 导入Kanban 配置 → 提示重启**。你不需要手动敲安装命令。
 
 > 想自己手动装？见文末 [手动安装（给 agent / 开发者）](#手动安装给-agent--开发者)。
 
@@ -25,31 +25,31 @@ agent 会完成：**构建插件 → 挂载到 web profile → 配置 git/pipeli
 
 下面按插件分别介绍。每个插件都有独立的 [plugins/](plugins/) README，包含完整工具契约、数据模型和限制。
 
-### 1. kanban：看板 + 门禁工作流
+### 1. kanban：Kanban + 门禁工作流
 
-**解决什么问题**：人和 AI 在同一块看板上协作，并且用「门禁」强制流程不被跳过。
+**解决什么问题**：人和 AI 在同一块Kanban上协作，并且用「门禁」强制流程不被跳过。
 
 **核心能力**：
 
-- 全功能看板：列管理、拖拽移动、归档/恢复、分组、标签、评论、富文本内容、变更记录。
+- 全功能Kanban：列管理、拖拽移动、归档/恢复、分组、标签、评论、富文本内容、变更记录。
 - 31 个 `kanban_*` agent 工具：建卡、移动、评论、关联、配置导入导出等。
 - 行为门禁（Gate）：移动、打标签、归档时触发检查，不通过就拒绝动作。
 - 门禁库是独立实体：可被多张卡/多个模板复用，支持内置条件、沙箱代码、pipeline 三类检查器。
-- 创建模板：预设 description / tags / content / 门禁，新建卡片时一键带入。
+- 创建模板：预设 description / tags / content / 门禁，新建Ticket时一键带入。
 - 配置导入导出：`kanban_export_config` / `kanban_import_config`，可分享整套流程。
 
-**入口**：侧边栏「看板」；数据落在 `~/.dsh/kanban/`。
+**入口**：侧边栏「Kanban」；数据落在 `~/.dsh/kanban/`。
 
 详细文档：[plugins/kanban/README.md](plugins/kanban/README.md)
 
 ### 2. git：GitHub / 分支 / MR 集成
 
-**解决什么问题**：让卡片和真实仓库绑定，自动建 workflow 分支、提 MR、同步状态、合并收尾。
+**解决什么问题**：让Ticket和真实仓库绑定，自动建 workflow 分支、提 MR、同步状态、合并收尾。
 
 **核心能力**：
 
 - `git_configure`：配置 GitHub 仓库、本地仓库路径、GitHub token。
-- `[ID]` 约定：卡片自动认领 `<repo>-<int>` taskId，MR 标题带 `[taskId]` 自动关联。
+- `[ID]` 约定：Ticket 自动认领 `<repo>-<int>` taskId，MR 标题带 `[taskId]` 自动关联。
 - `git_create_branch`：从主分支切出 `workflow/<taskId>` 并推送。
 - `git_create_mr` / `git_list_mrs` / `git_sync` / `git_merge_pr`：MR 全生命周期管理。
 - 与 kanban 门禁联动：`branch-linked`、`mr-linked`、`mr-merged` 依赖 git 插件。
@@ -92,7 +92,7 @@ agent 会完成：**构建插件 → 挂载到 web profile → 配置 git/pipeli
 
 ### 5. workflow-template：开箱即用的研发流程
 
-**解决什么问题**：不用从零搭流程，直接导入一份完整的「10 列看板 + 门禁 + 创建模板 + agent 预设」研发工作流。
+**解决什么问题**：不用从零搭流程，直接导入一份完整的「10 列Kanban + 门禁 + 创建模板 + agent 预设」研发工作流。
 
 **核心能力**：
 
@@ -116,7 +116,7 @@ Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd revie
 - 进 RD 前自动建 `workflow/<taskId>` 分支；
 - RD/TD/UC/两轮 review 都通过 `md_doc_open` 打开文档给人确认；
 - 进 Testing 可触发 pipeline 做真实检查；
-- 到 Stage 后用 `git_merge_pr` 合并 MR，卡片自动进 Done。
+- 到 Stage 后用 `git_merge_pr` 合并 MR，Ticket 自动进 Done。
 
 ## 安装
 
@@ -129,9 +129,9 @@ agent 会帮你完成构建、安装、配置和导入；你只需要在需要�
 
 ### 安装后你会得到
 
-- 侧边栏出现「看板」「Pipeline」入口；
+- 侧边栏出现「Kanban」「Pipeline」入口；
 - agent 可用 `kanban_*`、`git_*`、`pipeline_*`、`md_doc_open` 工具；
-- 看板里有一套 10 列 + 门禁 + 模板的研发流程，可以直接开始用。
+- Kanban 里有一套 10 列 + 门禁 + 模板的研发流程，可以直接开始用。
 
 ### 手动安装（给 agent / 开发者）
 
@@ -170,12 +170,12 @@ dsh plugin --profile web add /path/to/dsh-plugins/plugins/git
 dsh plugin --profile web add /path/to/dsh-plugins/plugins/pipeline
 dsh plugin --profile web add /path/to/dsh-plugins/plugins/markdown-review
 
-# 3. 重启 dsh：侧边栏出现「看板」「Pipeline」入口
+# 3. 重启 dsh：侧边栏出现「Kanban」「Pipeline」入口
 ```
 
 | 插件 | 是否必需 | 作用 |
 |---|---|---|
-| kanban | 必选 | 看板 + 行为门禁 + 创建模板 + 配置导入导出 |
+| kanban | 必选 | Kanban + 行为门禁 + 创建模板 + 配置导入导出 |
 | git | 推荐 | GitHub 仓库/分支/MR 关联、[ID] 自动认领、MR 同步与合并（门禁 `mr-linked` / `mr-merged` 依赖它） |
 | pipeline | 可选 | 可复用 AI 流水线，可把「测试通过」门禁换成真实 pipeline 检查 |
 | markdown-review | 推荐 | 人工审批点：对话流打开本地 md 大浮窗，划词批注 + 总评，提交即回传 agent 继续 |
@@ -186,7 +186,7 @@ dsh plugin --profile web add /path/to/dsh-plugins/plugins/markdown-review
 
 | 插件 | 工具前缀 | 数量 | 重点能力 |
 |---|---|---|---|
-| kanban | `kanban_*` | 31 | 看板读写、归档、列管理、关联、门禁库、创建模板、配置导入导出 |
+| kanban | `kanban_*` | 31 | Kanban读写、归档、列管理、关联、门禁库、创建模板、配置导入导出 |
 | git | `git_*` | 7 | 配置、[ID] 认领、关联、MR 列表/同步/合并 |
 | pipeline | `pipeline_*` | 11 | 流水线管理、版本发布/删除、运行/进度/队列、catalog |
 | markdown-review | `md_doc_open` | 1 | 对话流打开本地 md 大浮窗：划词批注 + 总评，提交即回传、agent 自动继续 |
@@ -198,7 +198,7 @@ agent 使用各插件的完整契约（参数、门禁模型、代码沙箱能�
 ```
 dsh-plugins/
 ├── plugins/
-│   ├── kanban/      # 看板 + 门禁工作流（31 工具；Agent 门禁指南见其 README）
+│   ├── kanban/      # Kanban + 门禁工作流（31 工具；Agent 门禁指南见其 README）
 │   ├── git/         # git 集成（7 工具 + [ID] 关联 + MR 合并）
 │   ├── pipeline/    # AI 流水线（11 工具；React Flow 节点图）
 │   └── markdown-review/ # md 文档审阅（md_doc_open：划词批注+总评，提交即回传）
@@ -218,7 +218,7 @@ dsh-plugins/
 1. **先读 [AGENTS.md](AGENTS.md)**：工作规则、红线、文档职责、提交规范。
 2. **加载插件开发 skill**：如果当前会话有 `skill` 工具（标准模式 / Code 模式 / workflow 模式），先加载 [.agents/skills/dsh-dynamic-plugin-dev/SKILL.md](.agents/skills/dsh-dynamic-plugin-dev/SKILL.md)；极简模式没有 `skill` 工具，可直接用 `bash` / `str_replace_editor` 打开该文件阅读。
 3. **按插件看细节**：
-   - [plugins/kanban/README.md](plugins/kanban/README.md)：看板 + 门禁
+   - [plugins/kanban/README.md](plugins/kanban/README.md)：Kanban + 门禁
    - [plugins/git/README.md](plugins/git/README.md)：git 集成
    - [plugins/pipeline/README.md](plugins/pipeline/README.md)：AI 流水线
    - [plugins/markdown-review/README.md](plugins/markdown-review/README.md)：文档审阅

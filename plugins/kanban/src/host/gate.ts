@@ -1,6 +1,6 @@
 // host/gate.ts — 门禁引擎（v5 抽象）：门禁 = 统一检查单元（checker）
 // checker 类型：
-//   tag-required   内置条件：卡片必须含指定标签
+//   tag-required   内置条件：Ticket必须含指定标签
 //   field-nonempty 内置条件：字段非空
 //   mr-linked      内置条件：已关联仓库 + MR
 //   branch-linked  内置条件：已关联 workflow 分支（github-branch）
@@ -54,7 +54,7 @@ export function migrateGate(g: any): CardGate {
   return { id: g.id, name: g.name || type, on: g.on || 'move', ...(to ? { to } : {}), checker: { type: type as any, config } }
 }
 
-/** 解析卡片/模板实际生效的门禁（v6 门禁库引用优先，兼容内联） */
+/** 解析Ticket/模板实际生效的门禁（v6 门禁库引用优先，兼容内联） */
 export function resolveGates(holder: any, board: any): CardGate[] {
   if (!holder) return []
   const lib: any[] = (board && Array.isArray(board.gateLibrary)) ? board.gateLibrary : []
@@ -163,8 +163,8 @@ nativeCheckers['mr-linked'] = async (card, gate) => {
   const mrRefs = refs.filter((r) => r.kind === 'github-mr' && r.externalId)
   const snap = card.meta && card.meta.sync && card.meta.sync.github && card.meta.sync.github.snapshot
   const snapMrs = snap && Array.isArray(snap.mrs) ? snap.mrs : []
-  if (!repoRef || !repoRef.externalId) return { name: gate.name || 'mr-linked', type: 'mr-linked', reason: '卡片未关联 GitHub 仓库（github-repo）' }
-  if (mrRefs.length === 0 && snapMrs.length === 0) return { name: gate.name || 'mr-linked', type: 'mr-linked', reason: '卡片未关联 MR（github-mr）' }
+  if (!repoRef || !repoRef.externalId) return { name: gate.name || 'mr-linked', type: 'mr-linked', reason: 'Ticket未关联 GitHub 仓库（github-repo）' }
+  if (mrRefs.length === 0 && snapMrs.length === 0) return { name: gate.name || 'mr-linked', type: 'mr-linked', reason: 'Ticket未关联 MR（github-mr）' }
   return null
 }
 
@@ -172,8 +172,8 @@ nativeCheckers['branch-linked'] = async (card, gate) => {
   const refs: any[] = Array.isArray(card.refs) ? card.refs : []
   const repoRef = refs.find((r) => r.kind === 'github-repo')
   const brRefs = refs.filter((r) => r.kind === 'github-branch' && r.externalId)
-  if (!repoRef || !repoRef.externalId) return { name: gate.name || 'branch-linked', type: 'branch-linked', reason: '卡片未关联 GitHub 仓库（github-repo）' }
-  if (brRefs.length === 0) return { name: gate.name || 'branch-linked', type: 'branch-linked', reason: '卡片未关联 workflow 分支（github-branch，先 git_create_branch）' }
+  if (!repoRef || !repoRef.externalId) return { name: gate.name || 'branch-linked', type: 'branch-linked', reason: 'Ticket未关联 GitHub 仓库（github-repo）' }
+  if (brRefs.length === 0) return { name: gate.name || 'branch-linked', type: 'branch-linked', reason: 'Ticket未关联 workflow 分支（github-branch，先 git_create_branch）' }
   return null
 }
 
@@ -181,8 +181,8 @@ nativeCheckers['mr-merged'] = async (card, gate, _cfg, deps) => {
   const refs: any[] = Array.isArray(card.refs) ? card.refs : []
   const repoRef = refs.find((r) => r.kind === 'github-repo')
   const mrRefs = refs.filter((r) => r.kind === 'github-mr' && r.externalId)
-  if (!repoRef || !repoRef.externalId) return { name: gate.name || 'mr-merged', type: 'mr-merged', reason: '卡片未关联 GitHub 仓库' }
-  if (mrRefs.length === 0) return { name: gate.name || 'mr-merged', type: 'mr-merged', reason: '卡片未关联 MR' }
+  if (!repoRef || !repoRef.externalId) return { name: gate.name || 'mr-merged', type: 'mr-merged', reason: 'Ticket未关联 GitHub 仓库' }
+  if (mrRefs.length === 0) return { name: gate.name || 'mr-merged', type: 'mr-merged', reason: 'Ticket未关联 MR' }
   const repo = String(repoRef.externalId)
   const token = await deps.getToken().catch(() => undefined)
   const headers: Record<string, string> = { Accept: 'application/vnd.github+json' }
@@ -253,9 +253,9 @@ async function runCodeOnRuntime(code: string, _script: string | null, card: any,
       bindings: [{
         global: 'gate',
         functions: {
-          /** 当前被检查的卡片 */
+          /** 当前被检查的Ticket */
           card: async () => lossless(card),
-          /** 读任意卡片（kanban 服务） */
+          /** 读任意Ticket（kanban 服务） */
           getCard: async (args: any) => {
             const id = args && args.cardId ? String(args.cardId) : String(args)
             return lossless(await readCardById(id, deps))
@@ -371,7 +371,7 @@ checkerRegistry['pipeline'] = async (card, gate, cfg, deps) => {
   return null
 }
 
-/** 检查卡片上匹配 action 的全部门禁；任一失败即拒绝。execCtx 透传调用方 agent/signal（pipeline 检查器 spawn 评审 agent 用） */
+/** 检查Ticket上匹配 action 的全部门禁；任一失败即拒绝。execCtx 透传调用方 agent/signal（pipeline 检查器 spawn 评审 agent 用） */
 export async function checkGates(
   card: any,
   board: any,

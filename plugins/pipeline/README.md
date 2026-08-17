@@ -4,7 +4,7 @@ DSH Pipeline 流水线插件（正式 bundle 形态）。类似 dify 的可复�
 
 ## 能力
 
-- **Pipeline 管理**：侧边栏入口（同看板）打开全屏主界面；流水线列表**多列网格**；选中进入**独立编辑页面**（列表 / 编辑 / 运行与队列 / 说明）。
+- **Pipeline 管理**：侧边栏入口（同 Kanban）打开全屏主界面；流水线列表**多列网格**；选中进入**独立编辑页面**（列表 / 编辑 / 运行与队列 / 说明）。
 - **流水线图（dify 式）**：编辑页基于开源 **@xyflow/react（React Flow，与 dify 同源）** 渲染节点图——节点卡片（类型徽章/标题/配置摘要/删除）+ SVG 连线 + **边中点 + 插入节点** + 点击节点右侧面板编辑（标题/依赖/配置 JSON）；不支持拖拽节点，画布可平移缩放。
 - **版本管理（npm 风格 semver）**：版本号形如 v1.0.1（major.minor.patch）。发布后版本不可变；最新版本是草稿，可编辑节点图；发布时按 patch/minor/major 升位。
 - **atomic 与 combined**：atomic 是无依赖基础单元（可复用）；combined 引用已发布的 atomic 单元组合成完整流程（pipeline 节点 ref 支持 `<pipelineId>@<version>` / `@latest`）。
@@ -24,7 +24,7 @@ DSH Pipeline 流水线插件（正式 bundle 形态）。类似 dify 的可复�
 - llm 节点通过引擎注入的 runLlm 执行：宿主 `agents` 服务创建子 agent（默认精简预设 `review`，仅 fs+bash，不加载无关上下文），`followup` 驱动到完成，读取会话最后一条 assistant 消息。
 - **fail-closed**：宿主未注入 runLlm / agent 服务不可用 / verdict 无法解析 → 节点失败、pipeline 失败（**不再返回占位成功**，避免门禁假放行）。
 - **verdict 契约**：agent 输出尾行 `REVIEW_VERDICT:{"ok":true|false,"issues":[...]}`；`ok:true` 节点成功，否则节点失败（error 带 issues 摘要）。
-- **评审连续性（上下文注入式）**：节点 config `cardIdPath`（占位符插值出 card.id）+ 接线层读取卡片上一条「评审未通过」评论注入 prompt，实现跨轮核验修复（等价续评）；`toolFilter` 可配（默认 `["read","glob","grep","bash"]`，评审只读 + git）。
+- **评审连续性（上下文注入式）**：节点 config `cardIdPath`（占位符插值出 card.id）+ 接线层读取 Ticket 上一条「评审未通过」评论注入 prompt，实现跨轮核验修复（等价续评）；`toolFilter` 可配（默认 `["read","glob","grep","bash"]`，评审只读 + git）。
 - 其他 config：`timeoutMs`（默认 600000）、`model`/`provider`/`maxTokens`（透传 agentOptions）、`persona`（阴影覆盖部署 persona，评审场景由 pipeline config 提供）、`toolFilter`（allow 名单，默认 read/glob/grep/bash）。
 
 ## pipeline_import_config（模板分发）

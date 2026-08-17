@@ -1,6 +1,6 @@
-// client/drawer.tsx — 卡片抽屉：左列主内容（标题+描述+富文本内容+评论）+ 右侧栏（drawer-side.tsx）
+// client/drawer.tsx — Ticket抽屉：左列主内容（标题+描述+富文本内容+评论）+ 右侧栏（drawer-side.tsx）
 // 标题/描述用 contentEditable（Notion 式，无 input 边框）；内容用块富文本编辑器（含图片）
-// 蒙层点击自动关闭；改动自动保存（无防抖，切换卡片首帧跳过）
+// 蒙层点击自动关闭；改动自动保存（无防抖，切换Ticket首帧跳过）
 import React, { useEffect, useRef, useState } from 'react'
 import { IconCloseOutline16, fmtTime, useEscClose } from '@dsh-plugins/ui'
 import { KanbanCard, KanbanColumn, KanbanBlock } from '@dsh-plugins/ui'
@@ -82,7 +82,7 @@ export function CardDetail(props: {
   const [content, setContent] = useState<KanbanBlock[]>(Array.isArray(props.card.content) ? props.card.content : [])
   const [comment, setComment] = useState('')
 
-  // 切换卡片时同步本地状态（抽屉按 cardId key 重建，此处兜底会话面板场景）
+  // 切换Ticket时同步本地状态（抽屉按 cardId key 重建，此处兜底会话面板场景）
   useEffect(() => {
     setTitle(props.card.title)
     setDescription(props.card.description || '')
@@ -90,7 +90,7 @@ export function CardDetail(props: {
   }, [props.card.id])
 
   // 自动保存：内容变更立即提交（动态 client 半无 setTimeout，不做防抖；
-  // 切换卡片时首帧跳过，避免把上一张卡的内容写回新卡）
+  // 切换Ticket时首帧跳过，避免把上一张卡的内容写回新卡）
   const skipSave = useRef(true)
   useEffect(() => {
     skipSave.current = true
@@ -111,7 +111,7 @@ export function CardDetail(props: {
       <div className="kbnb-drawer-main">
         {/* 标题：Notion 风格，contentEditable 大标题（无 input 边框） */}
         <div className="kbnb-title-row">
-          <EditableLine className="kbnb-input-title-editable" value={title} placeholder="卡片标题" onInput={setTitle} />
+          <EditableLine className="kbnb-input-title-editable" value={title} placeholder="Ticket标题" onInput={setTitle} />
           {typeof props.onClose === 'function' ? (
             <button className="kbnb-icon-btn" type="button" title="关闭" onClick={props.onClose}>
               <IconCloseOutline16 />
@@ -175,7 +175,7 @@ export function CardDetail(props: {
         </section>
       </div>
 
-      {/* ══ 右列（drawer-side.tsx）：状态 + 标签 + 关联卡片 + 门禁 + 变更记录 ══ */}
+      {/* ══ 右列（drawer-side.tsx）：状态 + 标签 + 关联Ticket + 门禁 + 变更记录 ══ */}
       <DrawerSide
         card={props.card}
         columns={props.columns}
