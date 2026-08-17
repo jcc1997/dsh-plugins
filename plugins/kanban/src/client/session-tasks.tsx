@@ -100,11 +100,19 @@ export function SessionTaskPanel(props: SessionTaskPanelProps) {
 
   return (
     <div className="kbnb-session-tasks">
-      {/* ── 左侧：悬浮可折叠 Ticket 列表 ── */}
+      {/* 固定在浮窗左上角的展开/收起按钮 */}
+      <button
+        className="kbnb-session-side-toggle"
+        type="button"
+        title={sideOpen ? '收起列表' : '展开Ticket列表'}
+        onClick={() => setSideOpen(!sideOpen)}
+      >
+        {sideOpen ? '−' : 'Ticket'}
+      </button>
+      {/* ── 左侧：悬浮 Ticket 列表 ── */}
       <div className={'kbnb-session-side' + (sideOpen ? '' : ' kbnb-session-side-collapsed')}>
         <header className="kbnb-session-side-head">
           <span className="kbnb-session-tasks-title">关联Ticket {related.length}</span>
-          <button className="kbnb-session-side-toggle" type="button" title="收起列表" onClick={() => setSideOpen(false)}>收起</button>
         </header>
         {related.length === 0 ? (
           <div className="kbnb-session-tasks-empty">
@@ -131,12 +139,6 @@ export function SessionTaskPanel(props: SessionTaskPanelProps) {
           </div>
         )}
       </div>
-      {/* 收起后悬浮在左侧的展开按钮 */}
-      {!sideOpen ? (
-        <button className="kbnb-session-side-float" type="button" title="展开Ticket列表" onClick={() => setSideOpen(true)}>
-          Ticket
-        </button>
-      ) : null}
       {/* ── 右侧：详情占满（内嵌，默认最近一个） ── */}
       <div className="kbnb-session-main">
         {selectedTicket && selectedId ? (
