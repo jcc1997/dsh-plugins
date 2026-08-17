@@ -98,7 +98,7 @@
 
 ### 4.3 约定与边界
 
-- **refs 由谁写**：kanban（UI 链接编辑 + 工具 `kanban_link` / `kanban_unlink`）负责增删改；git 插件同步时**只读 refs、只写 meta.sync**，两者经 cardId 关联。
+- **refs 由谁写**：kanban（UI 链接编辑 + 工具 `kanban_ticket_link` / `kanban_ticket_unlink`）负责增删改；git 插件同步时**只读 refs、只写 meta.sync**，两者经 cardId 关联。
 - **同一任务可多个 refs**：1 个 repo + N 个 branch + N 个 MR，天然支持。
 - **provider 键即隔离域**：`meta.sync.<provider>` 互不覆盖；同 provider 内由插件自管并发（串行写，见 5.4）。
 - **taskId 自动关联锚点**：卡片 `meta.taskId`（`<repo-name>-<int>`，§5.5）是 MR 自动关联的锚点；由 kanban 生成或 git 插件认领时写入，同 repo 内唯一即可。
@@ -186,7 +186,7 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 | 阶段 | 内容 | 验收 |
 |---|---|---|
 | M0 | 本调研与方案（本文档） | ✅ 评审通过 |
-| M1 | 数据模型 v2：kanban 增加 `refs` / `meta.sync` 信封 + `kanban` 服务 + 工具 `kanban_link`/`kanban_unlink` + 卡片 refs 展示；**先做最小跨插件验证**（kanban 提供服务，探测端 ctx.get 可读到） | ✅ 完成（构建 + verify-dist 通过；跨插件服务经 cordis 全局 store 机制成立，待真实宿主激活复核） |
+| M1 | 数据模型 v2：kanban 增加 `refs` / `meta.sync` 信封 + `kanban` 服务 + 工具 `kanban_ticket_link`/`kanban_ticket_unlink` + 卡片 refs 展示；**先做最小跨插件验证**（kanban 提供服务，探测端 ctx.get 可读到） | ✅ 完成（构建 + verify-dist 通过；跨插件服务经 cordis 全局 store 机制成立，待真实宿主激活复核） |
 | M2 | git 插件骨架：`git` 服务 + G1-G5 工具 + 凭证（credentials）+ **自动关联解析（G11，[ID] 约定）** | ✅ 完成（6 工具 + 服务 + 端到端逻辑测试通过：claim/sync/自动补 ref/信封写回） |
 | M3 | sync 按钮端到端（槽位契约 v1 + G6 + G7 状态展示） | 点击按钮 → 拉取 → 写回 → UI 刷新 |
 | M4 | 增强：本地仓库 git 命令（ctx.shell）、MR 创建（G9）、错误/重试 UI、订阅式通知 | 按需 |

@@ -13,7 +13,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
   return [
     {
       // Kanban 全览：平铺列或按 git 仓库分组（group_by=repo）
-      name: 'kanban_view',
+      name: 'kanban_ticket_view',
       description: '查看整个Kanban：所有列（状态）及其中的Ticket 概要。适合 agent 了解全局。group_by=repo 时按 git 仓库分组返回。',
       parameters: P({ group_by: STR('分组方式：none（默认，平铺列）或 repo（按 github-repo 关联分组）') }),
       execute: async (args: any) => {
@@ -45,9 +45,9 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       // 单卡详情：含富文本内容块、评论、变更记录、关联；归档卡也可查（archived=true）
-      name: 'kanban_get_card',
+      name: 'kanban_ticket_get',
       description: '按Ticket id 获取单个Ticket的完整详情：标题、描述、富文本内容、状态、标签、评论、变更记录。归档Ticket也可查（输出带 archived=true）。',
-      parameters: P({ card_id: STR('Ticket id（来自 kanban_view / kanban_search 的结果）') }, ['card_id']),
+      parameters: P({ card_id: STR('Ticket id（来自 kanban_ticket_view / kanban_ticket_search 的结果）') }, ['card_id']),
       execute: async (args: any) => {
         return mutateBoard(fs, (board: any) => {
           const hit = findCardAny(board, String(args.card_id))
@@ -68,7 +68,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       // 条件查询：keyword/status/tags/repo/archived 组合
-      name: 'kanban_search',
+      name: 'kanban_ticket_search',
       description: '按条件查询Ticket：keyword 匹配标题/描述/富文本内容；status 为列名或列 id；tags 要求Ticket包含全部标签；repo 按 git 仓库（github-repo 关联，如 owner/repo）筛选；archived=true 时查询归档而非活动列。条件可组合，不传则返回全部。',
       parameters: P({
         keyword: STR('关键词，匹配标题/描述/内容（模糊，不区分大小写）'),
@@ -112,7 +112,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       // 最近改动：列 + 归档统一按 updatedAt 倒序
-      name: 'kanban_recent',
+      name: 'kanban_ticket_recent',
       description: '查询最近被改动的Ticket（按 updatedAt 倒序，含归档），默认 10 张，可用于了解Kanban 最新动态。',
       parameters: P({ limit: NUM('返回条数，默认 10，最大 50') }),
       execute: async (args: any) => {
@@ -131,7 +131,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       // 新建Ticket：title 必填；content 支持块数组或字符串
-      name: 'kanban_create',
+      name: 'kanban_ticket_create',
       description: '新建Ticket。title 必填；status 为列名或列 id（缺省放入第一列）；可带 description、content（富文本块数组或 markdown 字符串）、tags；template 传创建模板名或 id（预填 description/tags/content/gates，显式传参覆盖模板）。自动关联创建者会话（refs 挂 kind=session，会话「Ticket」tab 可见）。仅当用户要求使用Kanban/工作流时调用；非 workflow 模式不要默认建卡，创建前先用 ask_user_question 与用户确认。',
       parameters: P({
         title: STR('Ticket 标题（必填）'),
@@ -177,7 +177,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       // 跨列移动（v4：触发 move 门禁检查）
-      name: 'kanban_move',
+      name: 'kanban_ticket_move',
       description: '移动Ticket到目标状态（列）。status 传列名或列 id，如"进行中"。Ticket 挂有 move 门禁时，不通过则拒绝移动。',
       parameters: P({ card_id: STR('要移动的Ticket id'), status: STR('目标列名或列 id') }, ['card_id', 'status']),
       execute: async (args: any, exec: any) => {
@@ -207,7 +207,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       // 更新标题/描述/富文本内容（内容实际变化才记日志）
-      name: 'kanban_update',
+      name: 'kanban_ticket_update',
       description: '更新Ticket的标题、描述（一句话纯文本）或富文本内容（只更新传入的字段；内容实际变化才会记录变更日志）。',
       parameters: P({
         card_id: STR('Ticket id'),
@@ -236,7 +236,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       // 标签增减（v4：触发 tags 门禁检查）
-      name: 'kanban_tags',
+      name: 'kanban_ticket_tags',
       description: '为Ticket增减标签。add 与 remove 为标签名数组，可同时传；返回Ticket 当前标签列表。Ticket 挂有 tags 门禁时，不通过则拒绝。',
       parameters: P({ card_id: STR('Ticket id'), add: STRS('要添加的标签（可选）'), remove: STRS('要移除的标签（可选）') }, ['card_id']),
       execute: async (args: any) => {
@@ -263,7 +263,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       // 评论
-      name: 'kanban_comment',
+      name: 'kanban_ticket_comment',
       description: '给Ticket添加一条评论。',
       parameters: P({ card_id: STR('Ticket id'), text: STR('评论内容') }, ['card_id', 'text']),
       execute: async (args: any) => {
@@ -285,7 +285,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     },
     {
       // 删除：活动列或归档均可（不可恢复）
-      name: 'kanban_delete',
+      name: 'kanban_ticket_delete',
       description: '删除一张Ticket（不可恢复）。归档Ticket也可删除。',
       parameters: P({ card_id: STR('Ticket id') }, ['card_id']),
       execute: async (args: any) => {

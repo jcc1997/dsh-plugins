@@ -73,11 +73,11 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ## 三-ter、bug 快捷流程（跳过 RD/TD）
 
-> bug 类Ticket走轻量流程：不写 rd.md/td.md/uc.md（复现步骤 + 验收点写卡描述），从 Backlog 直进 In Dev；分支/MR 照建，评审门禁与后续列全保留。建卡用 `kanban_create(title, template: "bug")`（自动挂 7 条门禁：In Dev 建分支 / 1st Review 关联 MR / Testing 双门禁 / tests-passed / review-2-done / mr-merged）。
+> bug 类Ticket走轻量流程：不写 rd.md/td.md/uc.md（复现步骤 + 验收点写卡描述），从 Backlog 直进 In Dev；分支/MR 照建，评审门禁与后续列全保留。建卡用 `kanban_ticket_create(title, template: "bug")`（自动挂 7 条门禁：In Dev 建分支 / 1st Review 关联 MR / Testing 双门禁 / tests-passed / review-2-done / mr-merged）。
 
 ### bug 流程编排
 
-1. 建卡（template: bug）→ `git_create_branch`（建 workflow/<taskId> 分支并关联）→ `kanban_move(card, "In Dev")`（过 branch-linked 门禁）；
+1. 建卡（template: bug）→ `git_create_branch`（建 workflow/<taskId> 分支并关联）→ `kanban_ticket_move(card, "In Dev")`（过 branch-linked 门禁）；
 2. 修复开发：复现步骤 + 验收点写进卡描述；修复 commit + push；
 3. `git_create_mr` → move Testing 触发 agent 评审 pipeline（**agent 评审通过后才发起人审**）→ 人审（ask_user_question + MR 链接）→ review-1-done → 再 move Testing 通过；
 4. Testing（修复验证）→ tests-passed → 2nd review（复审）→ review-2-done → Stage → `git_merge_pr` 合并 → Done。
@@ -88,25 +88,25 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ### 会话编排（workflow 模式默认流程）
 
-在 workflow 模式或用户显式要求走Kanban 工作流时，用户陈述功能/需求后 agent 直接进入流程，不要停在提问上；其他模式不要自动建卡。**非 workflow 模式即使显式要求建卡，也必须先用 `ask_user_question` 确认后再 `kanban_create`。**
+在 workflow 模式或用户显式要求走Kanban 工作流时，用户陈述功能/需求后 agent 直接进入流程，不要停在提问上；其他模式不要自动建卡。**非 workflow 模式即使显式要求建卡，也必须先用 `ask_user_question` 确认后再 `kanban_ticket_create`。**
 
-1. **确认建卡**:复述理解 → 用 `ask_user_question` 与用户确认 → `kanban_create(title, template: "workflow")` 建卡进 Backlog(自动带入门禁与标签;必要时先 `git_claim_task_id` 认领 taskId);
-2. **进 RD**:`git_create_branch(card_id)` 建 workflow 分支(过 branch-linked 门禁)→ `kanban_move(card_id, "RD")`;
+1. **确认建卡**:复述理解 → 用 `ask_user_question` 与用户确认 → `kanban_ticket_create(title, template: "workflow")` 建卡进 Backlog(自动带入门禁与标签;必要时先 `git_claim_task_id` 认领 taskId);
+2. **进 RD**:`git_create_branch(card_id)` 建 workflow 分支(过 branch-linked 门禁)→ `kanban_ticket_move(card_id, "RD")`;
 3. **RD 设计**:若当前会话有 `skill` 工具，先加载 `grill-me` skill，再拷问方案到共识 → 按 `workflow-template/templates/rd.md` 模板产出 `docs/<taskId>/rd.md`(与分支一起演进);
-4. **RD 确认**:`md_doc_open(path: "…/docs/<taskId>/rd.md")` 展示给人审阅(划词批注 + 总评)→ 通过 → `kanban_tags(card_id, add: ["rd-confirmed"])`;
-5. **建 MR**:RD 确认后 `git_create_mr(card_id)` 提交 MR(标题带 `[taskId]` 自动关联)→ `kanban_move(card_id, "TD")`;
+4. **RD 确认**:`md_doc_open(path: "…/docs/<taskId>/rd.md")` 展示给人审阅(划词批注 + 总评)→ 通过 → `kanban_ticket_tags(card_id, add: ["rd-confirmed"])`;
+5. **建 MR**:RD 确认后 `git_create_mr(card_id)` 提交 MR(标题带 `[taskId]` 自动关联)→ `kanban_ticket_move(card_id, "TD")`;
 6. **逐阶段推进**:TD(写 td.md → md_doc_open 审阅 → td-confirmed)→ UC(验收用例 → md_doc_open → uc-confirmed)→ In Dev(开发)→ 1st Review(建 MR,move→Testing 触发 agent 评审 pipeline,**agent 评审通过后才发起人审** ask_user_question + MR 链接 → review-1-done)→ Testing(测试 → tests-passed)→ 2nd review(复审 → review-2-done)→ Stage;
 7. **收尾**:`git_merge_pr` 合并 MR(自动进 Done);文档与代码随 MR 一起演进,合并即归档。
 
 > 确认方式分两类：**文档确认（RD/TD/UC）用 `md_doc_open`**；**代码评审（1st/2nd review）用 `ask_user_question` + MR 链接**。不通过则把意见整理进卡评论/MR,卡停在当前列。
 
-**建卡（仅限上述适用场景）**:先用 `ask_user_question` 与用户确认，再 `kanban_create(title, template: "workflow")` —— 自动带入 10 条门禁、预置描述与标签;bug 类用 `template: "bug"`(7 条门禁,见「三-ter、bug 快捷流程」)。
+**建卡（仅限上述适用场景）**:先用 `ask_user_question` 与用户确认，再 `kanban_ticket_create(title, template: "workflow")` —— 自动带入 10 条门禁、预置描述与标签;bug 类用 `template: "bug"`(7 条门禁,见「三-ter、bug 快捷流程」)。
 
-**推进列**:`kanban_move(card_id, status)`。门禁不通过时返回「门禁未通过:<原因>」——向用户解释缺什么,并给出补救动作:
+**推进列**:`kanban_ticket_move(card_id, status)`。门禁不通过时返回「门禁未通过:<原因>」——向用户解释缺什么,并给出补救动作:
 
-- `mr-linked` 未过 → 引导关联仓库/MR(`kanban_link` 挂 github-repo/github-mr,或 git 插件建分支提 MR,标题带 `[taskId]` 自动关联);
+- `mr-linked` 未过 → 引导关联仓库/MR(`kanban_ticket_link` 挂 github-repo/github-mr,或 git 插件建分支提 MR,标题带 `[taskId]` 自动关联);
 - `branch-linked` 未过 → 引导 `git_create_branch(card_id)`(自动认领 taskId、切 workflow/<taskId> 分支、推送并关联 github-branch);
-- `tag-required` 未过 → 说明该列需要对应角色确认,确认后 `kanban_tags(card_id, add: ["<标签>"])`;
+- `tag-required` 未过 → 说明该列需要对应角色确认,确认后 `kanban_ticket_tags(card_id, add: ["<标签>"])`;
 - `mr-merged` 未过 → 提示先去 Stage 用 git 插件合并 MR。
 
 **确认标签表**(谁确认 = 哪个标签):
@@ -126,7 +126,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 - agent 调 `md_doc_open(path: "<仓库路径>/docs/<taskId>/<doc>.md", context: "…请审阅…")` → 对话流出现「打开文档」Ticket;
 - 用户点开大浮窗,划词批注 + 底部总评,点「提交」;
-- 工具返回 `{quotes:[{text,note}], comment}`,agent 据此行动:批注整理进卡评论/MR 评论;通过 → `kanban_tags` 打对应确认标签并 `kanban_move` 推进;不通过 → 把意见回给相关人,卡停在当前列。
+- 工具返回 `{quotes:[{text,note}], comment}`,agent 据此行动:批注整理进卡评论/MR 评论;通过 → `kanban_ticket_tags` 打对应确认标签并 `kanban_ticket_move` 推进;不通过 → 把意见回给相关人,卡停在当前列。
 
 > 文档约定放 git 仓库 `docs/<taskId>/`(rd.md / td.md / uc.md 等),随 MR 演进;没有独立文档时可打开任意本地 md,或先请用户补充文档再发起审阅。
 
@@ -134,7 +134,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 - `git_create_branch(card_id)` — 进 RD 前置:自动认领 taskId、从主分支切 `workflow/<taskId>` 并推送、自动关联 github-branch(本地仓库须干净且在 main/master);
 - `git_create_mr(card_id)` — RD 确认后:head=`workflow/<taskId>`、base=main,标题自动带 `[taskId]` 并关联 github-mr;
 - `git_merge_pr` — Stage 收尾:合并前检查Ticket必须处于 Stage,合并后自动进 Done;
-- Ticket 抽屉「+ 新增 git 关联」或 `kanban_link` 可手动关联仓库/MR。
+- Ticket 抽屉「+ 新增 git 关联」或 `kanban_ticket_link` 可手动关联仓库/MR。
 
 **文档约定**:每个 task 的文档放 git 仓库 `docs/<taskId>/`(rd.md / td.md / uc.md 等),随分支 MR 演进;RD/TD/UC 模板见 `workflow-template/templates/`。
 

@@ -39,11 +39,11 @@
 
       你当前处于 workflow 模式，因此默认职责是执行「看板工作流」：用户提出功能/需求时不要停在提问上，直接按下面的会话编排推进，每一步都有看板门禁兜底；若用户明确不走 workflow，则不要自动建卡/推进。
 
-      1. 确认理解 → kanban_create(title, template: "workflow") 建卡进 Backlog（无 taskId 时先 git_claim_task_id 认领）；
-      2. 进 RD：git_create_branch(card_id) 建 workflow/<taskId> 分支并推送（过 branch-linked 门禁）→ kanban_move(card_id, "RD")；
+      1. 确认理解 → kanban_ticket_create(title, template: "workflow") 建卡进 Backlog（无 taskId 时先 git_claim_task_id 认领）；
+      2. 进 RD：git_create_branch(card_id) 建 workflow/<taskId> 分支并推送（过 branch-linked 门禁）→ kanban_ticket_move(card_id, "RD")；
       3. RD 设计：用 grill-me 拷问方案到共识 → 按 workflow-template/templates/rd.md 模板产出 docs/<taskId>/rd.md；
-      4. RD 确认：md_doc_open 打开 rd.md 给人审阅（划词批注 + 总评）→ 通过后 kanban_tags(add: ["rd-confirmed"])；
-      5. 建 MR：git_create_mr(card_id)（标题自动带 [taskId] 关联）→ kanban_move(card_id, "TD")；
+      4. RD 确认：md_doc_open 打开 rd.md 给人审阅（划词批注 + 总评）→ 通过后 kanban_ticket_tags(add: ["rd-confirmed"])；
+      5. 建 MR：git_create_mr(card_id)（标题自动带 [taskId] 关联）→ kanban_ticket_move(card_id, "TD")；
       6. 逐阶段推进：TD（写 td.md → 审阅 → td-confirmed）→ UC（验收用例 → uc-confirmed）→ In Dev（开发）→ 1st Review（评审 → review-1-done）→ Testing（测试 → tests-passed）→ 2nd review（复审 → review-2-done）→ Stage；
       7. 收尾：git_merge_pr 合并 MR（卡片须处于 Stage），合并后自动进 Done。
 

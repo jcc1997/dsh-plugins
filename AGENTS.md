@@ -39,5 +39,5 @@
 ## 提交规范
 
 - 类型前缀：`feat` / `fix` / `docs` / `refactor` / `chore`
-- 单行信息，中文，概括改动（例：`feat(kanban): 新增 kanban_tags 工具`）
+- 单行信息，中文，概括改动（例：`feat(kanban): 新增 kanban_ticket_tags 工具`）
 - 文档与代码同 PR/同 commit 保持同步

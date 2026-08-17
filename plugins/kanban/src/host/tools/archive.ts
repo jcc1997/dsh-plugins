@@ -9,7 +9,7 @@ import { checkGates, GateCheckDeps } from '../gate'
 export function archiveToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
   return [
     {
-      name: 'kanban_archive',
+      name: 'kanban_ticket_archive',
       description: '归档一张Ticket：从Kanban 列中移出（隐藏），可在侧边栏「归档」中找回。归档不删除数据。Ticket 挂有 archive 门禁（如 MR 必须合并）时，不通过则拒绝归档。',
       parameters: P({ card_id: STR('要归档的Ticket id') }, ['card_id']),
       execute: async (args: any) => {
@@ -49,7 +49,7 @@ export function archiveToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
       output: outputOf('归档结果'),
     },
     {
-      name: 'kanban_unarchive',
+      name: 'kanban_ticket_unarchive',
       description: '从归档恢复Ticket到Kanban。status 传列名或列 id（可选，缺省回到归档前的列，原列已删则回第一列）。',
       parameters: P({ card_id: STR('归档中的Ticket id'), status: STR('目标列名或列 id（可选，缺省回到原列）') }, ['card_id']),
       execute: async (args: any) => {
@@ -69,8 +69,8 @@ export function archiveToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
       output: outputOf('恢复结果'),
     },
     {
-      name: 'kanban_list_archived',
-      description: '列出归档中的Ticket 概要（含原列与归档时间）。归档Ticket不在Kanban 列中，需本工具或 kanban_search(archived=true) 查询。',
+      name: 'kanban_ticket_list_archived',
+      description: '列出归档中的Ticket 概要（含原列与归档时间）。归档Ticket不在Kanban 列中，需本工具或 kanban_ticket_search(archived=true) 查询。',
       parameters: P({}),
       execute: async () => {
         const dataDir = await resolveDataDir(fs)

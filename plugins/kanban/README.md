@@ -1,17 +1,17 @@
 # dsh-kanban
 
-DSH Kanban插件（正式 bundle 形态）：嵌入侧边栏的全功能Kanban，29 个 agent 工具，人和 AI 在同一块板上协作。
+DSH Kanban插件（正式 bundle 形态）：嵌入侧边栏的全功能Kanban，31 个 agent 工具，人和 AI 在同一块板上协作。
 
 ## 能力
 
 - **Kanban**：竖线分隔列、拖拽排序与跨列移动、分组（按 git 仓库）、归档/恢复、富文本内容（Notion 式块编辑器）、标签、评论、变更记录。
 - **外部关联（refs）**：github-repo / github-branch / github-mr / local-repo / session 等；git 插件经子槽位 kanban.card.actions 注入同步按钮。
-- **会话自动关联**：`kanban_create` 由 agent 调用时自动挂 `{kind:'session', externalId:<agent.session.id>}` 引用（会话「Ticket」tab 按它列出本会话创建的卡）；历史卡可 `kanban_link(kind='session')` 手动补挂。
+- **会话自动关联**：`kanban_ticket_create` 由 agent 调用时自动挂 `{kind:'session', externalId:<agent.session.id>}` 引用（会话「Ticket」tab 按它列出本会话创建的卡）；历史卡可 `kanban_ticket_link(kind='session')` 手动补挂。
 - **门禁（Gate）**：门禁是**门禁库里的独立实体**（单独配置，Ticket/模板按 id 勾选复用）——move（移动状态）/ tags（增减标签）/ archive（归档）触发时检查，不通过则拒绝动作。检查器统一抽象为 **checker**：内置条件 / 沙箱代码 / pipeline 三种写法，唯一执行底层是沙箱 code。详见下文「面向 Agent 的门禁指南」。
-- **创建模板**：预设 description / tags / content / 门禁勾选（gate_ids 引用门禁库），新建Ticket时引用免重复输入。agent（kanban_create(template=) 或 kanban_template_* 工具）与手动创建（创建弹窗模板下拉 + 预填）均可用。
+- **创建模板**：预设 description / tags / content / 门禁勾选（gate_ids 引用门禁库），新建Ticket时引用免重复输入。agent（kanban_ticket_create(template=) 或 kanban_template_* 工具）与手动创建（创建弹窗模板下拉 + 预填）均可用。
 - **跨插件服务**：ctx.provide('kanban')（getCard / updateCard / listCards / getCardStatus / moveCard）。
 
-> 想直接拿到一套现成的开发流程（10 列 + 9 条门禁 + workflow 模板），把仓库根目录 [workflow-template](../../workflow-template/README.md) 样例包的 `workflow.json` 交给 agent 用 `kanban_import_config` 导入即可——复制出去改一改就是自己的流程。
+> 想直接拿到一套现成的开发流程（10 列 + 11 条门禁 + workflow 模板），把仓库根目录 [workflow-template](../../workflow-template/README.md) 样例包的 `workflow.json` 交给 agent 用 `kanban_import_config` 导入即可——复制出去改一改就是自己的流程。
 
 ## 面向 Agent 的门禁指南
 
@@ -77,7 +77,7 @@ kanban_gate_create(name: "RD 人工确认", checker_type: "tag-required",
                    on: "move", to: "RD", config: {tags: ["rd-confirmed"]})
 # 2) Ticket勾选挂载（或模板 gate_ids 勾选后随卡带入）
 kanban_gate_add(card_id, gate_id: "<上一步的 gate_id>")
-# 确认动作 = agent 在对话流里打标签：kanban_tags(card_id, add: ["rd-confirmed"])
+# 确认动作 = agent 在对话流里打标签：kanban_ticket_tags(card_id, add: ["rd-confirmed"])
 ```
 
 #### 示例 2：MR 合并才能归档
@@ -106,14 +106,14 @@ kanban_gate_create(name: "git 已配置且标题够长", checker_type: "code", o
 
 ```
 kanban_template_create(name: "workflow", gate_ids: ["<gate_id>…"])   # 或内联 gates 数组（自动入库）
-kanban_create(title: …, template: "workflow")                        # 新卡自动勾选相同门禁
+kanban_ticket_create(title: …, template: "workflow")                        # 新卡自动勾选相同门禁
 ```
 
 ### 4. 相关工具
 
 - 门禁库：`kanban_gate_create` / `kanban_gate_delete`（删库同时从Ticket/模板摘除）/ `kanban_gate_list`（返回 gate_library + 指定Ticket card_gates）
 - 挂载：`kanban_gate_add`（card_id + gate_id）/ `kanban_gate_remove`；预检：`kanban_gate_check`（不执行动作）
-- 模板带门禁：`kanban_template_create/update` 支持 `gate_ids`（兼容内联 `gates` 自动入库）→ 建卡 `kanban_create(template: …)` 自动带入
+- 模板带门禁：`kanban_template_create/update` 支持 `gate_ids`（兼容内联 `gates` 自动入库）→ 建卡 `kanban_ticket_create(template: …)` 自动带入
 - UI：「门禁」页 = 门禁库 CRUD（含引用关系）；Ticket 抽屉「门禁」区块勾选挂载；动作前 UI 调 /kanban-api/gate-check 预检
 - 配置流转：`kanban_export_config`（导出列+门禁库+模板，按名字引用，不含任何Ticket/个人数据）/ `kanban_import_config`（整体替换配置层，旧Ticket挪第一列，自动备份 board.json）——格式与 workflow-template 的 workflow.json 一致
 

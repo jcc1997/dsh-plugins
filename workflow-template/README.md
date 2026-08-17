@@ -49,8 +49,8 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 ### 完成自检
 
 - Kanban有 10 列（Backlog → Done）、门禁库有 11 条门禁、创建模板里有 `workflow` 与 `bug` 两个；pipeline 列表里有 `代码评审`（p-workflow-review）；
-- 对一张卡 `kanban_move(card, "RD")` 会被「进入 RD 需建 workflow 分支」拒绝——说明门禁生效；
-- 对一张处于 1st Review、已打 `review-1-done` 的卡 `kanban_move(card, "Testing")`：先触发「代码评审」pipeline，agent 未给出 OK 则被拒绝且卡上出现评审评论——说明 review 门禁生效；
+- 对一张卡 `kanban_ticket_move(card, "RD")` 会被「进入 RD 需建 workflow 分支」拒绝——说明门禁生效；
+- 对一张处于 1st Review、已打 `review-1-done` 的卡 `kanban_ticket_move(card, "Testing")`：先触发「代码评审」pipeline，agent 未给出 OK 则被拒绝且卡上出现评审评论——说明 review 门禁生效；
 - **新建会话的预设选择器里能看到「workflow 模式」**（复制 `agent-presets/workflow/` 后刷新页面即可看到，无需重启 dsh）；
 - 建一张卡试试全流程（见下「日常使用」）。
 
@@ -58,7 +58,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 > 以下操作默认适用于 **workflow 模式**；其他模式请先显式要求使用Kanban 工作流 / 创建 kanban ticket，再按此执行。
 
-1. **建卡**：`kanban_create(title, template: "workflow")` 自动带入 10 条门禁与预置标签；bug 类用 `template: "bug"`（跳过 RD/TD，7 条门禁，见 SKILL「三-ter、bug 快捷流程」）；或Kanban 列头「+」手动建。
+1. **建卡**：`kanban_ticket_create(title, template: "workflow")` 自动带入 10 条门禁与预置标签；bug 类用 `template: "bug"`（跳过 RD/TD，7 条门禁，见 SKILL「三-ter、bug 快捷流程」）；或Kanban 列头「+」手动建。
 2. **会话编排（workflow 模式默认流程，agent 自动走）**：
 
    > 非 workflow 模式不自动走此流程；只有你显式要求使用Kanban 工作流 / 创建 kanban ticket 时，agent 才按下面步骤建卡并推进，且建卡前会先用 `ask_user_question` 与你确认。
