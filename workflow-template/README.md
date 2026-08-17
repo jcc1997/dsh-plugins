@@ -61,7 +61,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 1. **建卡**：`kanban_create(title, template: "workflow")` 自动带入 10 条门禁与预置标签；bug 类用 `template: "bug"`（跳过 RD/TD，7 条门禁，见 SKILL「三-ter、bug 快捷流程」）；或看板列头「+」手动建。
 2. **会话编排（workflow 模式默认流程，agent 自动走）**：
 
-   > 非 workflow 模式不自动走此流程；只有你显式要求使用看板工作流 / 创建 kanban ticket 时，agent 才按下面步骤建卡并推进。
+   > 非 workflow 模式不自动走此流程；只有你显式要求使用看板工作流 / 创建 kanban ticket 时，agent 才按下面步骤建卡并推进，且建卡前会先用 `ask_user_question` 与你确认。
 
    1. 你陈述功能 → agent 复述确认 → 建卡进 Backlog（自动认领 taskId）；
    2. 进 RD：`git_create_branch` 建 `workflow/<taskId>` 分支并推送（过 branch-linked 门禁）→ 移到 RD；

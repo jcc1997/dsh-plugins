@@ -36,7 +36,7 @@
 3. **文档纪律**：README 只写对外介绍；开发过程/踩坑写进 skill；插件现状写进插件 README。提交前确认改动涉及文档时文档同步更新
 4. **源码即真相**：`dist/` 产物 gitignore；一切以 `src/` 为准，动态插件会话内存态重启即失，务必及时提交源码
 5. **共享优先**：跨插件复用的代码进 `packages/ui`（tokens/图标/工具函数/组件），不要在插件内复制
-6. **不要默认建 kanban ticket**：只有当前会话是 workflow 模式，或用户显式要求使用看板工作流 / 创建 kanban ticket 时，才自动建卡并走 workflow；其他模式按用户直接请求处理，不主动创建卡片/分支/MR。
+6. **不要默认建 kanban ticket**：只有当前会话是 workflow 模式，或用户显式要求使用看板工作流 / 创建 kanban ticket 时，才自动建卡并走 workflow；其他模式按用户直接请求处理，不主动创建卡片/分支/MR。**非 workflow 模式下即使要建卡，也必须先用 `ask_user_question` 与用户确认后再创建。**
 
 ## 提交规范
 
