@@ -38,14 +38,17 @@ export const drawerCss = `
 .kbnb-gate-add{display:flex;flex-direction:column;gap:8px}
 .kbnb-gate-add-empty{flex-direction:row;align-items:center;gap:10px;font-size:12px;color:var(--dsw-alias-label-tertiary)}
 
-/* ══ 门禁库视图（v6） ══ */
+/* ══ Gates 视图（v6）：卡片网格展示 ══ */
 .kbnb-gate-form-row{display:flex;align-items:center;gap:8px}
 .kbnb-gate-form-row .kbnb-input{flex:1}
-.kbnb-gate-card{display:flex;flex-direction:column;gap:8px;position:relative}
+.kbnb-gates-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
+.kbnb-gate-card{display:flex;flex-direction:column;gap:8px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;transition:border-color 150ms cubic-bezier(.4,0,.2,1),box-shadow 150ms cubic-bezier(.4,0,.2,1)}
+.kbnb-gate-card:hover{border-color:var(--dsw-alias-state-business-primary);box-shadow:var(--dsw-shadow-lv2)}
+.kbnb-gate-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .kbnb-gate-card .kbnb-gate-detail-pre{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px}
 .kbnb-gate-users{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .kbnb-gate-users .kbnb-gates-cardlink{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;margin-bottom:0}
-.kbnb-gate-del{position:absolute;top:0;right:0}
+.kbnb-gate-del{flex:none}
 .kbnb-gate-checks{display:flex;flex-direction:column;gap:6px}
 .kbnb-gate-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dsw-alias-label-primary);cursor:pointer}
 .kbnb-gate-check-meta{font-size:11px;color:var(--dsw-alias-label-tertiary)}

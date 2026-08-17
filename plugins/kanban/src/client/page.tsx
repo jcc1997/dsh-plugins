@@ -173,7 +173,7 @@ export function KanbanPage(props: {
             onClick={() => setView('gates')}
           >
             <IconGateGlyph />
-            <span className="kbnb-nav-label">门禁</span>
+            <span className="kbnb-nav-label">Gates</span>
             <span className="kbnb-nav-badge">{gateCount}</span>
           </button>
           <button
@@ -358,7 +358,7 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
   return (
     <div className="kbnb-archive">
       <div className="kbnb-settings-title-row">
-        <h3 className="kbnb-settings-title">门禁库（{lib.length}）</h3>
+        <h3 className="kbnb-settings-title">Gates（{lib.length}）</h3>
         <button className="kbnb-btn kbnb-primary" type="button" onClick={() => setAdding(!adding)}>{adding ? '收起' : '+ 新建门禁'}</button>
       </div>
       {adding ? (
@@ -396,39 +396,43 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
         </section>
       ) : null}
       {lib.length === 0 && !adding ? (
-        <div className="kbnb-settings-empty">门禁库为空。新建门禁后，可在卡片抽屉「门禁」区块勾选挂载、在模板勾选预置（agent 工具：kanban_gate_create / kanban_gate_add）。</div>
+        <div className="kbnb-settings-empty">暂无 Gates。新建后可在卡片抽屉「Gates」区块勾选挂载、在模板勾选预置（agent 工具：kanban_gate_create / kanban_gate_add）。</div>
       ) : null}
-      {lib.map((g: any) => {
-        const users = usersOf(g.id)
-        const cfg = g.checker && g.checker.config
-        return (
-          <section key={g.id} className="kbnb-settings kbnb-gate-card">
-            <div className="kbnb-tpl-main">
-              <span className="kbnb-tpl-name">{g.name}</span>
-              <span className="kbnb-tpl-desc">
-                {GATE_ON_LABEL_P[g.on]}{g.to ? '→' + g.to : ''} · {gateTypeLabel(g)}
-              </span>
-            </div>
-            {cfg && Object.keys(cfg).length > 0 ? (
-              <pre className="kbnb-gate-detail-pre">{JSON.stringify(cfg, null, 2)}</pre>
-            ) : null}
-            <div className="kbnb-gate-users">
-              {users.cards.length > 0 || users.templates.length > 0 ? (
-                <>
-                  <span className="kbnb-field-label">引用：</span>
-                  {users.templates.map((tn) => <span key={'t' + tn} className="kbnb-tag">模板 {tn}</span>)}
-                  {users.cards.map((c) => (
-                    <button key={c.id} className="kbnb-gates-cardlink" type="button" title={'打开卡片（' + c.col + '）'} onClick={() => props.onOpenCard(c.id)}>
-                      {c.title} <span className="kbnb-gates-col">{c.col}</span>
-                    </button>
-                  ))}
-                </>
-              ) : <span className="kbnb-field-label">暂无引用</span>}
-            </div>
-            <button className="kbnb-btn kbnb-danger kbnb-gate-del" type="button" title="删除门禁（同时从卡片/模板摘除）" onClick={() => props.kb.deleteGate(g.id)}>删除</button>
-          </section>
-        )
-      })}
+      <div className="kbnb-gates-grid">
+        {lib.map((g: any) => {
+          const users = usersOf(g.id)
+          const cfg = g.checker && g.checker.config
+          return (
+            <section key={g.id} className="kbnb-settings kbnb-gate-card">
+              <header className="kbnb-gate-card-head">
+                <div className="kbnb-tpl-main">
+                  <span className="kbnb-tpl-name">{g.name}</span>
+                  <span className="kbnb-tpl-desc">
+                    {GATE_ON_LABEL_P[g.on]}{g.to ? '→' + g.to : ''} · {gateTypeLabel(g)}
+                  </span>
+                </div>
+                <button className="kbnb-btn kbnb-danger kbnb-gate-del" type="button" title="删除门禁（同时从卡片/模板摘除）" onClick={() => props.kb.deleteGate(g.id)}>删除</button>
+              </header>
+              {cfg && Object.keys(cfg).length > 0 ? (
+                <pre className="kbnb-gate-detail-pre">{JSON.stringify(cfg, null, 2)}</pre>
+              ) : null}
+              <div className="kbnb-gate-users">
+                {users.cards.length > 0 || users.templates.length > 0 ? (
+                  <>
+                    <span className="kbnb-field-label">引用：</span>
+                    {users.templates.map((tn) => <span key={'t' + tn} className="kbnb-tag">模板 {tn}</span>)}
+                    {users.cards.map((c) => (
+                      <button key={c.id} className="kbnb-gates-cardlink" type="button" title={'打开卡片（' + c.col + '）'} onClick={() => props.onOpenCard(c.id)}>
+                        {c.title} <span className="kbnb-gates-col">{c.col}</span>
+                      </button>
+                    ))}
+                  </>
+                ) : <span className="kbnb-field-label">暂无引用</span>}
+              </div>
+            </section>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -472,9 +476,9 @@ function TemplatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKan
             <input className="kbnb-input" value={tagsText} onChange={(e) => setTagsText(e.target.value)} />
           </div>
           <div className="kbnb-field">
-            <label className="kbnb-field-label">勾选门禁（门禁库）</label>
+            <label className="kbnb-field-label">勾选 Gates</label>
             {lib.length === 0 ? (
-              <div className="kbnb-settings-empty">门禁库为空：先到「门禁」页新建，或用 agent 工具 kanban_gate_create。</div>
+              <div className="kbnb-settings-empty">暂无 Gates：先到「Gates」页新建，或用 agent 工具 kanban_gate_create。</div>
             ) : (
               <div className="kbnb-gate-checks">
                 {lib.map((g: any) => (
@@ -569,9 +573,9 @@ function TemplateCard(props: { tpl: CardTemplate; lib: CardGate[]; kb: ReturnTyp
             <input className="kbnb-input" value={tagsText} onChange={(e) => setTagsText(e.target.value)} />
           </div>
           <div className="kbnb-field">
-            <label className="kbnb-field-label">勾选门禁（门禁库）</label>
+            <label className="kbnb-field-label">勾选 Gates</label>
             {props.lib.length === 0 ? (
-              <div className="kbnb-settings-empty">门禁库为空：先到「门禁」页新建，或用 agent 工具 kanban_gate_create。</div>
+              <div className="kbnb-settings-empty">暂无 Gates：先到「Gates」页新建，或用 agent 工具 kanban_gate_create。</div>
             ) : (
               <div className="kbnb-gate-checks">
                 {props.lib.map((g: any) => (
