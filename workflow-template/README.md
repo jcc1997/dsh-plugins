@@ -10,7 +10,7 @@
 - **门禁兜底**：进入下一列必须满足条件（分支已建 / 确认标签 / MR 已合并），不满足动作被拒绝——人不会漏流程，agent 不会跳过环节；
 - **人在环上**：每次需要拍板（RD/TD/UC 确认、两轮 review）都先把文档在对话流里打开给你看（划词批注 + 总评），你提交后 agent 自动继续；
 - **文档随代码演进**：每个任务在 `docs/<taskId>/` 产出 rd.md / td.md / uc.md，跟随 `workflow/<taskId>` 分支一起进 MR，合并即归档；
-- **每次会话都走同一套逻辑**：你提出功能 → agent 确认建卡 → 进 RD（grill-me 拷问方案 + 模板产出设计）→ 你审阅确认 → 建 MR → 逐阶段推进 → 合并收尾。agent 按 `skills/workflow/SKILL.md` 的「会话编排」自动执行，不需要你重复交代。
+- **workflow 模式下每次会话都走同一套逻辑**：你提出功能 → agent 确认建卡 → 进 RD（grill-me 拷问方案 + 模板产出设计）→ 你审阅确认 → 建 MR → 逐阶段推进 → 合并收尾。agent 按 `skills/workflow/SKILL.md` 的「会话编排」自动执行，不需要你重复交代。非 workflow 模式只有你显式要求走看板工作流时才启用。
 
 ```
 Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ──> Testing ──> 2nd review ──> Stage ──> Done
@@ -56,8 +56,12 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ## 日常使用
 
+> 以下操作默认适用于 **workflow 模式**；其他模式请先显式要求使用看板工作流 / 创建 kanban ticket，再按此执行。
+
 1. **建卡**：`kanban_create(title, template: "workflow")` 自动带入 10 条门禁与预置标签；bug 类用 `template: "bug"`（跳过 RD/TD，7 条门禁，见 SKILL「三-ter、bug 快捷流程」）；或看板列头「+」手动建。
-2. **会话编排（默认流程，agent 自动走）**：
+2. **会话编排（workflow 模式默认流程，agent 自动走）**：
+
+   > 非 workflow 模式不自动走此流程；只有你显式要求使用看板工作流 / 创建 kanban ticket 时，agent 才按下面步骤建卡并推进。
 
    1. 你陈述功能 → agent 复述确认 → 建卡进 Backlog（自动认领 taskId）；
    2. 进 RD：`git_create_branch` 建 `workflow/<taskId>` 分支并推送（过 branch-linked 门禁）→ 移到 RD；

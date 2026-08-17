@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: 带门禁的软件开发看板工作流指南(workflow-template):10 列阶段语义、11 条门禁、确认标签、MR 收尾。Use when 用户在使用带门禁的看板开发流程、推进列、打确认标签、解释门禁不通过原因、导入/自定义流程配置时。关键词:workflow、开发流程、看板工作流、进入下一列、确认标签、rd-confirmed、td-confirmed、uc-confirmed、review-1-done、tests-passed、review-2-done。
+description: 带门禁的软件开发看板工作流指南(workflow-template):10 列阶段语义、11 条门禁、确认标签、MR 收尾。Use when 当前处于 workflow 模式，或用户显式要求使用带门禁的看板开发流程、推进列、打确认标签、解释门禁不通过原因、导入/自定义流程配置时。关键词:workflow、开发流程、看板工作流、进入下一列、确认标签、rd-confirmed、td-confirmed、uc-confirmed、review-1-done、tests-passed、review-2-done。
 ---
 
 # workflow — 带门禁的软件开发看板流程
@@ -8,6 +8,8 @@ description: 带门禁的软件开发看板工作流指南(workflow-template):10
 > 本文件真源:`workflow-template/skills/workflow/SKILL.md`;仓库根 `.agents/skills/workflow/SKILL.md` 为同步副本。**改动必须两处一起改。**
 > 配套配置:`workflow-template/workflow.json`(经 `kanban_import_config` 导入 dsh-kanban 后生效)。
 > workflow 模式 agent 预设:`workflow-template/agent-presets/workflow/`(复制到 `~/.dsh/.agent-presets/workflow/` 后,新建会话的预设选择器出现「workflow 模式」,agent 自动按本文「会话编排」执行)。
+
+> 适用范围：本流程只在 **workflow 模式**（workflow agent preset）下默认启用；其他模式只有用户**显式要求**使用看板工作流 / 创建 kanban ticket 时才启用。不要在任何非 workflow 模式会话里擅自建卡、建分支或提 MR。
 
 ## 一、这是什么
 
@@ -84,9 +86,9 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 ## 四、Agent 操作手册
 
-### 会话编排(默认流程,每次对话都按此走)
+### 会话编排（workflow 模式默认流程）
 
-用户陈述一个功能/需求时,agent 直接进入流程,不要停在提问上:
+在 workflow 模式或用户显式要求走看板工作流时，用户陈述功能/需求后 agent 直接进入流程，不要停在提问上；其他模式不要自动建卡。
 
 1. **确认建卡**:复述理解 → 与用户确认 → `kanban_create(title, template: "workflow")` 建卡进 Backlog(自动带入门禁与标签;必要时先 `git_claim_task_id` 认领 taskId);
 2. **进 RD**:`git_create_branch(card_id)` 建 workflow 分支(过 branch-linked 门禁)→ `kanban_move(card_id, "RD")`;
@@ -98,7 +100,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 > 确认方式分两类：**文档确认（RD/TD/UC）用 `md_doc_open`**；**代码评审（1st/2nd review）用 `ask_user_question` + MR 链接**。不通过则把意见整理进卡评论/MR,卡停在当前列。
 
-**建卡**:`kanban_create(title, template: "workflow")` —— 自动带入 10 条门禁、预置描述与标签;bug 类用 `template: "bug"`(7 条门禁,见「三-ter、bug 快捷流程」)。
+**建卡（仅限上述适用场景）**:`kanban_create(title, template: "workflow")` —— 自动带入 10 条门禁、预置描述与标签;bug 类用 `template: "bug"`(7 条门禁,见「三-ter、bug 快捷流程」)。
 
 **推进列**:`kanban_move(card_id, status)`。门禁不通过时返回「门禁未通过:<原因>」——向用户解释缺什么,并给出补救动作:
 

@@ -132,7 +132,7 @@ export function cardToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
     {
       // 新建卡片：title 必填；content 支持块数组或字符串
       name: 'kanban_create',
-      description: '新建卡片。title 必填；status 为列名或列 id（缺省放入第一列）；可带 description、content（富文本块数组或 markdown 字符串）、tags；template 传创建模板名或 id（预填 description/tags/content/gates，显式传参覆盖模板）。自动关联创建者会话（refs 挂 kind=session，会话「任务」tab 可见）。',
+      description: '新建卡片。title 必填；status 为列名或列 id（缺省放入第一列）；可带 description、content（富文本块数组或 markdown 字符串）、tags；template 传创建模板名或 id（预填 description/tags/content/gates，显式传参覆盖模板）。自动关联创建者会话（refs 挂 kind=session，会话「任务」tab 可见）。仅当用户要求使用看板/工作流时调用；非 workflow 模式不要默认建卡。',
       parameters: P({
         title: STR('卡片标题（必填）'),
         status: STR('目标列名或列 id，缺省第一列'),
