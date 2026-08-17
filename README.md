@@ -2,6 +2,11 @@
 
 为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)(DSH)开发的插件集合：看板 + 门禁工作流、git 集成、AI 流水线、markdown 文档审阅。所有插件均为**正式 bundle** 形态，安装后重启生效、重启不丢。
 
+## 读者导航
+
+- **我想安装使用**：直接看 [快速开始](#快速开始) 和 [安装](#安装)。
+- **我想开发插件**：直接看 [开发与贡献](#开发与贡献插件开发者路线)，并先读 [AGENTS.md](AGENTS.md)。
+
 ## 快速开始
 
 如果你已经装好 DSH，只需要把下面这个 README 链接发给 DSH 会话里的 agent：
@@ -206,12 +211,24 @@ dsh-plugins/
 └── .agents/skills/  # 插件开发技能（dsh-dynamic-plugin-dev 等）+ workflow 流程 skill 同步副本
 ```
 
-## 开发与贡献
+## 开发与贡献（插件开发者路线）
 
-- **UI 组件开发**：`pnpm dev:ui` 起独立组件库 showcase 服务（http://127.0.0.1:5173，不依赖 dsh 宿主）——在 [apps/ui-showcase](apps/ui-showcase) 里开发/微调组件，规范见 [docs/ui-design](docs/ui-design)。
-- 插件开发完整指南见 [.agents/skills/dsh-dynamic-plugin-dev](.agents/skills/dsh-dynamic-plugin-dev/SKILL.md)（包结构、host/client 双半、构建、槽位 UI 四种模式、踩坑清单）。
-- UI 设计规范见 [docs/ui-design](docs/ui-design)（tokens 索引 / 风格指引 / 组件规范，直接引用宿主 `--dsw-*` tokens，明暗自适应）。
-- 工作规则见 [AGENTS.md](AGENTS.md)。
+> 想开发本仓库插件的人从这里开始。
+
+1. **先读 [AGENTS.md](AGENTS.md)**：工作规则、红线、文档职责、提交规范。
+2. **加载插件开发 skill**：如果当前会话有 `skill` 工具（标准模式 / Code 模式 / workflow 模式），先加载 [.agents/skills/dsh-dynamic-plugin-dev/SKILL.md](.agents/skills/dsh-dynamic-plugin-dev/SKILL.md)；极简模式没有 `skill` 工具，可直接用 `bash` / `str_replace_editor` 打开该文件阅读。
+3. **按插件看细节**：
+   - [plugins/kanban/README.md](plugins/kanban/README.md)：看板 + 门禁
+   - [plugins/git/README.md](plugins/git/README.md)：git 集成
+   - [plugins/pipeline/README.md](plugins/pipeline/README.md)：AI 流水线
+   - [plugins/markdown-review/README.md](plugins/markdown-review/README.md)：文档审阅
+4. **UI 开发前读 [docs/ui-design/README.md](docs/ui-design/README.md)**：tokens / 风格 / 组件规范，UI 必须走宿主 `--dsw-*` tokens。
+5. **常用命令**：
+   - 安装依赖：`pnpm install`
+   - 校验/构建单个插件：`pnpm --filter dsh-kanban check`（换成 `dsh-git` / `dsh-pipeline` / `dsh-markdown-review` 同理）
+   - 启动 UI showcase：`pnpm dev:ui`（http://127.0.0.1:5173，不依赖 dsh 宿主）
+   - 全插件 CI 校验：`node scripts/workflow-ci-check.mjs`
+6. **提交规范**：见 [AGENTS.md](AGENTS.md) 的「提交规范」。
 
 ## License
 
