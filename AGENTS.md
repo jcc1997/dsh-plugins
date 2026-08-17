@@ -17,9 +17,9 @@
 
 仓库内 `.agents/skills/` 下的 skill（workflow、grill-me、dsh-dynamic-plugin-dev 等）**不是默认自动加载进每个会话**。
 
-- 只有当前 agent preset 挂载了 `@deepseek-ai/dsh-skill-filesystem` + `@deepseek-ai/dsh-tool-skill`（例如 workflow 模式）时，模型才会看到 `<available_skills>` 目录，并能用 `skill` 工具按名加载。
+- 标准模式、Code 模式、workflow 模式等预设会挂载 `@deepseek-ai/dsh-skill-filesystem` + `@deepseek-ai/dsh-tool-skill`，模型才能看到 `<available_skills>` 目录，并能用 `skill` 工具按名加载；极简模式没有 skill 工具，因此不会加载项目内 skills。
 - 如果当前会话工具列表里没有 `skill` 工具，说明该会话没有启用 skill 目录；此时即使看到 `/grill-me` 这样的写法，也不会自动注入 skill 内容。
-- 不要假设 workflow / grill-me 等 skill 已加载。要使用某个 skill，先确认当前会话有 `skill` 工具并调用它加载；或切换到带 skill 的预设（如 workflow 模式）。
+- 不要假设 workflow / grill-me 等 skill 已加载。要使用某个 skill，先确认当前会话有 `skill` 工具并调用它加载；或切换到标准模式 / Code 模式 / workflow 模式等带 skill 的预设。
 - workflow 只在 workflow 模式或用户显式要求时默认启用，详见 `workflow-template/README.md` 与 `.agents/skills/workflow/SKILL.md`。
 
 ## 动态插件开发流程（热更新）

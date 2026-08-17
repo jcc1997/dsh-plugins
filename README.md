@@ -4,9 +4,13 @@
 
 ## 快速开始
 
-如果你已经装好 DSH，只需要把本仓库路径告诉 DSH 会话里的 agent：
+如果你已经装好 DSH，只需要把下面这个 README 链接发给 DSH 会话里的 agent：
 
-> 按 README 安装 dsh-plugins，并导入 workflow-template 作为我的开发工作流。
+https://github.com/jcc1997/dsh-plugins/blob/main/README.md
+
+并对它说：
+
+> 按这个 README 安装 dsh-plugins，并导入 workflow-template 作为我的开发工作流。
 
 agent 会完成：**构建插件 → 挂载到 web profile → 配置 git/pipeline → 导入看板配置 → 提示重启**。你不需要手动敲安装命令。
 
@@ -113,8 +117,8 @@ Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd revie
 
 ### 一句话安装（推荐，给人看）
 
-> 把本仓库路径发给 DSH 会话里的 agent，说：
-> 「按 README 安装 dsh-plugins，并导入 workflow-template 作为我的开发工作流。」
+> 把 https://github.com/jcc1997/dsh-plugins/blob/main/README.md 发给 DSH 会话里的 agent，说：
+> 「按这个 README 安装 dsh-plugins，并导入 workflow-template 作为我的开发工作流。」
 
 agent 会帮你完成构建、安装、配置和导入；你只需要在需要时提供 GitHub token / 本地仓库路径等信息。
 
