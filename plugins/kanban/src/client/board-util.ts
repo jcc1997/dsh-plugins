@@ -1,5 +1,5 @@
 // client/board-util.ts — 看板纯函数（无 hooks）：content 归一化 + git 仓库提取
-// 与 host/board.ts 的 normalizeContent/cardRepo 语义一致（两端各自独立实现，避免跨包依赖）
+// 与 host/board.ts 的 normalizeContent/ticketRepo 语义一致（两端各自独立实现，避免跨包依赖）
 import { safeId } from '@dsh-plugins/ui'
 import { KanbanBlock } from '@dsh-plugins/ui'
 
@@ -25,8 +25,8 @@ export function normalizeContent(raw: unknown): KanbanBlock[] {
 }
 
 /** 卡片的 git 仓库（github-repo ref externalId），无则空串（分组/筛选用） */
-export function cardRepoOf(card: any): string {
-  const refs: any[] = Array.isArray(card.refs) ? card.refs : []
+export function ticketRepoOf(ticket: any): string {
+  const refs: any[] = Array.isArray(ticket.refs) ? ticket.refs : []
   const r = refs.find((x) => x.kind === 'github-repo')
   return r && r.externalId ? String(r.externalId) : ''
 }

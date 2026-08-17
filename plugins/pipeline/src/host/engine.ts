@@ -349,14 +349,14 @@ async function runLlmNode(node: PipelineNode, ctx: NodeExecContext): Promise<Rec
   const prompt = typeof node.config.prompt === 'string' ? interpolate(node.config.prompt, ctx) : truncate(JSON.stringify(ctx.up))
   // 调用上下文透传（spawn 子 agent 需要 parent/signal）
   const conf: Record<string, unknown> = { ...node.config }
-  // 续评上下文：cardId 用于注入上轮评审意见（runLlm 接线侧消费）
-  if (typeof node.config.cardIdPath === 'string' && node.config.cardIdPath.trim()) {
-    conf.cardId = interpolate(node.config.cardIdPath, ctx)
+  // 续评上下文：ticketId 用于注入上轮评审意见（runLlm 接线侧消费）
+  if (typeof node.config.ticketIdPath === 'string' && node.config.ticketIdPath.trim()) {
+    conf.ticketId = interpolate(node.config.ticketIdPath, ctx)
   }
   conf.parentAgent = ctx.parentAgent
   conf.externalSignal = ctx.externalSignal
-  const card = (ctx.inputs && (ctx.inputs as any).card) || null
-  if (card && typeof card.id === 'string') conf.cardId = card.id
+  const ticket = (ctx.inputs && (ctx.inputs as any).ticket) || null
+  if (ticket && typeof ticket.id === 'string') conf.ticketId = ticket.id
   if (!ctx.runLlm) {
     throw new Error('LLM 节点未接入 agent 服务（runLlm 未注入，fail-closed：宁可失败不可假放行）')
   }

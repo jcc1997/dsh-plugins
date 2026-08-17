@@ -34,7 +34,7 @@ if (registered.length !== 31) throw new Error('工具注册数错误: ' + regist
 for (const p of ['/kanban-api/load', '/kanban-api/save', '/kanban-api/set-data-dir', '/kanban-api/git-sync', '/kanban-api/gate-check']) {
   if (!routes.includes(p)) throw new Error('路由缺失: ' + p)
 }
-if (!provided['kanban'] || typeof provided['kanban'].getCard !== 'function') throw new Error('kanban 服务未提供')
+if (!provided['kanban'] || typeof provided['kanban'].getTicket !== 'function') throw new Error('kanban 服务未提供')
 
 // ── client 半：真实执行测试（模拟 ModuleLoader 环境，防 "module is not defined" 类回归） ──
 import { createRequire } from 'node:module'

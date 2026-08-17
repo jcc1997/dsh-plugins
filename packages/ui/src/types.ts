@@ -12,7 +12,7 @@ export interface KanbanBlock {
   checked?: boolean
 }
 
-export interface KanbanCard {
+export interface KanbanTicket {
   id: string
   title: string
   /** 一句话纯文本描述（无预览、无 Markdown 渲染） */
@@ -35,7 +35,7 @@ export interface KanbanCard {
   /** 卡片勾选的门禁（v6）：门禁库 id 引用列表；旧内联 gates 读取时自动入库迁移 */
   gateIds?: string[]
   /** 兼容旧数据：内联门禁（v5 及以前），normalize 时迁入门禁库 */
-  gates?: CardGate[]
+  gates?: TicketGate[]
 }
 
 /** 门禁检查器（v5 抽象）：门禁 = 统一检查单元，可以是内置条件、一段代码或一条/多条 pipeline。 */
@@ -47,7 +47,7 @@ export interface GateChecker {
 }
 
 /** 门禁（v5）：某类行为触发时必须通过的检查单元。挂在卡片或创建模板上。 */
-export interface CardGate {
+export interface TicketGate {
   id: string
   /** 门禁名（展示用） */
   name: string
@@ -60,7 +60,7 @@ export interface CardGate {
 }
 
 /** 创建模板（v4）：预设 description / tags / content / gates，创建卡片时引用免重复输入 */
-export interface CardTemplate {
+export interface TicketTemplate {
   id: string
   name: string
   description?: string
@@ -69,7 +69,7 @@ export interface CardTemplate {
   /** 模板勾选的门禁（v6）：门禁库 id 引用列表 */
   gateIds?: string[]
   /** 兼容旧数据：内联门禁（normalize 时迁入门禁库） */
-  gates?: CardGate[]
+  gates?: TicketGate[]
   createdAt?: string
   updatedAt?: string
 }
@@ -101,7 +101,7 @@ export interface KanbanActivity {
 }
 
 /** 归档卡片：额外记录来源列与归档时间（恢复时回原列） */
-export interface ArchivedCard extends KanbanCard {
+export interface ArchivedTicket extends KanbanTicket {
   archivedFrom?: string
   archivedAt?: string
 }
@@ -109,7 +109,7 @@ export interface ArchivedCard extends KanbanCard {
 export interface KanbanColumn {
   id: string
   title: string
-  cards: KanbanCard[]
+  tickets: KanbanTicket[]
   meta?: Record<string, unknown>
 }
 
@@ -117,11 +117,11 @@ export interface KanbanBoard {
   version: number
   columns: KanbanColumn[]
   /** 归档卡片（v3）：从列移出、看板隐藏，可恢复 */
-  archive?: KanbanCard[]
+  archive?: KanbanTicket[]
   /** 创建模板（v4）：新建卡片时引用，预填描述/标签/内容/门禁 */
-  templates?: CardTemplate[]
+  templates?: TicketTemplate[]
   /** 门禁库（v6）：门禁是独立可复用实体，单独配置；模板/卡片用 gateIds 引用勾选 */
-  gateLibrary?: CardGate[]
+  gateLibrary?: TicketGate[]
   meta?: Record<string, unknown>
 }
 

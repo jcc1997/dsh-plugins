@@ -10,7 +10,7 @@ export interface EventBus {
   /**
    * 发布事件。动态环境实现为"服务总线"（全局 comm.bus 服务 notify），
    * 部署环境实现为 ctx.emit（cordis 原生事件）。
-   * topic 建议命名空间：<plugin>/<event>，如 'git/card-synced'
+   * topic 建议命名空间：<plugin>/<event>，如 'git/ticket-synced'
    */
   publish(topic: string, payload?: EventPayload): void
   /** 订阅事件；返回取消订阅函数 */

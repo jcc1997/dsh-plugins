@@ -290,13 +290,13 @@ export function Showcase() {
                     <span className="kbnb-col-count">{col.cards.length}</span>
                   </div>
                   {col.cards.map((c) => (
-                    <div key={c.t} className="kbnb-card">
-                      <div className="kbnb-card-title">{c.t}</div>
-                      {c.d ? <div className="kbnb-card-desc">{c.d}</div> : null}
+                    <div key={c.t} className="kbnb-ticket">
+                      <div className="kbnb-ticket-title">{c.t}</div>
+                      {c.d ? <div className="kbnb-ticket-desc">{c.d}</div> : null}
                       <span className="kbnb-tag">{c.tag}</span>
                     </div>
                   ))}
-                  <div className="kbnb-add-card">+ 添加卡片</div>
+                  <div className="kbnb-add-ticket">+ 添加Ticket</div>
                 </div>
               ))}
             </div>

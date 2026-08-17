@@ -2,7 +2,7 @@
 // v4：支持创建模板——选择模板预填描述/标签/内容/门禁，创建时随卡带入。
 import React, { useRef, useState } from 'react'
 import { Modal } from '@dsh-plugins/ui'
-import { KanbanBlock, CardTemplate, CardGate } from '@dsh-plugins/ui'
+import { KanbanBlock, TicketTemplate, TicketGate } from '@dsh-plugins/ui'
 import { RichTextEditor } from './rich-text'
 
 /** contentEditable 文本：单行 Enter 失焦或提交 */
@@ -43,9 +43,9 @@ function plainText(html: string): string {
   return String(html).replace(/<[^>]+>/g, '').trim()
 }
 
-export function CreateCardModal(props: {
-  templates?: CardTemplate[]
-  gateLibrary?: CardGate[]
+export function CreateTicketModal(props: {
+  templates?: TicketTemplate[]
+  gateLibrary?: TicketGate[]
   onCreate: (title: string, description: string, tags: string[], content: KanbanBlock[], gateIds?: string[], templateName?: string) => void
   onClose: () => void
 }) {

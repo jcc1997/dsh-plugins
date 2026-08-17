@@ -64,7 +64,7 @@ export function apply(ctx: CtxLike) {
   const host = makeHostBridge()
 
   // 侧边栏入口：按钮 + 全屏Kanban（单一组件，无跨组件状态）
-  // 声明子槽位 kanban.card.actions（list）：git 等插件向其中注册「同步」按钮；
+  // 声明子槽位 kanban.ticket.actions（list）：git 等插件向其中注册「同步」按钮；
   // 声明方（本条目）独占渲染授权，经 renderSlot 渲染到Ticket抽屉。
   function KanbanEntry(props: { wide: boolean; renderSlot?: (key: string, owner: unknown, opts?: unknown) => unknown }) {
     const [open, setOpen] = React.useState(false)
@@ -90,7 +90,7 @@ export function apply(ctx: CtxLike) {
         order: 10,
         label: () => 'Kanban',
         children: {
-          'kanban.card.actions': { kind: 'list', scope: 'root' },
+          'kanban.ticket.actions': { kind: 'list', scope: 'root' },
         },
       },
       (props: { wide: boolean; renderSlot?: (key: string, owner: unknown, opts?: unknown) => unknown }) =>

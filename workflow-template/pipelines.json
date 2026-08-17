@@ -31,8 +31,8 @@
             "in"
           ],
           "config": {
-            "prompt": "你是 DSH 仓库的代码评审 agent。入参 card 是待评审卡片：title=《{input.card.title}》；评审对象见本轮 prompt 附带的【评审对象】摘要（repo/branch/mr/local-repo 已按 kind 解析，refs 顺序不保证）。\n\n步骤：\n1. 定位仓库（【评审对象】的 local-repo/repo 优先；否则当前工作目录，git status/git branch 确认分支）；\n2. 读取仓库内 workflow-template/prompts/review.md 获取完整评审要求；\n3. 用 git diff origin/main...HEAD 与 git log 查看本任务变更，按 review.md 的三个维度评审（代码逻辑 / 设计规范 / 文档纪律）；\n4. 若本轮 prompt 附带了【上一轮评审意见】，先逐条核验其是否已修复（未修复继续列为未解决问题）；\n5. 全部问题已解决（本轮无未解决问题）才给出 OK，否则列出未解决问题。",
-            "cardIdPath": "{input.card.id}",
+            "prompt": "你是 DSH 仓库的代码评审 agent。入参 ticket 是待评审卡片：title=《{input.ticket.title}》；评审对象见本轮 prompt 附带的【评审对象】摘要（repo/branch/mr/local-repo 已按 kind 解析，refs 顺序不保证）。\n\n步骤：\n1. 定位仓库（【评审对象】的 local-repo/repo 优先；否则当前工作目录，git status/git branch 确认分支）；\n2. 读取仓库内 workflow-template/prompts/review.md 获取完整评审要求；\n3. 用 git diff origin/main...HEAD 与 git log 查看本任务变更，按 review.md 的三个维度评审（代码逻辑 / 设计规范 / 文档纪律）；\n4. 若本轮 prompt 附带了【上一轮评审意见】，先逐条核验其是否已修复（未修复继续列为未解决问题）；\n5. 全部问题已解决（本轮无未解决问题）才给出 OK，否则列出未解决问题。",
+            "ticketIdPath": "{input.ticket.id}",
             "toolFilter": [
               "read",
               "glob",

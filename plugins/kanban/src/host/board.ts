@@ -18,7 +18,7 @@ export function defaultBoard(): any {
   const cols = ['待办', '进行中', '完成']
   return {
     version: 4,
-    columns: cols.map((title) => ({ id: 'c' + Math.random().toString(36).slice(2, 10), title, cards: [], meta: {} })),
+    columns: cols.map((title) => ({ id: 'c' + Math.random().toString(36).slice(2, 10), title, tickets: [], meta: {} })),
     archive: [],
     templates: [],
     meta: {},
@@ -54,9 +54,9 @@ export function normalizeBoard(board: any): any {
     }
   }
   for (const col of board.columns || []) {
-    for (const card of col.cards || []) migrateHolder(card)
+    for (const ticket of col.tickets || []) migrateHolder(ticket)
   }
-  for (const card of board.archive || []) migrateHolder(card)
+  for (const ticket of board.archive || []) migrateHolder(ticket)
   for (const tpl of board.templates || []) migrateHolder(tpl)
   return board
 }
@@ -70,9 +70,9 @@ export function safeId(prefix: string): string {
 }
 
 /** 追加变更记录（agent 操作统一 actor="agent"；UI 走 client 侧 appendActivity=手动调整） */
-export function appendActivity(card: any, text: string): void {
-  if (!card.activity) card.activity = []
-  card.activity.push({ id: safeId('a'), text, at: now(), actor: ACTOR_AGENT })
+export function appendActivity(ticket: any, text: string): void {
+  if (!ticket.activity) ticket.activity = []
+  ticket.activity.push({ id: safeId('a'), text, at: now(), actor: ACTOR_AGENT })
 }
 
 /** 读数据目录配置（config.json 的 dataDir，缺失/损坏 → 默认目录） */
@@ -118,20 +118,20 @@ export async function mutateBoard(fs: FsLike, fn: (board: any) => any): Promise<
 }
 
 /** 按 id 找卡片（仅活动列） */
-export function findCardGlobal(board: any, cardId: string): { col: any; card: any } | null {
+export function findTicketGlobal(board: any, ticketId: string): { col: any; ticket: any } | null {
   for (const col of board.columns || []) {
-    const card = (col.cards || []).find((k: any) => k.id === cardId)
-    if (card) return { col, card }
+    const ticket = (col.tickets || []).find((k: any) => k.id === ticketId)
+    if (ticket) return { col, ticket }
   }
   return null
 }
 
 /** 按 id 找卡片（含归档；命中归档时 col=null、archived=true） */
-export function findCardAny(board: any, cardId: string): { col: any; card: any; archived: boolean } | null {
-  const hit = findCardGlobal(board, cardId)
-  if (hit) return { col: hit.col, card: hit.card, archived: false }
-  const card = (board.archive || []).find((k: any) => k.id === cardId)
-  if (card) return { col: null, card, archived: true }
+export function findTicketAny(board: any, ticketId: string): { col: any; ticket: any; archived: boolean } | null {
+  const hit = findTicketGlobal(board, ticketId)
+  if (hit) return { col: hit.col, ticket: hit.ticket, archived: false }
+  const ticket = (board.archive || []).find((k: any) => k.id === ticketId)
+  if (ticket) return { col: null, ticket, archived: true }
   return null
 }
 
@@ -142,15 +142,15 @@ export function resolveColumn(board: any, status?: string): any {
 }
 
 /** 卡片概要（agent 工具返回的轻量视图）；col=null 表示归档 */
-export function cardSummary(card: any, col: any): any {
+export function ticketSummary(ticket: any, col: any): any {
   return {
-    id: card.id,
-    title: card.title,
+    id: ticket.id,
+    title: ticket.title,
     status: col ? col.title : '归档',
     column_id: col ? col.id : null,
-    tags: card.tags || [],
-    updatedAt: card.updatedAt,
-    createdAt: card.createdAt,
+    tags: ticket.tags || [],
+    updatedAt: ticket.updatedAt,
+    createdAt: ticket.createdAt,
   }
 }
 
@@ -176,8 +176,8 @@ export function normalizeContent(raw: any): any[] {
 }
 
 /** 富文本块数组 → 纯文本（keyword 匹配 / agent 展示用） */
-export function contentText(card: any): string {
-  const blocks = Array.isArray(card.content) ? card.content : []
+export function contentText(ticket: any): string {
+  const blocks = Array.isArray(ticket.content) ? ticket.content : []
   return blocks
     .map((b: any) => {
       if (b.type === 'image') return b.url ? '[图片]' : ''
@@ -190,8 +190,8 @@ export function contentText(card: any): string {
 }
 
 /** 卡片的 git 仓库（github-repo ref externalId），无则空串（分组/筛选用） */
-export function cardRepo(card: any): string {
-  const refs: any[] = Array.isArray(card.refs) ? card.refs : []
+export function ticketRepo(ticket: any): string {
+  const refs: any[] = Array.isArray(ticket.refs) ? ticket.refs : []
   const r = refs.find((x) => x.kind === 'github-repo')
   return r && r.externalId ? String(r.externalId) : ''
 }

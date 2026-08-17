@@ -1,7 +1,7 @@
 // client/drawer-side.tsx — 抽屉右侧栏：状态切换 + 归档/删除 + 标签 + Git 关联Ticket + 外部关联 + 门禁 + 变更记录
 import React, { useState } from 'react'
 import { IconCloseOutline16, fmtTime } from '@dsh-plugins/ui'
-import { KanbanCard, KanbanColumn, CardGate } from '@dsh-plugins/ui'
+import { KanbanTicket, KanbanColumn, TicketGate } from '@dsh-plugins/ui'
 
 /** 关联类型定义（新增/展示按类型；git 关联 + 会话关联） */
 export const REF_KINDS: { kind: string; label: string }[] = [
@@ -13,7 +13,7 @@ export const REF_KINDS: { kind: string; label: string }[] = [
 ]
 
 export function DrawerSide(props: {
-  card: KanbanCard
+  ticket: KanbanTicket
   columns: KanbanColumn[]
   onMoveStatus: (targetColId: string) => void
   onDelete: () => void
@@ -22,14 +22,14 @@ export function DrawerSide(props: {
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
   onOpenSession: (sessionId: string) => void
-  gateLibrary?: CardGate[]
+  gateLibrary?: TicketGate[]
   onAddGate?: (gateId: string) => void
   onRemoveGate?: (gateId: string) => void
   onOpenGatesView?: () => void
   actionHost?: (() => React.ReactNode) | null
 }) {
-  const activity = props.card.activity || []
-  const currentCol = props.columns.find((c) => c.cards.some((k) => k.id === props.card.id))
+  const activity = props.ticket.activity || []
+  const currentCol = props.columns.find((c) => c.tickets.some((k) => k.id === props.ticket.id))
 
   return (
     <div className="kbnb-drawer-side">
@@ -66,7 +66,7 @@ export function DrawerSide(props: {
       {/* 标签（chips，可点 × 移除；输入框回车添加） */}
       <div className="kbnb-tag-row">
         <span className="kbnb-field-label">标签</span>
-        {(props.card.tags || []).map((tg) => (
+        {(props.ticket.tags || []).map((tg) => (
           <span key={tg} className="kbnb-tag kbnb-tag-removable" title={'移除标签 ' + tg} onClick={() => props.onUpdateTags([], [tg])}>
             {tg}
             <span className="kbnb-tag-x"><IconCloseOutline16 size={12} /></span>
@@ -76,15 +76,15 @@ export function DrawerSide(props: {
       </div>
 
       {/* Git 关联Ticket：repo/分支/MR + 同步状态 + 新增 git 关联（git 插件槽位注入同步按钮） */}
-      <GitCard card={props.card} onAddRef={props.onAddRef} onRemoveRef={props.onRemoveRef} actionHost={props.actionHost ? () => props.actionHost!() : null} />
+      <GitTicket ticket={props.ticket} onAddRef={props.onAddRef} onRemoveRef={props.onRemoveRef} actionHost={props.actionHost ? () => props.actionHost!() : null} />
 
       {/* 会话关联：列表 + 新增（仅此两种关联入口：git / 会话） */}
-      <SessionCard card={props.card} onAddRef={props.onAddRef} onRemoveRef={props.onRemoveRef} onOpenSession={props.onOpenSession} />
+      <SessionTicket ticket={props.ticket} onAddRef={props.onAddRef} onRemoveRef={props.onRemoveRef} onOpenSession={props.onOpenSession} />
 
       {/* 门禁（v6）：从门禁库勾选挂到此卡；动作触发时检查 */}
       {typeof props.onAddGate === 'function' ? (
-        <GateCard
-          card={props.card}
+        <GateTicket
+          ticket={props.ticket}
           gateLibrary={props.gateLibrary || []}
           onAddGate={props.onAddGate}
           onRemoveGate={props.onRemoveGate || (() => {})}
@@ -109,14 +109,14 @@ export function DrawerSide(props: {
 }
 
 /** Git 关联Ticket：repo + 分支 + MR 列表 + 同步状态 + 新增 git 关联（新增只有 git / 会话两种入口） */
-function GitCard(props: {
-  card: KanbanCard
+function GitTicket(props: {
+  ticket: KanbanTicket
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
   actionHost?: (() => React.ReactNode) | null
 }) {
-  const refs: any[] = (props.card as any).refs || []
-  const meta: any = (props.card as any).meta || {}
+  const refs: any[] = (props.ticket as any).refs || []
+  const meta: any = (props.ticket as any).meta || {}
   const syncEnv = meta.sync && meta.sync.github ? meta.sync.github : null
   const repoRef = refs.find((r) => r.kind === 'github-repo')
   const branchRefs = refs.filter((r) => r.kind === 'github-branch')
@@ -139,11 +139,11 @@ function GitCard(props: {
 
   const hasAny = repoRef || branchRefs.length > 0 || mrRefs.length > 0 || snapshotMrs.length > 0 || syncEnv
   return (
-    <section className="kbnb-card kbnb-git-card">
-      <header className="kbnb-card-sec-head">
-        <span className="kbnb-card-sec-title">Git 关联</span>
+    <section className="kbnb-ticket kbnb-git-ticket">
+      <header className="kbnb-ticket-sec-head">
+        <span className="kbnb-ticket-sec-title">Git 关联</span>
         <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {props.actionHost ? <span className="kbnb-card-actions">{props.actionHost()}</span> : null}
+          {props.actionHost ? <span className="kbnb-ticket-actions">{props.actionHost()}</span> : null}
           <button className="kbnb-btn kbnb-ref-add-btn" type="button" onClick={() => setAdding(!adding)}>
             {adding ? '收起' : '+ 新增 git 关联'}
           </button>
@@ -222,13 +222,13 @@ function GitCard(props: {
 }
 
 /** 会话关联Ticket：列表 + 新增会话 */
-function SessionCard(props: {
-  card: KanbanCard
+function SessionTicket(props: {
+  ticket: KanbanTicket
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
   onOpenSession: (sessionId: string) => void
 }) {
-  const sessions = ((props.card.refs || []) as any[]).filter((r) => r.kind === 'session')
+  const sessions = ((props.ticket.refs || []) as any[]).filter((r) => r.kind === 'session')
   const [adding, setAdding] = useState(false)
   const [sid, setSid] = useState('')
   const [disp, setDisp] = useState('')
@@ -238,9 +238,9 @@ function SessionCard(props: {
     setSid(''); setDisp(''); setAdding(false)
   }
   return (
-    <section className="kbnb-card kbnb-refs-card">
-      <header className="kbnb-card-sec-head">
-        <span className="kbnb-card-sec-title">会话关联 {sessions.length}</span>
+    <section className="kbnb-ticket kbnb-refs-ticket">
+      <header className="kbnb-ticket-sec-head">
+        <span className="kbnb-ticket-sec-title">会话关联 {sessions.length}</span>
         <button className="kbnb-btn kbnb-ref-add-btn" type="button" onClick={() => setAdding(!adding)}>
           {adding ? '收起' : '+ 新增会话关联'}
         </button>
@@ -295,10 +295,10 @@ const GATE_KIND_LABEL: Record<string, string> = { 'mr-merged': 'MR 已合并', '
 function gateSig(g: any): string {
   return [g.name, g.on, String(g.to || ''), g.checker ? g.checker.type : g.kind].join('\u0001')
 }
-function resolveCardGates(card: KanbanCard, lib: CardGate[]): CardGate[] {
-  const ids: string[] = Array.isArray((card as any).gateIds) ? (card as any).gateIds : []
-  const out: CardGate[] = []
-  const push = (g: CardGate) => {
+function resolveTicketGates(ticket: KanbanTicket, lib: TicketGate[]): TicketGate[] {
+  const ids: string[] = Array.isArray((ticket as any).gateIds) ? (ticket as any).gateIds : []
+  const out: TicketGate[] = []
+  const push = (g: TicketGate) => {
     if (!g || !g.id) return
     if (out.some((o: any) => o.id === g.id || gateSig(o) === gateSig(g))) return
     out.push(g)
@@ -307,11 +307,11 @@ function resolveCardGates(card: KanbanCard, lib: CardGate[]): CardGate[] {
     const g = lib.find((x: any) => x.id === id)
     if (g) push(g)
   }
-  for (const g of ((card as any).gates || []) as CardGate[]) push(g)
+  for (const g of ((ticket as any).gates || []) as TicketGate[]) push(g)
   return out
 }
 
-function gateSummary(g: CardGate): string {
+function gateSummary(g: TicketGate): string {
   const t = g.checker ? g.checker.type : (g as any).kind
   const cfg = g.checker ? g.checker.config : (g as any).config
   if (t === 'tag-required') return '需含标签：' + String((cfg && (cfg as any).tags || [])).replace(/,/g, ', ')
@@ -324,9 +324,9 @@ function gateSummary(g: CardGate): string {
   return String(t)
 }
 
-function GateCard(props: {
-  card: KanbanCard
-  gateLibrary: CardGate[]
+function GateTicket(props: {
+  ticket: KanbanTicket
+  gateLibrary: TicketGate[]
   onAddGate: (gateId: string) => void
   onRemoveGate: (gateId: string) => void
   onOpenGatesView?: () => void
@@ -334,7 +334,7 @@ function GateCard(props: {
   const [adding, setAdding] = useState(false)
   const [pickId, setPickId] = useState('')
   const [openGateId, setOpenGateId] = useState<string | null>(null)
-  const gates: CardGate[] = resolveCardGates(props.card, props.gateLibrary)
+  const gates: TicketGate[] = resolveTicketGates(props.ticket, props.gateLibrary)
   const attachedIds = gates.map((g: any) => g.id)
   const unattached = props.gateLibrary.filter((g: any) => !attachedIds.includes(g.id))
 
@@ -346,9 +346,9 @@ function GateCard(props: {
   }
 
   return (
-    <section className="kbnb-card kbnb-gates-card">
-      <header className="kbnb-card-sec-head">
-        <span className="kbnb-card-sec-title">门禁 {gates.length}</span>
+    <section className="kbnb-ticket kbnb-gates-ticket">
+      <header className="kbnb-ticket-sec-head">
+        <span className="kbnb-ticket-sec-title">门禁 {gates.length}</span>
         <button className="kbnb-btn kbnb-ref-add-btn" type="button" onClick={() => setAdding(!adding)}>
           {adding ? '收起' : '+ 勾选'}
         </button>

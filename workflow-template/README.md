@@ -49,8 +49,8 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 ### 完成自检
 
 - Kanban有 10 列（Backlog → Done）、门禁库有 11 条门禁、创建模板里有 `workflow` 与 `bug` 两个；pipeline 列表里有 `代码评审`（p-workflow-review）；
-- 对一张卡 `kanban_ticket_move(card, "RD")` 会被「进入 RD 需建 workflow 分支」拒绝——说明门禁生效；
-- 对一张处于 1st Review、已打 `review-1-done` 的卡 `kanban_ticket_move(card, "Testing")`：先触发「代码评审」pipeline，agent 未给出 OK 则被拒绝且卡上出现评审评论——说明 review 门禁生效；
+- 对一张卡 `kanban_ticket_move(ticket, "RD")` 会被「进入 RD 需建 workflow 分支」拒绝——说明门禁生效；
+- 对一张处于 1st Review、已打 `review-1-done` 的卡 `kanban_ticket_move(ticket, "Testing")`：先触发「代码评审」pipeline，agent 未给出 OK 则被拒绝且卡上出现评审评论——说明 review 门禁生效；
 - **新建会话的预设选择器里能看到「workflow 模式」**（复制 `agent-presets/workflow/` 后刷新页面即可看到，无需重启 dsh）；
 - 建一张卡试试全流程（见下「日常使用」）。
 

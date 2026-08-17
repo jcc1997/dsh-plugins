@@ -27,11 +27,11 @@ interface WebLike {
   fetch(req: { url: string }, signal?: unknown): Promise<{ statusCode: number; body: { kind: string; content: string }; truncated: boolean }>
 }
 interface KanbanLike {
-  getCard(cardId: string): Promise<any | null>
-  updateCard(cardId: string, patch: any): Promise<{ ok: boolean; error?: string }>
-  listCards(): Promise<Array<{ id: string; title: string; taskId: string | null }>>
-  getCardStatus?(cardId: string): Promise<{ status: string; archived: boolean } | null>
-  moveCard?(cardId: string, target: string, activityText?: string): Promise<{ ok: boolean; error?: string }>
+  getTicket(ticketId: string): Promise<any | null>
+  updateTicket(ticketId: string, patch: any): Promise<{ ok: boolean; error?: string }>
+  listTickets(): Promise<Array<{ id: string; title: string; taskId: string | null }>>
+  getTicketStatus?(ticketId: string): Promise<{ status: string; archived: boolean } | null>
+  moveTicket?(ticketId: string, target: string, activityText?: string): Promise<{ ok: boolean; error?: string }>
 }
 const TOKEN_REF = 'GITHUB_TOKEN'
 const DEFAULT_DIR = '/Users/jinchao.chen/.dsh/git'
@@ -128,8 +128,8 @@ export function apply(ctx: GitCtx) {
       }
 
       /* ── 仓库解析：Ticket refs → 配置 → 入参 ── */
-      function repoFromCard(card: any): { owner: string; name: string } | null {
-        const refs: any[] = card && Array.isArray(card.refs) ? card.refs : []
+      function repoFromTicket(ticket: any): { owner: string; name: string } | null {
+        const refs: any[] = ticket && Array.isArray(ticket.refs) ? ticket.refs : []
         for (const r of refs) {
           if (r.kind === 'github-repo' && r.externalId) {
             const parts = String(r.externalId).split('/')
@@ -138,25 +138,25 @@ export function apply(ctx: GitCtx) {
         }
         return null
       }
-      function branchFromCard(card: any): string | null {
-        const refs: any[] = card && Array.isArray(card.refs) ? card.refs : []
+      function branchFromTicket(ticket: any): string | null {
+        const refs: any[] = ticket && Array.isArray(ticket.refs) ? ticket.refs : []
         for (const r of refs) if (r.kind === 'github-branch' && r.display) return r.display
         return null
       }
-      function taskIdOf(card: any): string | null {
-        const meta = card && card.meta && typeof card.meta === 'object' ? card.meta : {}
+      function taskIdOf(ticket: any): string | null {
+        const meta = ticket && ticket.meta && typeof ticket.meta === 'object' ? ticket.meta : {}
         return meta.taskId ? String(meta.taskId) : null
       }
 
       /* ── 认领 taskId（[ID] 约定：<repo-name>-<int>） ── */
-      async function claimTaskId(cardId: string): Promise<any> {
+      async function claimTaskId(ticketId: string): Promise<any> {
         const kanban = kanbanSvc()
         if (!kanban) return { ok: false, error: 'kanban service unavailable（先激活 kanban 插件）' }
-        const card = await kanban.getCard(cardId)
-        if (!card) return { ok: false, error: 'card not found: ' + cardId }
-        const existing = taskIdOf(card)
-        if (existing) return { ok: true, card_id: cardId, taskId: existing, reused: true }
-        const repo = repoFromCard(card)
+        const ticket = await kanban.getTicket(ticketId)
+        if (!ticket) return { ok: false, error: 'ticket not found: ' + ticketId }
+        const existing = taskIdOf(ticket)
+        if (existing) return { ok: true, ticket_id: ticketId, taskId: existing, reused: true }
+        const repo = repoFromTicket(ticket)
         const cfg = await readConfig()
         const repoName = repo ? repo.name : (cfg.repo && cfg.repo.name) ? cfg.repo.name : null
         if (!repoName) {
@@ -164,7 +164,7 @@ export function apply(ctx: GitCtx) {
         }
         let max = 0
         try {
-          const all = await kanban.listCards()
+          const all = await kanban.listTickets()
           for (const c of all || []) {
             const tid = c.taskId ? String(c.taskId) : ''
             const m = TASK_ID_RE.exec(tid)
@@ -172,13 +172,13 @@ export function apply(ctx: GitCtx) {
           }
         } catch { max = 0 }
         const taskId = repoName + '-' + (max + 1)
-        const res = await kanban.updateCard(cardId, { meta: { taskId }, activity: '认领 Ticket ID：' + taskId })
-        if (!res.ok) return { ok: false, error: res.error || 'updateCard failed' }
-        return { ok: true, card_id: cardId, taskId, reused: false }
+        const res = await kanban.updateTicket(ticketId, { meta: { taskId }, activity: '认领 Ticket ID：' + taskId })
+        if (!res.ok) return { ok: false, error: res.error || 'updateTicket failed' }
+        return { ok: true, ticket_id: ticketId, taskId, reused: false }
       }
 
       /* ── 关联（带验证） ── */
-      async function linkRef(cardId: string, spec: any): Promise<any> {
+      async function linkRef(ticketId: string, spec: any): Promise<any> {
         const kanban = kanbanSvc()
         if (!kanban) return { ok: false, error: 'kanban service unavailable（先激活 kanban 插件）' }
         const kind = spec && spec.kind ? String(spec.kind).trim() : ''
@@ -192,9 +192,9 @@ export function apply(ctx: GitCtx) {
           const parts = ext.split('/')
           if (parts.length !== 2 || !parts[0] || !parts[1]) return { ok: false, error: 'github-repo external_id 需为 owner/repo 格式' }
         }
-        const card = await kanban.getCard(cardId)
-        if (!card) return { ok: false, error: 'card not found: ' + cardId }
-        const refs: any[] = Array.isArray(card.refs) ? card.refs.map((r: any) => ({ ...r })) : []
+        const ticket = await kanban.getTicket(ticketId)
+        if (!ticket) return { ok: false, error: 'ticket not found: ' + ticketId }
+        const refs: any[] = Array.isArray(ticket.refs) ? ticket.refs.map((r: any) => ({ ...r })) : []
         if (refs.some((r) => r.kind === kind && r.externalId === ext)) return { ok: false, error: 'ref already exists: ' + kind + ' ' + ext }
         const ref: any = {
           id: 'r' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
@@ -207,19 +207,19 @@ export function apply(ctx: GitCtx) {
           createdAt: now(),
         }
         refs.push(ref)
-        const res = await kanban.updateCard(cardId, { refs, activity: '添加关联：' + kind + ' ' + ext })
-        if (!res.ok) return { ok: false, error: res.error || 'updateCard failed' }
-        return { ok: true, card_id: cardId, ref_id: ref.id, kind, externalId: ext }
+        const res = await kanban.updateTicket(ticketId, { refs, activity: '添加关联：' + kind + ' ' + ext })
+        if (!res.ok) return { ok: false, error: res.error || 'updateTicket failed' }
+        return { ok: true, ticket_id: ticketId, ref_id: ref.id, kind, externalId: ext }
       }
 
       /* ── 拉 MR 列表（含 [ID] 解析） ── */
-      async function listMrs(cardId: string | undefined, owner?: string, name?: string): Promise<any> {
+      async function listMrs(ticketId: string | undefined, owner?: string, name?: string): Promise<any> {
         let o = owner, n = name
-        let card: any = null
-        if (cardId) {
+        let ticket: any = null
+        if (ticketId) {
           const kanban = kanbanSvc()
-          if (kanban) card = await kanban.getCard(cardId)
-          const repo = repoFromCard(card)
+          if (kanban) ticket = await kanban.getTicket(ticketId)
+          const repo = repoFromTicket(ticket)
           if (repo && !o) { o = repo.owner; n = repo.name }
         }
         if (!o || !n) {
@@ -245,17 +245,17 @@ export function apply(ctx: GitCtx) {
           }
         })
         const mrs = mrsAll
-        const taskId = taskIdOf(card)
+        const taskId = taskIdOf(ticket)
         return { ok: true, repo: { owner: o, name: n }, open: mrsAll.filter((m) => m.state === 'open').length, total: mrsAll.length, mrs, matched: taskId ? mrs.filter((m) => m.taskIds.some((t: string) => normalizeTaskId(t) === normalizeTaskId(taskId))) : [] }
       }
 
       /* ── 同步：拉取 + [ID] 自动关联 + 写回 meta.sync.github 信封 ── */
-      async function syncCard(cardId: string): Promise<any> {
+      async function syncTicket(ticketId: string): Promise<any> {
         const kanban = kanbanSvc()
         if (!kanban) return { ok: false, error: 'kanban service unavailable（先激活 kanban 插件）' }
-        const card = await kanban.getCard(cardId)
-        if (!card) return { ok: false, error: 'card not found: ' + cardId }
-        const repo = repoFromCard(card)
+        const ticket = await kanban.getTicket(ticketId)
+        if (!ticket) return { ok: false, error: 'ticket not found: ' + ticketId }
+        const repo = repoFromTicket(ticket)
         let o = repo ? repo.owner : undefined
         let n = repo ? repo.name : undefined
         if (!o || !n) {
@@ -265,11 +265,11 @@ export function apply(ctx: GitCtx) {
         if (!o || !n) return { ok: false, error: 'no repo configured（git_configure 或先关联 github-repo）' }
         // 拉全部状态（open+merged+closed），保证合并/关闭后状态正确反映
         const gh = await ghFetch(o, n, 'pulls?state=all&per_page=100')
-        const taskId = taskIdOf(card)
-        const branch = branchFromCard(card)
+        const taskId = taskIdOf(ticket)
+        const branch = branchFromTicket(ticket)
         if (!gh.ok) {
           const env: any = { version: 1, lastSyncAt: null, error: gh.error || 'github api failed', snapshot: null }
-          await kanban.updateCard(cardId, { meta: { sync: { github: env } }, activity: '同步失败：' + (gh.error || 'github api failed') })
+          await kanban.updateTicket(ticketId, { meta: { sync: { github: env } }, activity: '同步失败：' + (gh.error || 'github api failed') })
           return { ok: false, error: gh.error || 'github api failed', syncedAt: null }
         }
         const items: any[] = Array.isArray(gh.data) ? gh.data : []
@@ -295,7 +295,7 @@ export function apply(ctx: GitCtx) {
         // [ID] 自动关联：匹配本卡 taskId 的 MR → 补 github-mr refs；已有 ref 更新 state（合并/关闭后状态同步）
         let linked = 0
         let updated = 0
-        const refs: any[] = Array.isArray(card.refs) ? card.refs.map((r: any) => ({ ...r })) : []
+        const refs: any[] = Array.isArray(ticket.refs) ? ticket.refs.map((r: any) => ({ ...r })) : []
         if (taskId) {
           for (const m of mrs) {
             if (!m.taskIds.some((t: string) => normalizeTaskId(t) === normalizeTaskId(taskId))) continue
@@ -333,23 +333,23 @@ export function apply(ctx: GitCtx) {
         }
         const patch: any = { meta: { sync: { github: envelope } }, activity: '同步 GitHub MR（open ' + openMrs.length + (updated > 0 ? '，状态变更 ' + updated + '）' : '）') }
         if (linked > 0 || updated > 0) patch.refs = refs
-        const res = await kanban.updateCard(cardId, patch)
-        if (!res.ok) return { ok: false, error: res.error || 'updateCard failed' }
+        const res = await kanban.updateTicket(ticketId, patch)
+        if (!res.ok) return { ok: false, error: res.error || 'updateTicket failed' }
         // 通信协议：同步完成发布事件（动态=服务总线；部署=ctx.emit；监听方刷新 UI/联动）
         try {
-          comm.bus.publish('git/card-synced', { cardId, syncedAt: envelope.lastSyncAt, taskId: taskId || undefined, openMrs: openMrs.length, linkedMrs: linked, updatedMrs: updated })
+          comm.bus.publish('git/ticket-synced', { ticketId, syncedAt: envelope.lastSyncAt, taskId: taskId || undefined, openMrs: openMrs.length, linkedMrs: linked, updatedMrs: updated })
         } catch { /* 事件失败不影响结果 */ }
-        return { ok: true, card_id: cardId, syncedAt: envelope.lastSyncAt, taskId, open_mrs: openMrs.length, linked_mrs: linked, updated_mrs: updated, matched_mrs: taskId ? mrs.filter((m) => m.taskIds.some((t: string) => normalizeTaskId(t) === normalizeTaskId(taskId))).map((m) => m.number) : [] }
+        return { ok: true, ticket_id: ticketId, syncedAt: envelope.lastSyncAt, taskId, open_mrs: openMrs.length, linked_mrs: linked, updated_mrs: updated, matched_mrs: taskId ? mrs.filter((m) => m.taskIds.some((t: string) => normalizeTaskId(t) === normalizeTaskId(taskId))).map((m) => m.number) : [] }
       }
 
       /* ── 状态快照 ── */
-      async function snapshot(cardId: string): Promise<any> {
+      async function snapshot(ticketId: string): Promise<any> {
         const kanban = kanbanSvc()
         if (!kanban) return { ok: false, error: 'kanban service unavailable' }
-        const card = await kanban.getCard(cardId)
-        if (!card) return { ok: false, error: 'card not found: ' + cardId }
-        const sync = card.meta && card.meta.sync && card.meta.sync.github ? card.meta.sync.github : null
-        return { ok: true, card_id: cardId, taskId: taskIdOf(card), sync }
+        const ticket = await kanban.getTicket(ticketId)
+        if (!ticket) return { ok: false, error: 'ticket not found: ' + ticketId }
+        const sync = ticket.meta && ticket.meta.sync && ticket.meta.sync.github ? ticket.meta.sync.github : null
+        return { ok: true, ticket_id: ticketId, taskId: taskIdOf(ticket), sync }
       }
 
       /* ── client sync 按钮通道（正式形态）：webServer 路由 POST /api/git/sync ── */
@@ -362,8 +362,8 @@ export function apply(ctx: GitCtx) {
               let body = ''
               for await (const chunk of req) body += chunk
               const args = body ? JSON.parse(body) : {}
-              const cardId = args && args.cardId ? String(args.cardId) : ''
-              const result = cardId ? await syncCard(cardId) : { ok: false, error: 'cardId required' }
+              const ticketId = args && args.ticketId ? String(args.ticketId) : ''
+              const result = ticketId ? await syncTicket(ticketId) : { ok: false, error: 'ticketId required' }
               res.writeHead(200, { 'Content-Type': 'application/json' })
               res.end(JSON.stringify(result))
             } catch (e) {
@@ -382,10 +382,10 @@ export function apply(ctx: GitCtx) {
           return { configured: !!(cfg.repo && cfg.repo.owner && cfg.repo.name) || tokenConfigured, repo: cfg.repo || null, tokenConfigured }
         },
         claimTaskId,
-        link: async (cardId: string, spec: any) => linkRef(cardId, spec),
-        listMrs: async (cardId: string) => listMrs(cardId),
-        sync: async (cardId: string) => syncCard(cardId),
-        snapshot: async (cardId: string) => snapshot(cardId),
+        link: async (ticketId: string, spec: any) => linkRef(ticketId, spec),
+        listMrs: async (ticketId: string) => listMrs(ticketId),
+        sync: async (ticketId: string) => syncTicket(ticketId),
+        snapshot: async (ticketId: string) => snapshot(ticketId),
       })
 
       /* ── 工具 ── */
@@ -430,55 +430,55 @@ export function apply(ctx: GitCtx) {
         {
           name: 'git_claim_task_id',
           description: '为Ticket认领自动关联 ID（[ID] 约定，格式 <repo-name>-<int>，如 dsh-plugins-1）。已有 taskId 则原样返回；同 repo 递增。MR 标题携带 [taskId] 即可被 git_sync 自动关联。',
-          parameters: P({ card_id: STR('Ticket id') }, ['card_id']),
-          execute: async (args: any) => claimTaskId(String(args.card_id)),
+          parameters: P({ ticket_id: STR('Ticket id') }, ['ticket_id']),
+          execute: async (args: any) => claimTaskId(String(args.ticket_id)),
           output: outputOf('taskId 认领结果'),
         },
         {
           name: 'git_link',
           description: '为Ticket建立带验证的外部关联（写入Ticket refs）：github-repo（owner/repo，验证格式）、github-branch、github-mr、local-repo（验证路径可读）。',
           parameters: P({
-            card_id: STR('Ticket id'),
+            ticket_id: STR('Ticket id'),
             kind: STR('引用类型：github-repo / github-branch / github-mr / local-repo'),
             external_id: STR('提供方侧 ID：owner/repo、branch 名、MR 号、本地路径'),
             platform: STR('提供方键，缺省从 kind 前缀推导'),
             url: STR('可点击链接（可选）'),
             display: STR('展示文本（可选，branch 名 / MR 标题）'),
             meta: { type: 'object', additionalProperties: true, description: '提供方轻量信息（可选）' },
-          }, ['card_id', 'kind', 'external_id']),
-          execute: async (args: any) => linkRef(String(args.card_id), args),
+          }, ['ticket_id', 'kind', 'external_id']),
+          execute: async (args: any) => linkRef(String(args.ticket_id), args),
           output: outputOf('关联结果'),
         },
         {
           name: 'git_list_mrs',
           description: '列出仓库 open MR（GitHub PR）。仓库来源：Ticket github-repo 关联 > git_configure 配置。返回 MR 列表与标题中解析出的 [taskId]。',
           parameters: P({
-            card_id: STR('Ticket id（可选；用于从Ticket解析仓库）'),
+            ticket_id: STR('Ticket id（可选；用于从Ticket解析仓库）'),
             owner: STR('仓库 owner（可选，覆盖Ticket/配置）'),
             repo: STR('仓库名（可选，覆盖Ticket/配置）'),
           }),
-          execute: async (args: any) => listMrs(args.card_id ? String(args.card_id) : undefined, args.owner ? String(args.owner) : undefined, args.repo ? String(args.repo) : undefined),
+          execute: async (args: any) => listMrs(args.ticket_id ? String(args.ticket_id) : undefined, args.owner ? String(args.owner) : undefined, args.repo ? String(args.repo) : undefined),
           output: outputOf('MR 列表'),
         },
         {
           name: 'git_sync',
           description: '同步Ticket关联仓库的 open MR 状态：拉取 GitHub PR → 按 [ID] 约定自动关联本卡 taskId 的 MR（补 github-mr refs）→ 写回Ticket meta.sync.github 快照信封（version/lastSyncAt/error/snapshot）。',
-          parameters: P({ card_id: STR('Ticket id') }, ['card_id']),
-          execute: async (args: any) => syncCard(String(args.card_id)),
+          parameters: P({ ticket_id: STR('Ticket id') }, ['ticket_id']),
+          execute: async (args: any) => syncTicket(String(args.ticket_id)),
           output: outputOf('同步结果'),
         },
         {
           name: 'git_status',
           description: '查看Ticket当前 git 同步状态：taskId、关联 refs、meta.sync.github 信封（上次同步时间 / 错误 / 快照）。',
-          parameters: P({ card_id: STR('Ticket id') }, ['card_id']),
-          execute: async (args: any) => snapshot(String(args.card_id)),
+          parameters: P({ ticket_id: STR('Ticket id') }, ['ticket_id']),
+          execute: async (args: any) => snapshot(String(args.ticket_id)),
           output: outputOf('同步状态'),
         },
         {
           name: 'git_merge_pr',
           description: '合并仓库的 GitHub MR（PR）：合并前检查关联Ticket必须处于 Stage 列（workflow 门禁）；合并后自动触发该卡 git_sync 刷新状态，并自动把Ticket移入 Done 列。仓库来源：Ticket github-repo 关联 > git_configure 配置。',
           parameters: P({
-            card_id: STR('Ticket id（可选；用于解析仓库、Stage 状态检查与合并后自动流转）'),
+            ticket_id: STR('Ticket id（可选；用于解析仓库、Stage 状态检查与合并后自动流转）'),
             owner: STR('仓库 owner（可选，覆盖Ticket/配置）'),
             repo: STR('仓库名（可选，覆盖Ticket/配置）'),
             mr_number: STR('MR 号（必填）'),
@@ -489,12 +489,12 @@ export function apply(ctx: GitCtx) {
             if (!number) return { ok: false, error: 'mr_number is required' }
             let o = args.owner ? String(args.owner).trim() : undefined
             let n = args.repo ? String(args.repo).trim() : undefined
-            let cardId = args.card_id ? String(args.card_id) : undefined
+            let ticketId = args.ticket_id ? String(args.ticket_id) : undefined
             if (!o || !n) {
               const kanban = kanbanSvc()
-              if (kanban && cardId) {
-                const card = await kanban.getCard(cardId)
-                const repo = repoFromCard(card)
+              if (kanban && ticketId) {
+                const ticket = await kanban.getTicket(ticketId)
+                const repo = repoFromTicket(ticket)
                 if (repo) { o = o || repo.owner; n = n || repo.name }
               }
             }
@@ -505,10 +505,10 @@ export function apply(ctx: GitCtx) {
             if (!o || !n) return { ok: false, error: 'no repo configured（git_configure 或Ticket github-repo 关联）' }
             // workflow 门禁：Ticket必须处于 Stage 列才允许合并
             let stageCheck: any = null
-            if (cardId) {
+            if (ticketId) {
               const kanban = kanbanSvc()
-              if (kanban && typeof kanban.getCardStatus === 'function') {
-                stageCheck = await kanban.getCardStatus(cardId)
+              if (kanban && typeof kanban.getTicketStatus === 'function') {
+                stageCheck = await kanban.getTicketStatus(ticketId)
                 if (!stageCheck || stageCheck.status !== 'Stage') {
                   return { ok: false, error: '门禁未通过：Ticket必须处于 Stage 列才能合并 MR（当前：' + (stageCheck ? stageCheck.status : '未找到Ticket') + '）' }
                 }
@@ -543,11 +543,11 @@ export function apply(ctx: GitCtx) {
               // 合并成功 → 自动同步该卡刷新状态 → 自动把Ticket移入 Done 列（workflow 收尾）
               let syncRes: any = null
               let moveRes: any = null
-              if (cardId) {
-                syncRes = await syncCard(cardId)
+              if (ticketId) {
+                syncRes = await syncTicket(ticketId)
                 const kanban = kanbanSvc()
-                if (kanban && typeof kanban.moveCard === 'function') {
-                  moveRes = await kanban.moveCard(cardId, 'Done', 'MR #' + number + ' 已合并 → 自动移入 Done')
+                if (kanban && typeof kanban.moveTicket === 'function') {
+                  moveRes = await kanban.moveTicket(ticketId, 'Done', 'MR #' + number + ' 已合并 → 自动移入 Done')
                 }
               }
               return { ok: true, merged: true, mergedAt: (data && data.merged_at) || null, message: (data && data.message) || 'merged', autoSynced: !!syncRes, sync: syncRes || null, autoMovedToDone: !!moveRes, move: moveRes || null }
@@ -559,16 +559,16 @@ export function apply(ctx: GitCtx) {
         {
           name: 'git_create_branch',
           description: '为Ticket创建 workflow 分支（进 RD 前置，workflow 流程）：本地仓库须干净且在默认分支(main/master)上 → 切出 workflow/<taskId> 并推送到远端(GitHub token 或本机凭据)；成功后自动给Ticket关联 github-branch。',
-          parameters: P({ card_id: STR('Ticket id（认领 taskId 并命名分支 workflow/<taskId>）') }, ['card_id']),
+          parameters: P({ ticket_id: STR('Ticket id（认领 taskId 并命名分支 workflow/<taskId>）') }, ['ticket_id']),
           execute: async (args: any) => {
-            const cardId = String(args.card_id)
+            const ticketId = String(args.ticket_id)
             const kanban = kanbanSvc()
             if (!kanban) return { ok: false, error: 'kanban service unavailable' }
-            const card = await kanban.getCard(cardId)
-            if (!card) return { ok: false, error: 'card not found: ' + cardId }
-            let taskId = taskIdOf(card)
+            const ticket = await kanban.getTicket(ticketId)
+            if (!ticket) return { ok: false, error: 'ticket not found: ' + ticketId }
+            let taskId = taskIdOf(ticket)
             if (!taskId) {
-              const claimed = await claimTaskId(cardId)
+              const claimed = await claimTaskId(ticketId)
               if (!claimed || !claimed.taskId) return { ok: false, error: '无法认领 taskId：' + ((claimed && claimed.error) || '未知（先 git_configure 配 repo 或 git_link 关联 github-repo）') }
               taskId = claimed.taskId
             }
@@ -576,7 +576,7 @@ export function apply(ctx: GitCtx) {
             if (!cfg.localPath) return { ok: false, error: '未配置本地仓库路径（git_configure 设置 local_path）' }
             if (!bash) return { ok: false, error: 'bash/shell 服务不可用' }
             const branch = 'workflow/' + taskId
-            const repo = (() => { const r = repoFromCard(card); return r || (cfg.repo && cfg.repo.owner && cfg.repo.name ? { owner: cfg.repo.owner, name: cfg.repo.name } : null) })()
+            const repo = (() => { const r = repoFromTicket(ticket); return r || (cfg.repo && cfg.repo.owner && cfg.repo.name ? { owner: cfg.repo.owner, name: cfg.repo.name } : null) })()
             let token: string | undefined
             if (credentials) {
               try { const r = await credentials.resolve(TOKEN_REF); if (r && r.value) token = r.value } catch { token = undefined }
@@ -610,7 +610,7 @@ export function apply(ctx: GitCtx) {
             }
             let linkRes: any = null
             try {
-              linkRes = await linkRef(cardId, { kind: 'github-branch', externalId: branch, display: branch, meta: repo ? { repo: repo.owner + '/' + repo.name } : undefined })
+              linkRes = await linkRef(ticketId, { kind: 'github-branch', externalId: branch, display: branch, meta: repo ? { repo: repo.owner + '/' + repo.name } : undefined })
             } catch { linkRes = null }
             return { ok: true, branch, taskId, pushed: true, linked: !!linkRes, link: linkRes || null }
           },
@@ -619,17 +619,17 @@ export function apply(ctx: GitCtx) {
         {
           name: 'git_create_mr',
           description: '为Ticket创建 GitHub MR（RD 确认后，workflow 流程）：head=workflow/<taskId>（须已 git_create_branch 推送）、base 默认 main；标题自动带 [taskId]（git_sync 按此自动关联）；创建成功后自动给Ticket关联 github-mr。',
-          parameters: P({ card_id: STR('Ticket id（取 taskId 与标题）'), base: STR('目标分支（默认 main）'), draft: STR('是否草稿（"true" 时创建 draft PR）') }, ['card_id']),
+          parameters: P({ ticket_id: STR('Ticket id（取 taskId 与标题）'), base: STR('目标分支（默认 main）'), draft: STR('是否草稿（"true" 时创建 draft PR）') }, ['ticket_id']),
           execute: async (args: any) => {
-            const cardId = String(args.card_id)
+            const ticketId = String(args.ticket_id)
             const kanban = kanbanSvc()
             if (!kanban) return { ok: false, error: 'kanban service unavailable' }
-            const card = await kanban.getCard(cardId)
-            if (!card) return { ok: false, error: 'card not found: ' + cardId }
-            const taskId = taskIdOf(card)
+            const ticket = await kanban.getTicket(ticketId)
+            if (!ticket) return { ok: false, error: 'ticket not found: ' + ticketId }
+            const taskId = taskIdOf(ticket)
             if (!taskId) return { ok: false, error: 'Ticket没有 taskId，先 git_claim_task_id 认领' }
             const cfg = await readConfig()
-            const repo = (() => { const r = repoFromCard(card); return r || (cfg.repo && cfg.repo.owner && cfg.repo.name ? { owner: cfg.repo.owner, name: cfg.repo.name } : null) })()
+            const repo = (() => { const r = repoFromTicket(ticket); return r || (cfg.repo && cfg.repo.owner && cfg.repo.name ? { owner: cfg.repo.owner, name: cfg.repo.name } : null) })()
             if (!repo) return { ok: false, error: '未解析到仓库（Ticket github-repo 关联或 git_configure repo）' }
             const branch = 'workflow/' + taskId
             const base = (args.base && String(args.base).trim()) || 'main'
@@ -638,12 +638,12 @@ export function apply(ctx: GitCtx) {
               try { const r = await credentials.resolve(TOKEN_REF); if (r && r.value) token = r.value } catch { token = undefined }
             }
             if (!token) return { ok: false, error: '创建 MR 需要 GitHub token（git_configure 配置）' }
-            const title = '[' + taskId + '] ' + (card.title || '')
+            const title = '[' + taskId + '] ' + (ticket.title || '')
             const body = {
               title,
               head: branch,
               base,
-              body: (card.description ? card.description + '\n\n' : '') + 'Workflow Ticket: ' + cardId,
+              body: (ticket.description ? ticket.description + '\n\n' : '') + 'Workflow Ticket: ' + ticketId,
               ...(String(args.draft) === 'true' ? { draft: true } : {}),
             }
             let data: any = null
@@ -665,7 +665,7 @@ export function apply(ctx: GitCtx) {
               let linkRes: any = null
               if (number) {
                 try {
-                  linkRes = await linkRef(cardId, { kind: 'github-mr', externalId: String(number), display: '#' + number, url: data.html_url || undefined, meta: { repo: repo.owner + '/' + repo.name } })
+                  linkRes = await linkRef(ticketId, { kind: 'github-mr', externalId: String(number), display: '#' + number, url: data.html_url || undefined, meta: { repo: repo.owner + '/' + repo.name } })
                 } catch { linkRes = null }
               }
               return { ok: true, mr_number: number, url: (data && data.html_url) || null, taskId, title, linked: !!linkRes, link: linkRes || null }

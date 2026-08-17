@@ -84,12 +84,12 @@ export function configToolDefs(fs: FsLike): any[] {
           return { ok: false, error: '备份失败: ' + String((e as Error).message || e) }
         }
         // ── 重建配置层 ──
-        const newCols: any[] = cols.map((title: string) => ({ id: safeId('c'), title, cards: [], meta: {} }))
+        const newCols: any[] = cols.map((title: string) => ({ id: safeId('c'), title, tickets: [], meta: {} }))
         let moved = 0
         for (const col of board.columns || []) {
-          for (const card of col.cards || []) {
-            if (Array.isArray(card.gateIds)) card.gateIds = []
-            newCols[0].cards.push(card)
+          for (const ticket of col.tickets || []) {
+            if (Array.isArray(ticket.gateIds)) ticket.gateIds = []
+            newCols[0].tickets.push(ticket)
             moved += 1
           }
         }
@@ -118,7 +118,7 @@ export function configToolDefs(fs: FsLike): any[] {
           columns: newCols.length,
           gates: board.gateLibrary.length,
           templates: board.templates.length,
-          moved_cards: moved,
+          moved_tickets: moved,
           backup: bakName,
         }
       },

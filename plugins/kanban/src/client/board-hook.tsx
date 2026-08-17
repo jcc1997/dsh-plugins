@@ -15,7 +15,7 @@ export interface RefInput {
   display?: string
 }
 
-export { normalizeContent, cardRepoOf } from './board-util'
+export { normalizeContent, ticketRepoOf } from './board-util'
 
 export function useKanbanBoard(host: HostLike) {
   const [board, setBoard] = useState<KanbanBoard | null>(null)
@@ -60,26 +60,26 @@ export function useKanbanBoard(host: HostLike) {
     return result
   }
   // 按 id 找活动列中的Ticket
-  function findCardGlobal(cardId: string): { col: any; card: any } | null {
+  function findTicketGlobal(ticketId: string): { col: any; ticket: any } | null {
     if (!board) return null
     for (const col of board.columns || []) {
-      const card = (col.cards || []).find((k: any) => k.id === cardId)
-      if (card) return { col, card }
+      const ticket = (col.tickets || []).find((k: any) => k.id === ticketId)
+      if (ticket) return { col, ticket }
     }
     return null
   }
-  function hitOf(b: KanbanBoard, cardId: string): { col: any; card: any } | null {
+  function hitOf(b: KanbanBoard, ticketId: string): { col: any; ticket: any } | null {
     for (const col of b.columns || []) {
-      const card = (col.cards || []).find((k: any) => k.id === cardId)
-      if (card) return { col, card }
+      const ticket = (col.tickets || []).find((k: any) => k.id === ticketId)
+      if (ticket) return { col, ticket }
     }
     return null
   }
 
   /* ── 门禁预检（v4）：动作前调 host gate-check，不通过则报错并拒绝 ── */
-  async function gateCheck(cardId: string, action: 'move' | 'tags' | 'archive', to?: string): Promise<boolean> {
+  async function gateCheck(ticketId: string, action: 'move' | 'tags' | 'archive', to?: string): Promise<boolean> {
     try {
-      const r = await host.call('kanban/gate-check', { card_id: cardId, action, to })
+      const r = await host.call('kanban/gate-check', { ticket_id: ticketId, action, to })
       if (r && r.ok) return true
       const reasons = r && Array.isArray(r.failed) && r.failed.length > 0
         ? r.failed.map((f: any) => (f.name || f.kind) + '：' + (f.reason || '')).join('；')
@@ -92,99 +92,99 @@ export function useKanbanBoard(host: HostLike) {
     }
   }
 
-  /* ── Ticket操作（按 cardId 定位，供Kanban页 / 会话面板 / 抽屉共用） ── */
+  /* ── Ticket操作（按 ticketId 定位，供Kanban页 / 会话面板 / 抽屉共用） ── */
   /** 保存标题/描述/富文本内容（无变化不写盘） */
-  function saveCard(cardId: string, title: string, description: string, content?: KanbanBlock[]) {
+  function saveTicket(ticketId: string, title: string, description: string, content?: KanbanBlock[]) {
     mutate((b) => {
-      const hit = hitOf(b, cardId)
-      const card = hit && (hit as any).card
-      if (!card) return
-      const nextContent = content !== undefined ? content : card.content
-      const sameContent = JSON.stringify(nextContent || []) === JSON.stringify(card.content || [])
-      if (card.title === title && (card.description || '') === description && sameContent) return
-      card.title = title
-      card.description = description
-      if (content !== undefined) card.content = nextContent
-      card.updatedAt = safeNow()
-      appendActivity(card, '更新Ticket')
+      const hit = hitOf(b, ticketId)
+      const ticket = hit && (hit as any).ticket
+      if (!ticket) return
+      const nextContent = content !== undefined ? content : ticket.content
+      const sameContent = JSON.stringify(nextContent || []) === JSON.stringify(ticket.content || [])
+      if (ticket.title === title && (ticket.description || '') === description && sameContent) return
+      ticket.title = title
+      ticket.description = description
+      if (content !== undefined) ticket.content = nextContent
+      ticket.updatedAt = safeNow()
+      appendActivity(ticket, '更新Ticket')
     })
   }
   /** 跨列移动（记录状态变更日志；v4 先过 move 门禁） */
-  async function moveCardToStatus(cardId: string, targetColId: string) {
+  async function moveTicketToStatus(ticketId: string, targetColId: string) {
     const toTitle = board && board.columns ? (board.columns.find((c) => c.id === targetColId) || ({} as any)).title : undefined
-    if (!(await gateCheck(cardId, 'move', toTitle))) return
+    if (!(await gateCheck(ticketId, 'move', toTitle))) return
     mutate((b) => {
-      const hit = hitOf(b, cardId)
+      const hit = hitOf(b, ticketId)
       if (!hit) return
       const fromId = (hit as any).col.id
       const fromCol = b.columns.find((c) => c.id === fromId)
       const toCol = b.columns.find((c) => c.id === targetColId)
       if (!fromCol || !toCol || fromId === targetColId) return
-      const idx = fromCol.cards.findIndex((k) => k.id === cardId)
+      const idx = fromCol.tickets.findIndex((k) => k.id === ticketId)
       if (idx < 0) return
-      const [card] = fromCol.cards.splice(idx, 1)
-      card.updatedAt = safeNow()
-      appendActivity(card, '状态变更：' + fromCol.title + ' → ' + toCol.title)
-      toCol.cards.push(card)
+      const [ticket] = fromCol.tickets.splice(idx, 1)
+      ticket.updatedAt = safeNow()
+      appendActivity(ticket, '状态变更：' + fromCol.title + ' → ' + toCol.title)
+      toCol.tickets.push(ticket)
     })
   }
   /** 删除活动列中的Ticket（不可恢复） */
-  function deleteCard(cardId: string) {
+  function deleteTicket(ticketId: string) {
     mutate((b) => {
       for (const col of b.columns) {
-        const before = col.cards.length
-        col.cards = col.cards.filter((k) => k.id !== cardId)
-        if (col.cards.length !== before) return
+        const before = col.tickets.length
+        col.tickets = col.tickets.filter((k) => k.id !== ticketId)
+        if (col.tickets.length !== before) return
       }
     })
   }
   /* ── 归档操作（v3） ── */
   /** 归档：移出列 → board.archive（archivedFrom 记原列，恢复时回原列；v4 先过 archive 门禁） */
-  async function archiveCard(cardId: string) {
-    if (!(await gateCheck(cardId, 'archive'))) return
+  async function archiveTicket(ticketId: string) {
+    if (!(await gateCheck(ticketId, 'archive'))) return
     mutate((b) => {
-      const hit = hitOf(b, cardId)
+      const hit = hitOf(b, ticketId)
       if (!hit) return
-      const card = (hit as any).card
-      ;(hit as any).col.cards = (hit as any).col.cards.filter((k: any) => k.id !== cardId)
-      card.archivedFrom = (hit as any).col.id
-      card.archivedAt = safeNow()
-      card.updatedAt = safeNow()
-      appendActivity(card, '归档Ticket')
+      const ticket = (hit as any).ticket
+      ;(hit as any).col.tickets = (hit as any).col.tickets.filter((k: any) => k.id !== ticketId)
+      ticket.archivedFrom = (hit as any).col.id
+      ticket.archivedAt = safeNow()
+      ticket.updatedAt = safeNow()
+      appendActivity(ticket, '归档Ticket')
       b.archive = b.archive || []
-      b.archive.push(card)
+      b.archive.push(ticket)
     })
   }
   /** 恢复归档：回原列（原列已删 → 第一列）或指定列 */
-  function unarchiveCard(cardId: string, columnId?: string) {
+  function unarchiveTicket(ticketId: string, columnId?: string) {
     mutate((b) => {
       b.archive = b.archive || []
-      const idx = b.archive.findIndex((k) => k.id === cardId)
+      const idx = b.archive.findIndex((k) => k.id === ticketId)
       if (idx < 0) return
-      const [card] = b.archive.splice(idx, 1)
+      const [ticket] = b.archive.splice(idx, 1)
       const col =
         (columnId ? b.columns.find((c) => c.id === columnId) : null) ||
-        (card.archivedFrom ? b.columns.find((c) => c.id === (card as any).archivedFrom) : null) ||
+        (ticket.archivedFrom ? b.columns.find((c) => c.id === (ticket as any).archivedFrom) : null) ||
         b.columns[0]
       if (!col) return
-      card.updatedAt = safeNow()
-      appendActivity(card, '恢复Ticket（归档）')
-      col.cards.push(card)
+      ticket.updatedAt = safeNow()
+      appendActivity(ticket, '恢复Ticket（归档）')
+      col.tickets.push(ticket)
     })
   }
   /** 永久删除归档Ticket */
-  function deleteArchivedCard(cardId: string) {
+  function deleteArchivedTicket(ticketId: string) {
     mutate((b) => {
       b.archive = b.archive || []
-      b.archive = b.archive.filter((k) => k.id !== cardId)
+      b.archive = b.archive.filter((k) => k.id !== ticketId)
     })
   }
   /** 标签增减（写变更记录；v4 先过 tags 门禁） */
-  async function updateTags(cardId: string, add: string[], remove: string[]) {
-    if (!(await gateCheck(cardId, 'tags'))) return
+  async function updateTags(ticketId: string, add: string[], remove: string[]) {
+    if (!(await gateCheck(ticketId, 'tags'))) return
     mutate((b) => {
-      const hit = hitOf(b, cardId)
-      const target = hit && (hit as any).card
+      const hit = hitOf(b, ticketId)
+      const target = hit && (hit as any).ticket
       if (!target) return
       if (!Array.isArray(target.tags)) target.tags = []
       for (const tg of add) {
@@ -198,21 +198,21 @@ export function useKanbanBoard(host: HostLike) {
     })
   }
   /** 添加评论 */
-  function addComment(cardId: string, text: string) {
+  function addTicketComment(ticketId: string, text: string) {
     mutate((b) => {
-      const hit = hitOf(b, cardId)
-      const card = hit && (hit as any).card
-      if (!card) return
-      if (!card.comments) card.comments = []
-      card.comments.push({ id: safeId('m'), text, createdAt: safeNow() })
-      appendActivity(card, '添加评论')
+      const hit = hitOf(b, ticketId)
+      const ticket = hit && (hit as any).ticket
+      if (!ticket) return
+      if (!ticket.comments) ticket.comments = []
+      ticket.comments.push({ id: safeId('m'), text, createdAt: safeNow() })
+      appendActivity(ticket, '添加评论')
     })
   }
   /** 添加外部关联（同 kind+externalId 重复拒绝） */
-  function addRef(cardId: string, ref: RefInput) {
+  function addRef(ticketId: string, ref: RefInput) {
     mutate((b) => {
-      const hit = hitOf(b, cardId)
-      const target = hit && (hit as any).card
+      const hit = hitOf(b, ticketId)
+      const target = hit && (hit as any).ticket
       if (!target) return
       if (!Array.isArray(target.refs)) target.refs = []
       if (target.refs.some((r: any) => r.kind === ref.kind && r.externalId === ref.externalId)) return
@@ -232,10 +232,10 @@ export function useKanbanBoard(host: HostLike) {
     })
   }
   /** 移除外部关联 */
-  function removeRef(cardId: string, refId: string) {
+  function removeRef(ticketId: string, refId: string) {
     mutate((b) => {
-      const hit = hitOf(b, cardId)
-      const target = hit && (hit as any).card
+      const hit = hitOf(b, ticketId)
+      const target = hit && (hit as any).ticket
       if (!target || !Array.isArray(target.refs)) return
       const idx = target.refs.findIndex((r: any) => r.id === refId)
       if (idx < 0) return
@@ -247,32 +247,32 @@ export function useKanbanBoard(host: HostLike) {
 
   /* ── 门禁管理（v6）：门禁库实体 + Ticket/模板按 id 勾选 ── */
   /** Ticket挂载门禁（按门禁库 id 勾选） */
-  function attachGate(cardId: string, gateId: string) {
+  function attachGate(ticketId: string, gateId: string) {
     mutate((b) => {
-      const hit = hitOf(b, cardId)
-      const card = hit && (hit as any).card
-      if (!card) return
-      if (!Array.isArray(card.gateIds)) card.gateIds = []
-      if (card.gateIds.includes(gateId)) return
-      card.gateIds.push(gateId)
-      card.updatedAt = safeNow()
+      const hit = hitOf(b, ticketId)
+      const ticket = hit && (hit as any).ticket
+      if (!ticket) return
+      if (!Array.isArray(ticket.gateIds)) ticket.gateIds = []
+      if (ticket.gateIds.includes(gateId)) return
+      ticket.gateIds.push(gateId)
+      ticket.updatedAt = safeNow()
       const g = (b.gateLibrary || []).find((x: any) => x.id === gateId)
-      appendActivity(card, '挂门禁：' + (g ? g.name : gateId))
+      appendActivity(ticket, '挂门禁：' + (g ? g.name : gateId))
     })
   }
   /** Ticket摘除门禁（按门禁库 id） */
-  function removeGate(cardId: string, gateId: string) {
+  function removeGate(ticketId: string, gateId: string) {
     mutate((b) => {
-      const hit = hitOf(b, cardId)
-      const card = hit && (hit as any).card
-      if (!card) return
-      if (!Array.isArray(card.gateIds)) card.gateIds = []
-      const before = card.gateIds.includes(gateId)
-      card.gateIds = card.gateIds.filter((id: string) => id !== gateId)
+      const hit = hitOf(b, ticketId)
+      const ticket = hit && (hit as any).ticket
+      if (!ticket) return
+      if (!Array.isArray(ticket.gateIds)) ticket.gateIds = []
+      const before = ticket.gateIds.includes(gateId)
+      ticket.gateIds = ticket.gateIds.filter((id: string) => id !== gateId)
       if (!before) return
-      card.updatedAt = safeNow()
+      ticket.updatedAt = safeNow()
       const g = (b.gateLibrary || []).find((x: any) => x.id === gateId)
-      appendActivity(card, '移除门禁：' + (g ? g.name : gateId))
+      appendActivity(ticket, '移除门禁：' + (g ? g.name : gateId))
     })
   }
   /** 门禁库新增（独立实体；返回新门禁 id 供引用） */
@@ -290,12 +290,12 @@ export function useKanbanBoard(host: HostLike) {
     mutate((b) => {
       b.gateLibrary = (b.gateLibrary || []).filter((g: any) => g.id !== gateId)
       for (const col of b.columns || []) {
-        for (const card of col.cards || []) {
-          if (Array.isArray(card.gateIds)) card.gateIds = card.gateIds.filter((id: string) => id !== gateId)
+        for (const ticket of col.tickets || []) {
+          if (Array.isArray(ticket.gateIds)) ticket.gateIds = ticket.gateIds.filter((id: string) => id !== gateId)
         }
       }
-      for (const card of b.archive || []) {
-        if (Array.isArray(card.gateIds)) card.gateIds = card.gateIds.filter((id: string) => id !== gateId)
+      for (const ticket of b.archive || []) {
+        if (Array.isArray(ticket.gateIds)) ticket.gateIds = ticket.gateIds.filter((id: string) => id !== gateId)
       }
       for (const tpl of b.templates || []) {
         if (Array.isArray(tpl.gateIds)) tpl.gateIds = tpl.gateIds.filter((id: string) => id !== gateId)
@@ -350,7 +350,7 @@ export function useKanbanBoard(host: HostLike) {
 
   /* ── 列操作 ── */
   function addColumn(title: string) {
-    mutate((b) => b.columns.push({ id: safeId('c'), title, cards: [], meta: {} }))
+    mutate((b) => b.columns.push({ id: safeId('c'), title, tickets: [], meta: {} }))
   }
   function renameColumn(colId: string, title: string) {
     mutate((b) => {
@@ -374,14 +374,14 @@ export function useKanbanBoard(host: HostLike) {
   }
 
   /* ── 会话关联查询：refs 含 session 且 externalId 匹配的Ticket（按 updatedAt 倒序，最近在前） ── */
-  function cardsBySession(sessionId: string): Array<{ id: string; title: string; status: string; updatedAt: string }> {
+  function ticketsBySession(sessionId: string): Array<{ id: string; title: string; status: string; updatedAt: string }> {
     if (!board) return []
     const out: Array<{ id: string; title: string; status: string; updatedAt: string }> = []
     for (const col of board.columns || []) {
-      for (const card of col.cards || []) {
-        const refs: any[] = card.refs || []
+      for (const ticket of col.tickets || []) {
+        const refs: any[] = ticket.refs || []
         if (refs.some((r) => r.kind === 'session' && String(r.externalId) === sessionId)) {
-          out.push({ id: card.id, title: card.title, status: col.title, updatedAt: card.updatedAt || '' })
+          out.push({ id: ticket.id, title: ticket.title, status: col.title, updatedAt: ticket.updatedAt || '' })
         }
       }
     }
@@ -395,15 +395,15 @@ export function useKanbanBoard(host: HostLike) {
     saving,
     reload,
     mutate,
-    findCard: findCardGlobal,
-    saveCard,
-    moveCardToStatus,
-    deleteCard,
-    archiveCard,
-    unarchiveCard,
-    deleteArchivedCard,
+    findTicket: findTicketGlobal,
+    saveTicket,
+    moveTicketToStatus,
+    deleteTicket,
+    archiveTicket,
+    unarchiveTicket,
+    deleteArchivedTicket,
     updateTags,
-    addComment,
+    addTicketComment,
     addRef,
     removeRef,
     attachGate,
@@ -420,6 +420,6 @@ export function useKanbanBoard(host: HostLike) {
     renameColumn,
     deleteColumn,
     moveColumn,
-    cardsBySession,
+    ticketsBySession,
   }
 }

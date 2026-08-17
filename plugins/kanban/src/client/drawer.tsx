@@ -3,10 +3,10 @@
 // 蒙层点击自动关闭；改动自动保存（无防抖，切换Ticket首帧跳过）
 import React, { useEffect, useRef, useState } from 'react'
 import { IconCloseOutline16, fmtTime, useEscClose } from '@dsh-plugins/ui'
-import { KanbanCard, KanbanColumn, KanbanBlock } from '@dsh-plugins/ui'
+import { KanbanTicket, KanbanColumn, KanbanBlock } from '@dsh-plugins/ui'
 import { RichTextEditor } from './rich-text'
 import { DrawerSide } from './drawer-side'
-import { CardGate } from '@dsh-plugins/ui'
+import { TicketGate } from '@dsh-plugins/ui'
 
 /** contentEditable 单行/多行文本（非受控 DOM，聚焦不回写避免光标跳动；单行 Enter 失焦） */
 function EditableLine(props: {
@@ -58,8 +58,8 @@ function EditableLine(props: {
   })
 }
 
-export function CardDetail(props: {
-  card: KanbanCard
+export function TicketDetail(props: {
+  ticket: KanbanTicket
   columns: KanbanColumn[]
   onSave: (title: string, description: string, content: KanbanBlock[]) => void
   onDelete?: () => void
@@ -71,42 +71,42 @@ export function CardDetail(props: {
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
   onOpenSession: (sessionId: string) => void
-  gateLibrary?: CardGate[]
+  gateLibrary?: TicketGate[]
   onAddGate?: (gateId: string) => void
   onRemoveGate?: (gateId: string) => void
   onOpenGatesView?: () => void
   actionHost?: (() => React.ReactNode) | null
 }) {
-  const [title, setTitle] = useState(props.card.title)
-  const [description, setDescription] = useState(props.card.description || '')
-  const [content, setContent] = useState<KanbanBlock[]>(Array.isArray(props.card.content) ? props.card.content : [])
+  const [title, setTitle] = useState(props.ticket.title)
+  const [description, setDescription] = useState(props.ticket.description || '')
+  const [content, setContent] = useState<KanbanBlock[]>(Array.isArray(props.ticket.content) ? props.ticket.content : [])
   const [comment, setComment] = useState('')
 
-  // 切换Ticket时同步本地状态（抽屉按 cardId key 重建，此处兜底会话面板场景）
+  // 切换Ticket时同步本地状态（抽屉按 ticketId key 重建，此处兜底会话面板场景）
   useEffect(() => {
-    setTitle(props.card.title)
-    setDescription(props.card.description || '')
-    setContent(Array.isArray(props.card.content) ? props.card.content : [])
-  }, [props.card.id])
+    setTitle(props.ticket.title)
+    setDescription(props.ticket.description || '')
+    setContent(Array.isArray(props.ticket.content) ? props.ticket.content : [])
+  }, [props.ticket.id])
 
   // 自动保存：内容变更立即提交（动态 client 半无 setTimeout，不做防抖；
   // 切换Ticket时首帧跳过，避免把上一张卡的内容写回新卡）
   const skipSave = useRef(true)
   useEffect(() => {
     skipSave.current = true
-  }, [props.card.id])
+  }, [props.ticket.id])
   useEffect(() => {
     if (skipSave.current) {
       skipSave.current = false
       return
     }
     props.onSave(title.trim(), description, content)
-  }, [title, description, content, props.card.id])
+  }, [title, description, content, props.ticket.id])
 
-  const comments = props.card.comments || []
+  const comments = props.ticket.comments || []
 
   return (
-    <div className="kbnb-card-detail kbnb-drawer-grid">
+    <div className="kbnb-ticket-detail kbnb-drawer-grid">
       {/* ══ 左列：标题 + 描述 + 内容 + 评论 ══ */}
       <div className="kbnb-drawer-main">
         {/* 标题：Notion 风格，contentEditable 大标题（无 input 边框） */}
@@ -177,7 +177,7 @@ export function CardDetail(props: {
 
       {/* ══ 右列（drawer-side.tsx）：状态 + 标签 + 关联Ticket + 门禁 + 变更记录 ══ */}
       <DrawerSide
-        card={props.card}
+        ticket={props.ticket}
         columns={props.columns}
         onMoveStatus={props.onMoveStatus}
         onDelete={props.onDelete || (() => {})}
@@ -196,9 +196,9 @@ export function CardDetail(props: {
   )
 }
 
-/** 抽屉外壳：蒙层点击关闭 + 加宽；内容复用 CardDetail */
-export function CardDrawer(props: {
-  card: KanbanCard
+/** 抽屉外壳：蒙层点击关闭 + 加宽；内容复用 TicketDetail */
+export function TicketDrawer(props: {
+  ticket: KanbanTicket
   columns: KanbanColumn[]
   onSave: (title: string, description: string, content: KanbanBlock[]) => void
   onDelete: () => void
@@ -210,7 +210,7 @@ export function CardDrawer(props: {
   onAddRef: (ref: { kind: string; externalId: string; url?: string; display?: string }) => void
   onRemoveRef: (refId: string) => void
   onOpenSession: (sessionId: string) => void
-  gateLibrary?: CardGate[]
+  gateLibrary?: TicketGate[]
   onAddGate?: (gateId: string) => void
   onRemoveGate?: (gateId: string) => void
   onOpenGatesView?: () => void
@@ -220,8 +220,8 @@ export function CardDrawer(props: {
   return (
     <div className="kbnb-drawer-mask">
       <aside className="kbnb-drawer">
-        <CardDetail
-          card={props.card}
+        <TicketDetail
+          ticket={props.ticket}
           columns={props.columns}
           onSave={props.onSave}
           onDelete={props.onDelete}

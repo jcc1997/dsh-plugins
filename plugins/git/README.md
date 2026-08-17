@@ -15,14 +15,14 @@ DSH git 插件：让 kanban Ticket关联 GitHub 仓库 / 本地仓库 / workflow
 | 工具 | 作用 |
 |---|---|
 | `git_configure(owner?, repo?, local_path?, token?)` | 配置远端仓库 / 本地路径 / GitHub token（任一字段可选） |
-| `git_claim_task_id(card_id)` | 为Ticket认领 taskId（已有则原样返回；同 repo 递增） |
-| `git_link(card_id, kind, external_id, ...)` | 建立带验证的外部关联（github-repo / github-branch / github-mr / local-repo） |
-| `git_list_mrs(card_id?/owner?/repo?)` | 列出仓库 open MR 与标题解析出的 [taskId] |
-| `git_sync(card_id)` | 同步Ticket关联仓库 MR 状态 → 按 [taskId] 自动关联 → 写回 meta.sync.github 信封 |
-| `git_status(card_id)` | 查看Ticket taskId / refs / 同步快照信封 |
-| `git_create_branch(card_id)` | workflow 分支前置：本地仓库干净且在主分支 → 切 `workflow/<taskId>` 推送 → 自动关联 github-branch |
-| `git_create_mr(card_id, base?, draft?)` | RD 确认后建 MR：head=workflow/<taskId>、标题带 [taskId] → 自动关联 github-mr |
-| `git_merge_pr(card_id?, owner?, repo?, mr_number, squash?)` | 合并 MR：Ticket 须处于 Stage 列（workflow 门禁）→ 合并后自动同步并移入 Done |
+| `git_claim_task_id(ticket_id)` | 为Ticket认领 taskId（已有则原样返回；同 repo 递增） |
+| `git_link(ticket_id, kind, external_id, ...)` | 建立带验证的外部关联（github-repo / github-branch / github-mr / local-repo） |
+| `git_list_mrs(ticket_id?/owner?/repo?)` | 列出仓库 open MR 与标题解析出的 [taskId] |
+| `git_sync(ticket_id)` | 同步Ticket关联仓库 MR 状态 → 按 [taskId] 自动关联 → 写回 meta.sync.github 信封 |
+| `git_status(ticket_id)` | 查看Ticket taskId / refs / 同步快照信封 |
+| `git_create_branch(ticket_id)` | workflow 分支前置：本地仓库干净且在主分支 → 切 `workflow/<taskId>` 推送 → 自动关联 github-branch |
+| `git_create_mr(ticket_id, base?, draft?)` | RD 确认后建 MR：head=workflow/<taskId>、标题带 [taskId] → 自动关联 github-mr |
+| `git_merge_pr(ticket_id?, owner?, repo?, mr_number, squash?)` | 合并 MR：Ticket 须处于 Stage 列（workflow 门禁）→ 合并后自动同步并移入 Done |
 
 ## 数据模型
 

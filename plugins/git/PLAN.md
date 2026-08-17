@@ -65,7 +65,7 @@
 
   "refs": [
     {
-      "id": "r_xxx",                 // kanban 本地生成，稳定，插件间引用用 cardId + ref.id
+      "id": "r_xxx",                 // kanban 本地生成，稳定，插件间引用用 ticketId + ref.id
       "kind": "github-repo",         // 命名空间：<platform>-<type>（github-repo / github-branch / github-mr / jira-issue …）
       "platform": "github",          // provider 键（命名空间隔离的关键）
       "externalId": "owner/repo",    // provider 侧 ID（repo 全名 / MR 号 / jira key）
@@ -98,7 +98,7 @@
 
 ### 4.3 约定与边界
 
-- **refs 由谁写**：kanban（UI 链接编辑 + 工具 `kanban_ticket_link` / `kanban_ticket_unlink`）负责增删改；git 插件同步时**只读 refs、只写 meta.sync**，两者经 cardId 关联。
+- **refs 由谁写**：kanban（UI 链接编辑 + 工具 `kanban_ticket_link` / `kanban_ticket_unlink`）负责增删改；git 插件同步时**只读 refs、只写 meta.sync**，两者经 ticketId 关联。
 - **同一任务可多个 refs**：1 个 repo + N 个 branch + N 个 MR，天然支持。
 - **provider 键即隔离域**：`meta.sync.<provider>` 互不覆盖；同 provider 内由插件自管并发（串行写，见 5.4）。
 - **taskId 自动关联锚点**：卡片 `meta.taskId`（`<repo-name>-<int>`，§5.5）是 MR 自动关联的锚点；由 kanban 生成或 git 插件认领时写入，同 repo 内唯一即可。
@@ -131,33 +131,33 @@
 ```ts
 // kanban 宿主半提供 —— 让其他插件安全读写卡片（不直接碰 board.json）
 ctx.provide('kanban', {
-  getCard(cardId: string): Promise<Card | null>
-  updateCard(cardId: string, patch: { refs?: TaskRef[]; meta?: Record<string, unknown> }): Promise<{ ok: boolean; error?: string }>
+  getTicket(ticketId: string): Promise<Ticket | null>
+  updateTicket(ticketId: string, patch: { refs?: TaskRef[]; meta?: Record<string, unknown> }): Promise<{ ok: boolean; error?: string }>
 })
 
 // git 宿主半提供 —— 数据源 + 同步能力
 ctx.provide('git', {
   isConfigured(): boolean                                   // token / 仓库配置就绪？
-  link(cardId: string, spec: TaskRefInput): Promise<{ ok: boolean; error?: string }>   // G1-G4
-  listMrs(cardId: string): Promise<MrInfo[]>                // G5
-  sync(cardId: string, opts?: { force?: boolean }): Promise<{ ok: boolean; syncedAt?: string; error?: string }>  // G6 核心
-  snapshot(cardId: string): Promise<SyncSnapshot | null>    // 读回信封供 UI 展示
+  link(ticketId: string, spec: TaskRefInput): Promise<{ ok: boolean; error?: string }>   // G1-G4
+  listMrs(ticketId: string): Promise<MrInfo[]>                // G5
+  sync(ticketId: string, opts?: { force?: boolean }): Promise<{ ok: boolean; syncedAt?: string; error?: string }>  // G6 核心
+  snapshot(ticketId: string): Promise<SyncSnapshot | null>    // 读回信封供 UI 展示
 })
 ```
 
 调用方向（满足"由 git 插件或适配层注册按钮"）：
 
 ```
-kanban client UI（渲染槽位 kanban.card.actions / kanban.board.toolbar）
+kanban client UI（渲染槽位 kanban.ticket.actions / kanban.board.toolbar）
    │  git 插件注册的「同步」按钮 onClick
    ▼
-git client → host.call('git/sync', { cardId })        ← git 插件私有 RPC
+git client → host.call('git/sync', { ticketId })        ← git 插件私有 RPC
    ▼
-git host → ctx.get('kanban').getCard(cardId)          ← 跨插件服务（读 refs）
+git host → ctx.get('kanban').getTicket(ticketId)          ← 跨插件服务（读 refs）
    ▼
 git host → ctx.credentials 取 token → ctx.web 调 GitHub API（或 ctx.shell 跑本地 git）
    ▼
-git host → ctx.get('kanban').updateCard(cardId, { meta: { sync: { github: 信封 } } })  ← 跨插件服务（写回）
+git host → ctx.get('kanban').updateTicket(ticketId, { meta: { sync: { github: 信封 } } })  ← 跨插件服务（写回）
    ▼
 git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 load）
 ```
@@ -166,11 +166,11 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 
 - kanban 在客户端**声明并渲染**槽位（目前 kanban 全屏页是自绘组件树，需要增加"槽位宿主"区域）：
   - `kanban.board.toolbar`：看板顶部操作区（放全局「同步全部」）
-  - `kanban.card.actions`：卡片编辑抽屉/详情区（放单卡「同步」「刷新 MR 状态」）
-- git 插件注入：`ctx.slots.inject('kanban.card.actions', () => ctx.slots.register({ name: 'kanban.card.actions', id: 'git-sync', order: 10, label: () => '同步' }, SyncButton))`
+  - `kanban.ticket.actions`：卡片编辑抽屉/详情区（放单卡「同步」「刷新 MR 状态」）
+- git 插件注入：`ctx.slots.inject('kanban.ticket.actions', () => ctx.slots.register({ name: 'kanban.ticket.actions', id: 'git-sync', order: 10, label: () => '同步' }, SyncButton))`
 - **降级**：git 未激活时槽位无条目，kanban 不受影响；kanban 未激活时 git 插件自身仍可用（服务/工具独立）。
 - 同步完成后的 UI 刷新：优先走槽位 props 回调（若动态槽位支持传递）；否则 kanban 在同步后重新 `kanban/load`（实现最简单，先做这个，M3 验证槽位 props 能力，用 `cordis_inspect_query` → `Slots.listSubTree` 确认）。
-- 并发写：git 写回走 kanban 服务的 `updateCard`（内部沿用现有 `mutateBoard` 读-改-写原子语义），两个插件不并发写文件。
+- 并发写：git 写回走 kanban 服务的 `updateTicket`（内部沿用现有 `mutateBoard` 读-改-写原子语义），两个插件不并发写文件。
 
 ### 5.5 自动关联规范（[ID] 约定）
 
@@ -240,7 +240,7 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 
 ### 8.3 迁移改动点（代码层面）—— 已由通信协议抹平
 
-**2026-08 已落地 `packages/communication`（@dsh-plugins/communication）**：业务代码只依赖 `createComm({ env })`（bus 事件 + rpc + services），开发/部署两形态工厂切换，部署时仅改 env 参数。已接入：git host sync 完成 `bus.publish('git/card-synced')`（verify 断言）。迁移表：
+**2026-08 已落地 `packages/communication`（@dsh-plugins/communication）**：业务代码只依赖 `createComm({ env })`（bus 事件 + rpc + services），开发/部署两形态工厂切换，部署时仅改 env 参数。已接入：git host sync 完成 `bus.publish('git/ticket-synced')`（verify 断言）。迁移表：
 
 | 受限项（动态） | 部署后 | 协议层处理 |
 |---|---|---|
@@ -257,8 +257,8 @@ git client → 通知 kanban UI 刷新（经槽位 props 回调 / kanban 重新 
 
 - 数据模型 v2：refs / meta.taskId / meta.sync.<provider> 信封
 - [ID] 约定（§5.5）与自动关联逻辑
-- `kanban` / `git` 跨插件服务接口（getCard/updateCard/listCards / isConfigured/claimTaskId/link/listMrs/sync/snapshot）
-- 槽位契约（kanban.card.actions / conversation.view）与降级策略
+- `kanban` / `git` 跨插件服务接口（getTicket/updateTicket/listTickets / isConfigured/claimTaskId/link/listMrs/sync/snapshot）
+- 槽位契约（kanban.ticket.actions / conversation.view）与降级策略
 - GitHub API 逻辑（curl 可保留或换 fetch/axios）
 
 ### 8.5 建议顺序

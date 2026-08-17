@@ -42,41 +42,41 @@ console.log('1 模板:', JSON.stringify(r))
 // 2) 模板建卡
 r = await tool('kanban_ticket_create').execute({ title: 'v5 卡', template: '需评审标签v5' })
 console.log('2 建卡:', JSON.stringify(r))
-const cardId = r.card_id
+const ticketId = r.ticket_id
 
 // 3) 归档被 tag-required 拦截
-r = await tool('kanban_ticket_archive').execute({ card_id: cardId })
+r = await tool('kanban_ticket_archive').execute({ ticket_id: ticketId })
 console.log('3 拦截:', JSON.stringify(r))
 if (r.ok) throw new Error('FAIL: 门禁未拦截')
 
 // 4) code checker 门禁(挂 + 预检,通过 mock shell)
 r = await tool('kanban_gate_add').execute({
-  card_id: cardId, checker_type: 'code', on: 'move', name: '代码检查标题',
+  ticket_id: ticketId, checker_type: 'code', on: 'move', name: '代码检查标题',
   config: { code: "console.log(JSON.stringify({ok:true}))" },
 })
 console.log('4 挂 code 门禁:', JSON.stringify(r))
-r = await tool('kanban_gate_check').execute({ card_id: cardId, action: 'move', to: '完成' })
+r = await tool('kanban_gate_check').execute({ ticket_id: ticketId, action: 'move', to: '完成' })
 console.log('5 code 预检:', JSON.stringify(r))
 if (!r.ok) throw new Error('FAIL: code checker 应通过')
 
 // 6) pipeline checker 门禁(两条并行,全过)
 r = await tool('kanban_gate_add').execute({
-  card_id: cardId, checker_type: 'pipeline', on: 'tags', name: '双 pipeline',
+  ticket_id: ticketId, checker_type: 'pipeline', on: 'tags', name: '双 pipeline',
   config: { pipelines: ['p1', 'p2'] },
 })
 console.log('6 挂 pipeline 门禁:', JSON.stringify(r))
-r = await tool('kanban_gate_check').execute({ card_id: cardId, action: 'tags' })
+r = await tool('kanban_gate_check').execute({ ticket_id: ticketId, action: 'tags' })
 console.log('7 pipeline 预检:', JSON.stringify(r))
 if (!r.ok) throw new Error('FAIL: pipeline checker 应通过')
 
 // 8) 加 done 标签 → 归档放行
-r = await tool('kanban_ticket_tags').execute({ card_id: cardId, add: ['done'] })
+r = await tool('kanban_ticket_tags').execute({ ticket_id: ticketId, add: ['done'] })
 if (!r.ok) throw new Error('FAIL: 加标签应放行(mock pipeline ok)')
-r = await tool('kanban_ticket_archive').execute({ card_id: cardId })
+r = await tool('kanban_ticket_archive').execute({ ticket_id: ticketId })
 console.log('8 归档放行:', JSON.stringify(r))
 if (!r.ok) throw new Error('FAIL: 归档应通过')
 
-const presetRun = rtCalls.find(c => c.program.includes('gate.card') && c.program.includes('need'))
+const presetRun = rtCalls.find(c => c.program.includes('gate.ticket') && c.program.includes('need'))
 if (!presetRun) throw new Error('FAIL: 内置预设未走 codeRuntime 沙箱路径')
 console.log('preset 沙箱路径 OK:', presetRun.program.slice(0, 80).replace(/\n/g, ' '))
 console.log('KANBAN-GATE-V5 SMOKE PASS')

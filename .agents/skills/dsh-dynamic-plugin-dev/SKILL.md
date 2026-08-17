@@ -42,7 +42,7 @@ export function apply(ctx) {
 ```
 
 - **宿主服务**：`fs`（board.json）、`webServer`（HTTP 路由）、`tools`（工具注册）、`credentials`（token）、`shell`（沙箱执行器——**不要用于网络**）、`web`（无 header fetch）等；运行时签名用 `cordis_inspect_query` → Service.listService。
-- **跨插件服务/槽位契约**（kanban/git 之间）：`ctx.provide('kanban')`（getCard/updateCard/listCards）、`ctx.provide('git')`（isConfigured/claimTaskId/link/listMrs/sync/snapshot）、槽位 `kanban.card.actions` / `conversation.view`——与动态形态一致，见 legacy §八。
+- **跨插件服务/槽位契约**（kanban/git 之间）：`ctx.provide('kanban')`（getTicket/updateTicket/listTickets）、`ctx.provide('git')`（isConfigured/claimTaskId/link/listMrs/sync/snapshot）、槽位 `kanban.ticket.actions` / `conversation.view`——与动态形态一致，见 legacy §八。
 
 ### 1.3 client 半（src/client/index.ts）
 
@@ -223,7 +223,7 @@ function MyToolCard(props: { callId: string; toolName: string; block: any; inspe
 
 ### D. 注入他人槽位（git → kanban 的做法）
 
-对方插件声明子槽位并授权渲染（见下「children 声明」），你直接 `slots.inject('kanban.card.actions', () => slots.register({ name, id, order, label }, Comp))`；owner 会通过 `renderSlot('kanban.card.actions', { cardId, onSynced }, {})` 调用，props 由对方声明方定义（git 侧 owner props = `{cardId, onSynced}`）。
+对方插件声明子槽位并授权渲染（见下「children 声明」），你直接 `slots.inject('kanban.ticket.actions', () => slots.register({ name, id, order, label }, Comp))`；owner 会通过 `renderSlot('kanban.ticket.actions', { ticketId, onSynced }, {})` 调用，props 由对方声明方定义（git 侧 owner props = `{ticketId, onSynced}`）。
 
 ### E. 常驻 dock 条（conversation.input.dock，todo 式；dsh-pipeline 实测沉淀）
 
@@ -278,16 +278,16 @@ slots.inject('conversation.input.dock', () =>
 ```ts
 const rt = ctx.get('codeRuntime')
 const result = await rt.run({
-  program: 'const c = await gate.card({}); return { ok: true }',  // TS 风格,top-level await/return
+  program: 'const c = await gate.ticket({}); return { ok: true }',  // TS 风格,top-level await/return
   bindings: [{ global: 'gate', functions: {
-    card: async (args) => lossless(card),     // 宿主函数,返回值必须 lossless JSON
+    ticket: async (args) => lossless(ticket),     // 宿主函数,返回值必须 lossless JSON
     call: async (args) => lossless(await svc[args.method](...args.args)),
   } }],
 })
 // result: { value?, logs: string[], error?: { kind, message } }——失败是字段不是 rejection
 ```
 
-**协议踩坑（worker.cjs 实测）**：①binding 只桥接**单个实参**——`gate.call('git','m')` 第二个参数会丢,一律**对象传参** `gate.call({service,method,args})`;②**无参调用被拒**（"binding arguments must be lossless JSON"）——`gate.card()` 必须写 `gate.card({})`;③binding 的 args 与返回值都必须是 lossless JSON;④隔离语义 = "containment not security"（worker 空环境 + heap/busy-time/wall-time 预算 + 可硬杀同步死循环）。
+**协议踩坑（worker.cjs 实测）**：①binding 只桥接**单个实参**——`gate.call('git','m')` 第二个参数会丢,一律**对象传参** `gate.call({service,method,args})`;②**无参调用被拒**（"binding arguments must be lossless JSON"）——`gate.ticket()` 必须写 `gate.ticket({})`;③binding 的 args 与返回值都必须是 lossless JSON;④隔离语义 = "containment not security"（worker 空环境 + heap/busy-time/wall-time 预算 + 可硬杀同步死循环）。
 - 官方类型：`@deepseek-ai/dsh-code-runtime/lib/types/types.d.ts`（CodeRunRequest/CodeBindingFunction/CodeRunResult）；实现 `dsh-code-runtime-worker-thread/lib/worker.cjs`（SDK 桥接在 makeNamespaces）。
 - bash-sandbox 的 shell spec 支持 `stdin`（载荷注入,hooks bridges 同款用法）/ `env` / `dshEnv`,但**没有**调宿主服务通道（沙箱网络受限）——需要「沙箱内调插件」就用 codeRuntime,不要用 bash。
 

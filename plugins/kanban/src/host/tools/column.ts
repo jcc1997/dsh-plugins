@@ -13,7 +13,7 @@ export function columnToolDefs(fs: FsLike): any[] {
         return mutateBoard(fs, (board: any) => {
           const title = String(args.title).trim()
           if (!title) return { ok: false, error: 'title is required' }
-          const col: any = { id: safeId('c'), title, cards: [], meta: {} }
+          const col: any = { id: safeId('c'), title, tickets: [], meta: {} }
           const index = parseInt(args.index, 10)
           if (Number.isInteger(index) && index >= 0 && index < board.columns.length) board.columns.splice(index, 0, col)
           else board.columns.push(col)
@@ -49,12 +49,12 @@ export function columnToolDefs(fs: FsLike): any[] {
           const colIdx = board.columns.findIndex((col: any) => col.id === args.column_id || col.title === args.column_id)
           if (colIdx < 0) return { ok: false, error: 'column not found: ' + String(args.column_id) }
           const col = board.columns[colIdx]
-          const count = (col.cards || []).length
+          const count = (col.tickets || []).length
           if (count > 0 && args.force !== true) {
-            return { ok: false, error: 'column not empty (' + count + ' cards), pass force: true to delete anyway' }
+            return { ok: false, error: 'column not empty (' + count + ' tickets), pass force: true to delete anyway' }
           }
           board.columns.splice(colIdx, 1)
-          return { column_id: col.id, title: col.title, deleted_cards: count }
+          return { column_id: col.id, title: col.title, deleted_tickets: count }
         })
       },
       output: outputOf('删除列结果'),

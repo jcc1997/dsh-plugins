@@ -1,4 +1,4 @@
-// git 插件客户端半（正式 bundle 形态）：向 kanban.card.actions 槽位注册「同步」按钮
+// git 插件客户端半（正式 bundle 形态）：向 kanban.ticket.actions 槽位注册「同步」按钮
 // onClick → fetch POST /api/git/sync（host webServer 路由）→ 完成后调用 owner 的 onSynced 刷新Kanban
 // 样式：apply 时注入 <style>（正式形态无 styles 全局，直接用 document）
 import React, { useState } from 'react'
@@ -16,8 +16,8 @@ const gitCss = `.git-sync-btn-wrap{display:inline-flex;align-items:center;gap:8p
 .git-sync-error{font-size:12px;color:var(--dsw-alias-state-error-primary)}`
 
 /** 与 kanban 声明的 owner props 对齐（见 plugins/kanban/src/client/entry.tsx） */
-interface CardActionsOwner {
-  cardId: string
+interface TicketActionsOwner {
+  ticketId: string
   onSynced: () => void
 }
 
@@ -40,7 +40,7 @@ export function apply(ctx: { get(name: string): unknown }) {
   if (!slots) return
 
   // 同步按钮：图标按钮（refresh → spin → check）。无文字、无 emoji；hover 可再次同步；done 状态移出鼠标即复原
-  function SyncButton(props: CardActionsOwner) {
+  function SyncButton(props: TicketActionsOwner) {
     const [phase, setPhase] = useState<'idle' | 'busy' | 'done'>('idle')
     const [hoverAgain, setHoverAgain] = useState(false)
     const [error, setError] = useState('')
@@ -51,7 +51,7 @@ export function apply(ctx: { get(name: string): unknown }) {
       fetch('/git-api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardId: props.cardId }),
+        body: JSON.stringify({ ticketId: props.ticketId }),
       })
         .then((r) => r.json())
         .then((res) => {
@@ -93,10 +93,10 @@ export function apply(ctx: { get(name: string): unknown }) {
     )
   }
 
-  slots.inject('kanban.card.actions', () =>
+  slots.inject('kanban.ticket.actions', () =>
     slots.register(
-      { name: 'kanban.card.actions', id: 'git-sync', order: 10, label: () => '同步' },
-      (props: CardActionsOwner) => React.createElement(SyncButton, { cardId: props.cardId, onSynced: props.onSynced }),
+      { name: 'kanban.ticket.actions', id: 'git-sync', order: 10, label: () => '同步' },
+      (props: TicketActionsOwner) => React.createElement(SyncButton, { ticketId: props.ticketId, onSynced: props.onSynced }),
     ),
   )
 }

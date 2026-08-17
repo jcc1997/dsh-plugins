@@ -3,7 +3,7 @@
 // 接入点（正式形态）：ctx.webServer.register 暴露 /api/kanban/*（client UI 数据通道）；
 //       ctx.tools.register(defineTool(...)) 注册 agent 工具；ctx.provide('kanban') 跨插件服务。
 // v4：门禁引擎（host/gate.ts）+ 创建模板（board.templates）；credentials 供 mr-merged 门禁查 GitHub。
-import { FsLike, findCardAny, findCardGlobal, mutateBoard, readBoard, resolveDataDir, resolveColumn, defaultBoard, appendActivity, now, normalizeBoard, safeId } from './host/board'
+import { FsLike, findTicketAny, findTicketGlobal, mutateBoard, readBoard, resolveDataDir, resolveColumn, defaultBoard, appendActivity, now, normalizeBoard, safeId } from './host/board'
 import { buildToolDefs } from './host/tools'
 import { checkGates, GateAction } from './host/gate'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -81,17 +81,17 @@ export function apply(ctx: KanbanCtx) {
     const board = normalizeBoard(await readBoard(fs, dataDir)) || defaultBoard()
     return { board, dataDir }
   })
-  // 门禁预检（UI 动作前调用）：card_id + action(move/tags/archive) [+ to 目标列名]
+  // 门禁预检（UI 动作前调用）：ticket_id + action(move/tags/archive) [+ to 目标列名]
   route('/kanban-api/gate-check', async (args: any) => {
-    const a = (args || {}) as { card_id?: string; action?: string; to?: string }
-    if (!a.card_id || !a.action) return { ok: false, error: 'card_id and action required' }
+    const a = (args || {}) as { ticket_id?: string; action?: string; to?: string }
+    if (!a.ticket_id || !a.action) return { ok: false, error: 'ticket_id and action required' }
     if (!['move', 'tags', 'archive'].includes(String(a.action))) return { ok: false, error: 'unknown action: ' + a.action }
     const dataDir = await resolveDataDir(fs)
     const board = normalizeBoard((await readBoard(fs, dataDir)) || defaultBoard())
-    const hit = findCardAny(board, String(a.card_id))
-    if (!hit) return { ok: false, error: 'card not found: ' + a.card_id }
+    const hit = findTicketAny(board, String(a.ticket_id))
+    if (!hit) return { ok: false, error: 'ticket not found: ' + a.ticket_id }
     // UI 预检无 agent 上下文：pipeline 门禁（现场跑 agent 评审）不在此执行，改为「需 agent 发起」提示
-    const clone: any = { ...hit.card, gateIds: (hit.card.gateIds || []).slice() }
+    const clone: any = { ...hit.ticket, gateIds: (hit.ticket.gateIds || []).slice() }
     const lib: any[] = Array.isArray(board.gateLibrary) ? board.gateLibrary : []
     const pipelineGateIds = lib.filter((x: any) => x.checker && x.checker.type === 'pipeline').map((x: any) => x.id)
     const skipped = clone.gateIds.filter((id: string) => pipelineGateIds.includes(id))
@@ -138,12 +138,12 @@ export function apply(ctx: KanbanCtx) {
   })
   // 会话「Ticket」tab 同步桥接：槽位渲染授权仅限 sidebar 条目，会话 tab 内走跨插件服务通道
   route('/kanban-api/git-sync', async (args: any) => {
-    const a = (args || {}) as { cardId?: string }
-    if (!a.cardId) return { ok: false, error: 'cardId required' }
+    const a = (args || {}) as { ticketId?: string }
+    if (!a.ticketId) return { ok: false, error: 'ticketId required' }
     const git = ctx.get('git') as any
     if (!git || typeof git.sync !== 'function') return { ok: false, error: 'git 插件未激活（无法同步）' }
     try {
-      return await git.sync(String(a.cardId))
+      return await git.sync(String(a.ticketId))
     } catch (e) {
       return { ok: false, error: String(e && (e as Error).message ? (e as Error).message : e) }
     }
@@ -151,85 +151,85 @@ export function apply(ctx: KanbanCtx) {
 
   /* ── 跨插件服务（数据模型 v2）：其他插件（如 git）经 ctx.get('kanban') 读写Ticket ── */
   const kanbanService = {
-    getCard: async (cardId: string) => {
+    getTicket: async (ticketId: string) => {
       const dataDir = await resolveDataDir(fs)
       const board = (await readBoard(fs, dataDir)) || defaultBoard()
-      const hit = findCardAny(board, String(cardId))
-      return hit ? hit.card : null
+      const hit = findTicketAny(board, String(ticketId))
+      return hit ? hit.ticket : null
     },
-    updateCard: async (cardId: string, patch: any) => {
+    updateTicket: async (ticketId: string, patch: any) => {
       const p = patch || {}
       return mutateBoard(fs, (board: any) => {
-        const hit = findCardAny(board, String(cardId))
+        const hit = findTicketAny(board, String(ticketId))
         if (!hit) return null
-        const card = hit.card
+        const ticket = hit.ticket
         if (Array.isArray(p.refs)) {
-          card.refs = p.refs
-          card.updatedAt = now()
-          appendActivity(card, '更新外部关联')
+          ticket.refs = p.refs
+          ticket.updatedAt = now()
+          appendActivity(ticket, '更新外部关联')
         }
         if (p.meta && typeof p.meta === 'object') {
-          if (!card.meta || typeof card.meta !== 'object') card.meta = {}
-          for (const key of Object.keys(p.meta)) card.meta[key] = (p.meta as any)[key]
-          card.updatedAt = now()
-          if (typeof p.activity === 'string' && p.activity) appendActivity(card, p.activity)
+          if (!ticket.meta || typeof ticket.meta !== 'object') ticket.meta = {}
+          for (const key of Object.keys(p.meta)) ticket.meta[key] = (p.meta as any)[key]
+          ticket.updatedAt = now()
+          if (typeof p.activity === 'string' && p.activity) appendActivity(ticket, p.activity)
         }
-        return { ok: true, card_id: card.id }
+        return { ok: true, ticket_id: ticket.id }
       })
     },
-    listCards: async () => {
+    listTickets: async () => {
       const dataDir = await resolveDataDir(fs)
       const board = (await readBoard(fs, dataDir)) || defaultBoard()
       const out: any[] = []
-      const push = (card: any, status: string, archived: boolean) => {
-        const taskId = card.meta && typeof card.meta === 'object' ? (card.meta as any).taskId : null
-        out.push({ id: card.id, title: card.title, taskId: taskId || null, status, archived, updatedAt: card.updatedAt })
+      const push = (ticket: any, status: string, archived: boolean) => {
+        const taskId = ticket.meta && typeof ticket.meta === 'object' ? (ticket.meta as any).taskId : null
+        out.push({ id: ticket.id, title: ticket.title, taskId: taskId || null, status, archived, updatedAt: ticket.updatedAt })
       }
       for (const col of board.columns || []) {
-        for (const card of col.cards || []) push(card, col.title, false)
+        for (const ticket of col.tickets || []) push(ticket, col.title, false)
       }
-      for (const card of board.archive || []) push(card, '归档', true)
+      for (const ticket of board.archive || []) push(ticket, '归档', true)
       return out
     },
     /** Ticket所在列名（供 git 等插件做状态检查；归档返回 status=归档） */
     /** 给Ticket追加一条评论（供门禁等程序动作落评审意见；返回最后一条评论文本供去重） */
-    addComment: async (cardId: string, textToAdd: string) => {
+    addTicketComment: async (ticketId: string, textToAdd: string) => {
       const text2 = String(textToAdd || '').trim()
       if (!text2) return { ok: false, error: 'text is required' }
       return mutateBoard(fs, (board: any) => {
-        const hit = findCardAny(board, String(cardId))
-        if (!hit) return { ok: false, error: 'card not found: ' + cardId }
-        const card = hit.card
-        if (!Array.isArray(card.comments)) card.comments = []
-        const last = card.comments[card.comments.length - 1]
-        if (last && last.text === text2) return { ok: true, card_id: card.id, comment_id: last.id, duplicated: true }
+        const hit = findTicketAny(board, String(ticketId))
+        if (!hit) return { ok: false, error: 'ticket not found: ' + ticketId }
+        const ticket = hit.ticket
+        if (!Array.isArray(ticket.comments)) ticket.comments = []
+        const last = ticket.comments[ticket.comments.length - 1]
+        if (last && last.text === text2) return { ok: true, ticket_id: ticket.id, comment_id: last.id, duplicated: true }
         const cid = safeId('m')
-        card.comments.push({ id: cid, text: text2, createdAt: now() })
-        card.updatedAt = now()
-        appendActivity(card, '添加评论')
-        return { ok: true, card_id: card.id, comment_id: cid, duplicated: false }
+        ticket.comments.push({ id: cid, text: text2, createdAt: now() })
+        ticket.updatedAt = now()
+        appendActivity(ticket, '添加评论')
+        return { ok: true, ticket_id: ticket.id, comment_id: cid, duplicated: false }
       })
     },
-    getCardStatus: async (cardId: string) => {
+    getTicketStatus: async (ticketId: string) => {
       const dataDir = await resolveDataDir(fs)
       const board = (await readBoard(fs, dataDir)) || defaultBoard()
-      const hit = findCardAny(board, String(cardId))
+      const hit = findTicketAny(board, String(ticketId))
       if (!hit) return null
       return { status: hit.archived ? '归档' : (hit.col ? hit.col.title : '归档'), archived: hit.archived }
     },
     /** 跨列移动（程序动作，供 git 合并后自动流转；target 传列名或列 id） */
-    moveCard: async (cardId: string, target: string, activityText?: string) => {
+    moveTicket: async (ticketId: string, target: string, activityText?: string) => {
       return mutateBoard(fs, (board: any) => {
-        const hit = findCardGlobal(board, String(cardId))
-        if (!hit) return { ok: false, error: 'card not found（或已归档）: ' + cardId }
+        const hit = findTicketGlobal(board, String(ticketId))
+        if (!hit) return { ok: false, error: 'ticket not found（或已归档）: ' + ticketId }
         const to = resolveColumn(board, target)
         if (!to) return { ok: false, error: 'column not found: ' + target }
-        if (to.id === hit.col.id) return { ok: true, card_id: cardId, from: to.title, to: to.title, unchanged: true }
-        hit.col.cards = hit.col.cards.filter((k: any) => k.id !== hit.card.id)
-        hit.card.updatedAt = now()
-        appendActivity(hit.card, activityText || ('状态变更：' + hit.col.title + ' → ' + to.title))
-        to.cards.push(hit.card)
-        return { ok: true, card_id: cardId, from: hit.col.title, to: to.title }
+        if (to.id === hit.col.id) return { ok: true, ticket_id: ticketId, from: to.title, to: to.title, unchanged: true }
+        hit.col.tickets = hit.col.tickets.filter((k: any) => k.id !== hit.ticket.id)
+        hit.ticket.updatedAt = now()
+        appendActivity(hit.ticket, activityText || ('状态变更：' + hit.col.title + ' → ' + to.title))
+        to.tickets.push(hit.ticket)
+        return { ok: true, ticket_id: ticketId, from: hit.col.title, to: to.title }
       })
     },
   }

@@ -1,8 +1,8 @@
 // 会话 Task 工作台：注册在 conversation.view 槽位（session scope）
 // 左侧：当前会话关联的 task 列表（基础信息 + 状态 + 更新时间）
-// 右侧：直接内嵌展示详情（默认最近更新的一个，点击左侧切换）——复用 CardDetail，无抽屉外壳
+// 右侧：直接内嵌展示详情（默认最近更新的一个，点击左侧切换）——复用 TicketDetail，无抽屉外壳
 import React, { useEffect, useState } from 'react'
-import { CardDetail } from './drawer'
+import { TicketDetail } from './drawer'
 import { useKanbanBoard, HostLike } from './board-hook'
 import { fmtTime } from '@dsh-plugins/ui'
 
@@ -17,7 +17,7 @@ export interface SessionTaskPanelProps {
 }
 
 /** 同步按钮：走 kanban host 的 git-sync 桥接 RPC（内部 ctx.get('git').sync） */
-function SyncButton(props: { cardId: string; host: HostLike; onDone: () => void }) {
+function SyncButton(props: { ticketId: string; host: HostLike; onDone: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
@@ -26,7 +26,7 @@ function SyncButton(props: { cardId: string; host: HostLike; onDone: () => void 
     setError('')
     setDone(false)
     props.host
-      .call('kanban/git-sync', { cardId: props.cardId })
+      .call('kanban/git-sync', { ticketId: props.ticketId })
       .then((res) => {
         setBusy(false)
         if (res && res.ok) {
@@ -42,7 +42,7 @@ function SyncButton(props: { cardId: string; host: HostLike; onDone: () => void 
       })
   }
   return (
-    <div className="kbnb-card-actions">
+    <div className="kbnb-ticket-actions">
       <button className="kbnb-btn kbnb-primary" type="button" disabled={busy} onClick={run} title="拉取该Ticket关联仓库的 open MR 并刷新状态">
         {busy ? '同步中…' : '同步'}
       </button>
@@ -53,29 +53,29 @@ function SyncButton(props: { cardId: string; host: HostLike; onDone: () => void 
 }
 
 /** 单卡详情包装：绑定 board 操作 + 同步按钮 */
-function CardDetailPane(props: { card: any; columns: any[]; cardId: string; kb: ReturnType<typeof useKanbanBoard>; host: HostLike; sessions?: SessionsLike }) {
-  const { card, columns, cardId, kb, host, sessions } = props
+function TicketDetailPane(props: { ticket: any; columns: any[]; ticketId: string; kb: ReturnType<typeof useKanbanBoard>; host: HostLike; sessions?: SessionsLike }) {
+  const { ticket, columns, ticketId, kb, host, sessions } = props
   return (
-    <CardDetail
-      card={card}
+    <TicketDetail
+      ticket={ticket}
       columns={columns}
-      onSave={(title, description, content) => kb.saveCard(cardId, title, description, content)}
-      onDelete={() => kb.deleteCard(cardId)}
-      onArchive={() => kb.archiveCard(cardId)}
-      onAddComment={(text) => kb.addComment(cardId, text)}
-      onUpdateTags={(add, remove) => kb.updateTags(cardId, add, remove)}
-      onMoveStatus={(targetColId) => kb.moveCardToStatus(cardId, targetColId)}
-      onAddRef={(ref) => kb.addRef(cardId, ref)}
-      onRemoveRef={(refId) => kb.removeRef(cardId, refId)}
+      onSave={(title, description, content) => kb.saveTicket(ticketId, title, description, content)}
+      onDelete={() => kb.deleteTicket(ticketId)}
+      onArchive={() => kb.archiveTicket(ticketId)}
+      onAddComment={(text) => kb.addTicketComment(ticketId, text)}
+      onUpdateTags={(add, remove) => kb.updateTags(ticketId, add, remove)}
+      onMoveStatus={(targetColId) => kb.moveTicketToStatus(ticketId, targetColId)}
+      onAddRef={(ref) => kb.addRef(ticketId, ref)}
+      onRemoveRef={(refId) => kb.removeRef(ticketId, refId)}
       onOpenSession={(sid) => {
         if (sessions && typeof sessions.open === 'function') {
           try { sessions.open(sid) } catch { /* 会话可能已不存在 */ }
         }
       }}
       gateLibrary={kb.board ? kb.board.gateLibrary || [] : []}
-      onAddGate={(gateId) => kb.attachGate(cardId, gateId)}
-      onRemoveGate={(gateId) => kb.removeGate(cardId, gateId)}
-      actionHost={() => <SyncButton cardId={cardId} host={host} onDone={() => kb.reload()} />}
+      onAddGate={(gateId) => kb.attachGate(ticketId, gateId)}
+      onRemoveGate={(gateId) => kb.removeGate(ticketId, gateId)}
+      actionHost={() => <SyncButton ticketId={ticketId} host={host} onDone={() => kb.reload()} />}
     />
   )
 }
@@ -85,7 +85,7 @@ export function SessionTaskPanel(props: SessionTaskPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const sessionId = props.sessionId
-  const related = sessionId ? kb.cardsBySession(sessionId) : []
+  const related = sessionId ? kb.ticketsBySession(sessionId) : []
 
   // 默认选最近更新的一个（updatedAt 倒序）
   useEffect(() => {
@@ -94,8 +94,8 @@ export function SessionTaskPanel(props: SessionTaskPanelProps) {
     else setSelectedId(null)
   }, [sessionId, related.map((t) => t.id).join(',')])
 
-  const selectedHit = selectedId ? kb.findCard(selectedId) : null
-  const selectedCard = selectedHit ? selectedHit.card : null
+  const selectedHit = selectedId ? kb.findTicket(selectedId) : null
+  const selectedTicket = selectedHit ? selectedHit.ticket : null
 
   return (
     <div className="kbnb-session-tasks">
@@ -111,8 +111,8 @@ export function SessionTaskPanel(props: SessionTaskPanelProps) {
         ) : (
           <div className="kbnb-session-tasks-list">
             {related.map((t) => {
-              const full = kb.findCard(t.id)
-              const updatedAt = full && full.card && full.card.updatedAt ? full.card.updatedAt : ''
+              const full = kb.findTicket(t.id)
+              const updatedAt = full && full.ticket && full.ticket.updatedAt ? full.ticket.updatedAt : ''
               return (
                 <button
                   key={t.id}
@@ -131,8 +131,8 @@ export function SessionTaskPanel(props: SessionTaskPanelProps) {
       </div>
       {/* ── 右侧：详情（内嵌，默认最近一个） ── */}
       <div className="kbnb-session-main">
-        {selectedCard && selectedId ? (
-          <CardDetailPane card={selectedCard} columns={kb.board ? kb.board.columns : []} cardId={selectedId} kb={kb} host={props.host} sessions={props.sessions} />
+        {selectedTicket && selectedId ? (
+          <TicketDetailPane ticket={selectedTicket} columns={kb.board ? kb.board.columns : []} ticketId={selectedId} kb={kb} host={props.host} sessions={props.sessions} />
         ) : (
           <div className="kbnb-session-main-empty">选择左侧Ticket查看详情</div>
         )}

@@ -37,14 +37,14 @@ export const boardCss = `
 .kbnb-column-count{font-size:11px;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-layer-2);border-radius:999px;padding:2px 9px;font-variant-numeric:tabular-nums;border:1px solid var(--dsw-alias-border-l2)}
 
 /* ══ 卡片（title + 标签 + 一句话描述，单行省略） ══ */
-.kbnb-cards{display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;min-height:40px;padding:6px 0 4px}
-.kbnb-card{width:244px;max-width:100%;box-sizing:border-box;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;cursor:pointer;user-select:none;transition:border-color 150ms cubic-bezier(.4, 0, .2, 1),box-shadow 150ms cubic-bezier(.4, 0, .2, 1)}
-.kbnb-card:hover{border-color:var(--dsw-alias-state-business-primary)}
-.kbnb-card-active{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary),var(--dsw-shadow-lv2)}
-.kbnb-card-drag{opacity:.5;transform:none}
-.kbnb-card-title{font-size:15px;font-weight:600;line-height:1.5;word-break:break-word}
-.kbnb-card-desc{font-size:13px;color:var(--dsw-alias-label-secondary);margin-top:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.kbnb-card-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.kbnb-tickets{display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;min-height:40px;padding:6px 0 4px}
+.kbnb-ticket{width:244px;max-width:100%;box-sizing:border-box;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;cursor:pointer;user-select:none;transition:border-color 150ms cubic-bezier(.4, 0, .2, 1),box-shadow 150ms cubic-bezier(.4, 0, .2, 1)}
+.kbnb-ticket:hover{border-color:var(--dsw-alias-state-business-primary)}
+.kbnb-ticket-active{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary),var(--dsw-shadow-lv2)}
+.kbnb-ticket-drag{opacity:.5;transform:none}
+.kbnb-ticket-title{font-size:15px;font-weight:600;line-height:1.5;word-break:break-word}
+.kbnb-ticket-desc{font-size:13px;color:var(--dsw-alias-label-secondary);margin-top:6px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.kbnb-ticket-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .kbnb-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover-accent);border-radius:999px;padding:2px 8px;line-height:1.6;white-space:nowrap}
 .kbnb-tag-removable{cursor:pointer;transition:all 150ms cubic-bezier(.4, 0, .2, 1)}
 .kbnb-tag-removable:hover{background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary)}
@@ -52,8 +52,8 @@ export const boardCss = `
 .kbnb-tag-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--dsw-alias-border-l2)}
 .kbnb-tag-row .kbnb-field-label{flex:none}
 .kbnb-tag-input{width:120px;padding:4px 10px;font-size:12px;border-radius:999px;flex:none}
-.kbnb-add-card{background:none;border:none;cursor:pointer;color:var(--dsw-alias-label-tertiary);font-size:13px;padding:10px 0;border-radius:8px;text-align:left;flex:none;transition:all 150ms cubic-bezier(.4, 0, .2, 1);font-family:inherit}
-.kbnb-add-card:hover{color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover-accent)}
+.kbnb-add-ticket{background:none;border:none;cursor:pointer;color:var(--dsw-alias-label-tertiary);font-size:13px;padding:10px 0;border-radius:8px;text-align:left;flex:none;transition:all 150ms cubic-bezier(.4, 0, .2, 1);font-family:inherit}
+.kbnb-add-ticket:hover{color:var(--dsw-alias-state-business-primary);background:var(--dsw-alias-interactive-bg-hover-accent)}
 .kbnb-drop-line{height:3px;background:var(--dsw-alias-state-business-primary);border-radius:2px;margin:-2px 0;box-shadow:0 0 6px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);flex:none}
 
 /* ══ 归档视图 ══ */

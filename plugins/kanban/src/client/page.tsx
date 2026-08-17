@@ -3,19 +3,19 @@
 // 抽屉/新建/列配置弹窗在此装配；数据操作全部走 useKanbanBoard。
 import React, { useState } from 'react'
 import { IconChevronLeftOutline14, IconSettingsOutline16 } from '@dsh-plugins/ui'
-import { CardDrawer } from './drawer'
-import { CreateCardModal } from './create'
+import { TicketDrawer } from './drawer'
+import { CreateTicketModal } from './create'
 import { ColumnsPanel } from './columns'
 import { KanbanSettings } from './settings'
 import { safeId, safeNow, appendActivity } from '@dsh-plugins/ui'
 import { useKanbanBoard, HostLike } from './board-hook'
-import { KanbanBlock, CardGate, CardTemplate, KanbanBoard } from '@dsh-plugins/ui'
+import { KanbanBlock, TicketGate, TicketTemplate, KanbanBoard } from '@dsh-plugins/ui'
 import { BoardView, GroupBy } from './board-view'
 import { ArchiveView } from './archive-view'
 
 export interface DrawerState {
   columnId: string
-  cardId: string
+  ticketId: string
 }
 
 export interface RenderSlotLike {
@@ -43,53 +43,53 @@ export function KanbanPage(props: {
   const board = kb.board
 
   /* ── Ticket操作回调（透传给抽屉） ── */
-  function openCard(columnId: string, cardId: string) {
-    setDrawer({ columnId, cardId })
+  function openTicket(columnId: string, ticketId: string) {
+    setDrawer({ columnId, ticketId })
   }
   /** 门禁视图点击Ticket：活动卡开抽屉；归档卡切归档视图 */
-  function openCardFromAnywhere(cardId: string) {
+  function openTicketFromAnywhere(ticketId: string) {
     for (const col of (board ? board.columns : [])) {
-      if ((col.cards || []).some((k: any) => k.id === cardId)) { setDrawer({ columnId: col.id, cardId }); return }
+      if ((col.tickets || []).some((k: any) => k.id === ticketId)) { setDrawer({ columnId: col.id, ticketId }); return }
     }
     setView('archive')
   }
-  function saveCard(title: string, description: string, content: KanbanBlock[]) {
+  function saveTicket(title: string, description: string, content: KanbanBlock[]) {
     if (!drawer) return
-    kb.saveCard(drawer.cardId, title, description, content)
+    kb.saveTicket(drawer.ticketId, title, description, content)
   }
-  function moveCardToStatus(targetColId: string) {
+  function moveTicketToStatus(targetColId: string) {
     if (!drawer) return
-    kb.moveCardToStatus(drawer.cardId, targetColId)
-    setDrawer({ columnId: targetColId, cardId: drawer.cardId })
+    kb.moveTicketToStatus(drawer.ticketId, targetColId)
+    setDrawer({ columnId: targetColId, ticketId: drawer.ticketId })
   }
-  function deleteCard() {
+  function deleteTicket() {
     if (!drawer) return
-    kb.deleteCard(drawer.cardId)
+    kb.deleteTicket(drawer.ticketId)
     setDrawer(null)
   }
-  function archiveCard() {
+  function archiveTicket() {
     if (!drawer) return
-    kb.archiveCard(drawer.cardId)
+    kb.archiveTicket(drawer.ticketId)
     setDrawer(null)
   }
-  function updateTags(cardId: string, add: string[], remove: string[]) {
-    kb.updateTags(cardId, add, remove)
+  function updateTags(ticketId: string, add: string[], remove: string[]) {
+    kb.updateTags(ticketId, add, remove)
   }
-  function addComment(text: string) {
+  function addTicketComment(text: string) {
     if (!drawer) return
-    kb.addComment(drawer.cardId, text)
+    kb.addTicketComment(drawer.ticketId, text)
   }
-  function addRef(cardId: string, ref: { kind: string; externalId: string; url?: string; display?: string }) {
-    kb.addRef(cardId, ref)
+  function addRef(ticketId: string, ref: { kind: string; externalId: string; url?: string; display?: string }) {
+    kb.addRef(ticketId, ref)
   }
-  function removeRef(cardId: string, refId: string) {
-    kb.removeRef(cardId, refId)
+  function removeRef(ticketId: string, refId: string) {
+    kb.removeRef(ticketId, refId)
   }
-  function createCard(columnId: string, title: string, description: string, tags: string[], content: KanbanBlock[], gateIds?: string[], templateName?: string) {
+  function createTicket(columnId: string, title: string, description: string, tags: string[], content: KanbanBlock[], gateIds?: string[], templateName?: string) {
     kb.mutate((b) => {
       const col = b.columns.find((c) => c.id === columnId)
       if (!col) return
-      const card = {
+      const ticket = {
         id: safeId('k'),
         title,
         description,
@@ -104,8 +104,8 @@ export function KanbanPage(props: {
         createdAt: safeNow(),
         updatedAt: safeNow(),
       }
-      appendActivity(card, '创建Ticket' + (templateName ? '（模板：' + templateName + '）' : ''))
-      col.cards.push(card)
+      appendActivity(ticket, '创建Ticket' + (templateName ? '（模板：' + templateName + '）' : ''))
+      col.tickets.push(ticket)
     })
   }
   function openSession(sessionId: string) {
@@ -129,10 +129,10 @@ export function KanbanPage(props: {
     )
   }
 
-  const drawerHit = drawer ? kb.findCard(drawer.cardId) : null
-  const drawerCard = drawerHit ? drawerHit.card : null
+  const drawerHit = drawer ? kb.findTicket(drawer.ticketId) : null
+  const drawerTicket = drawerHit ? drawerHit.ticket : null
   const archived = board.archive || []
-  const activeCount = board.columns.reduce((n, col) => n + col.cards.length, 0)
+  const activeCount = board.columns.reduce((n, col) => n + col.tickets.length, 0)
   const gateCount = (board.gateLibrary || []).length
 
   return (
@@ -202,14 +202,14 @@ export function KanbanPage(props: {
               board={board}
               groupBy={groupBy}
               onGroupByChange={setGroupBy}
-              onOpenCard={openCard}
+              onOpenTicket={openTicket}
               onStartCreate={setCreating}
-              activeCardId={drawer ? drawer.cardId : null}
+              activeTicketId={drawer ? drawer.ticketId : null}
               kb={kb}
             />
           ) : null}
           {view === 'archive' ? <ArchiveView board={board} kb={kb} onBackToBoard={() => setView('board')} /> : null}
-          {view === 'gates' ? <GatesView board={board} kb={kb} onOpenCard={(cardId) => openCardFromAnywhere(cardId)} /> : null}
+          {view === 'gates' ? <GatesView board={board} kb={kb} onOpenTicket={(ticketId) => openTicketFromAnywhere(ticketId)} /> : null}
           {view === 'templates' ? <TemplatesView board={board} kb={kb} /> : null}
           {view === 'settings' ? (
             <div className="kbnb-archive">
@@ -229,38 +229,38 @@ export function KanbanPage(props: {
         </main>
       </div>
 
-      {/* Ticket抽屉（key 按 cardId 重建，保证切换Ticket时状态干净） */}
-      {drawer && drawerCard ? (
-        <CardDrawer
-          key={drawer.cardId}
-          card={drawerCard}
+      {/* Ticket抽屉（key 按 ticketId 重建，保证切换Ticket时状态干净） */}
+      {drawer && drawerTicket ? (
+        <TicketDrawer
+          key={drawer.ticketId}
+          ticket={drawerTicket}
           columns={board.columns}
-          onSave={saveCard}
-          onDelete={deleteCard}
-          onArchive={archiveCard}
+          onSave={saveTicket}
+          onDelete={deleteTicket}
+          onArchive={archiveTicket}
           onClose={() => setDrawer(null)}
-          onAddComment={addComment}
-          onUpdateTags={(add, remove) => updateTags(drawer.cardId, add, remove)}
-          onMoveStatus={moveCardToStatus}
-          onAddRef={(ref) => addRef(drawer.cardId, ref)}
-          onRemoveRef={(refId) => removeRef(drawer.cardId, refId)}
+          onAddComment={addTicketComment}
+          onUpdateTags={(add, remove) => updateTags(drawer.ticketId, add, remove)}
+          onMoveStatus={moveTicketToStatus}
+          onAddRef={(ref) => addRef(drawer.ticketId, ref)}
+          onRemoveRef={(refId) => removeRef(drawer.ticketId, refId)}
           onOpenSession={openSession}
           gateLibrary={board.gateLibrary || []}
-          onAddGate={(gateId) => kb.attachGate(drawer.cardId, gateId)}
-          onRemoveGate={(gateId) => kb.removeGate(drawer.cardId, gateId)}
+          onAddGate={(gateId) => kb.attachGate(drawer.ticketId, gateId)}
+          onRemoveGate={(gateId) => kb.removeGate(drawer.ticketId, gateId)}
           onOpenGatesView={() => setView('gates')}
           actionHost={props.renderSlot ? () => (
-            <div className="kbnb-card-actions">
-              {props.renderSlot!('kanban.card.actions', { cardId: drawer.cardId, onSynced: kb.reload }, {}) as React.ReactNode}
+            <div className="kbnb-ticket-actions">
+              {props.renderSlot!('kanban.ticket.actions', { ticketId: drawer.ticketId, onSynced: kb.reload }, {}) as React.ReactNode}
             </div>
           ) : null}
         />
       ) : null}
       {creating ? (
-        <CreateCardModal
+        <CreateTicketModal
           templates={board.templates || []}
           gateLibrary={board.gateLibrary || []}
-          onCreate={(title, description, tags, content, gateIds, templateName) => createCard(creating, title, description, tags, content, gateIds, templateName)}
+          onCreate={(title, description, tags, content, gateIds, templateName) => createTicket(creating, title, description, tags, content, gateIds, templateName)}
           onClose={() => setCreating(null)}
         />
       ) : null}
@@ -315,11 +315,11 @@ function gateConfigPlaceholder(type: string): string {
   if (type === 'tag-required') return '{"tags":["done"]}'
   if (type === 'field-nonempty') return '{"field":"description"}'
   if (type === 'pipeline') return '{"pipelines":["pipeline-id"]}'
-  if (type === 'code') return '{"code":"const c = await gate.card({});\\nreturn { ok: true, reason: \'通过\' }"}'
+  if (type === 'code') return '{"code":"const c = await gate.ticket({});\\nreturn { ok: true, reason: \'通过\' }"}'
   return '无需配置'
 }
 
-function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanBoard>; onOpenCard: (cardId: string) => void }) {
+function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanBoard>; onOpenTicket: (ticketId: string) => void }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [on, setOn] = useState('move')
@@ -341,18 +341,18 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
     setName(''); setTo(''); setCfgText(''); setAdding(false)
   }
 
-  function usersOf(gateId: string): { cards: Array<{ id: string; title: string; col: string }>; templates: string[] } {
-    const cards: Array<{ id: string; title: string; col: string }> = []
+  function usersOf(gateId: string): { tickets: Array<{ id: string; title: string; col: string }>; templates: string[] } {
+    const tickets: Array<{ id: string; title: string; col: string }> = []
     for (const col of props.board.columns || []) {
-      for (const k of col.cards || []) {
-        if (Array.isArray(k.gateIds) && k.gateIds.includes(gateId)) cards.push({ id: k.id, title: k.title, col: col.title })
+      for (const k of col.tickets || []) {
+        if (Array.isArray(k.gateIds) && k.gateIds.includes(gateId)) tickets.push({ id: k.id, title: k.title, col: col.title })
       }
     }
     for (const k of props.board.archive || []) {
-      if (Array.isArray(k.gateIds) && k.gateIds.includes(gateId)) cards.push({ id: k.id, title: k.title, col: '归档' })
+      if (Array.isArray(k.gateIds) && k.gateIds.includes(gateId)) tickets.push({ id: k.id, title: k.title, col: '归档' })
     }
     const templates = (props.board.templates || []).filter((t) => Array.isArray(t.gateIds) && t.gateIds.includes(gateId)).map((t) => t.name)
-    return { cards, templates }
+    return { tickets, templates }
   }
 
   return (
@@ -403,8 +403,8 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
           const users = usersOf(g.id)
           const cfg = g.checker && g.checker.config
           return (
-            <section key={g.id} className="kbnb-settings kbnb-gate-card">
-              <header className="kbnb-gate-card-head">
+            <section key={g.id} className="kbnb-settings kbnb-gate-ticket">
+              <header className="kbnb-gate-ticket-head">
                 <div className="kbnb-tpl-main">
                   <span className="kbnb-tpl-name">{g.name}</span>
                   <span className="kbnb-tpl-desc">
@@ -417,12 +417,12 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
                 <pre className="kbnb-gate-detail-pre">{JSON.stringify(cfg, null, 2)}</pre>
               ) : null}
               <div className="kbnb-gate-users">
-                {users.cards.length > 0 || users.templates.length > 0 ? (
+                {users.tickets.length > 0 || users.templates.length > 0 ? (
                   <>
                     <span className="kbnb-field-label">引用：</span>
                     {users.templates.map((tn) => <span key={'t' + tn} className="kbnb-tag">模板 {tn}</span>)}
-                    {users.cards.map((c) => (
-                      <button key={c.id} className="kbnb-gates-cardlink" type="button" title={'打开Ticket（' + c.col + '）'} onClick={() => props.onOpenCard(c.id)}>
+                    {users.tickets.map((c) => (
+                      <button key={c.id} className="kbnb-gates-ticketlink" type="button" title={'打开Ticket（' + c.col + '）'} onClick={() => props.onOpenTicket(c.id)}>
                         {c.title} <span className="kbnb-gates-col">{c.col}</span>
                       </button>
                     ))}
@@ -496,14 +496,14 @@ function TemplatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKan
       ) : null}
       {templates.length === 0 && !adding ? <div className="kbnb-settings-empty">暂无模板。模板预置描述/标签/内容/门禁，新建Ticket时引用免重复输入（agent: kanban_template_create）。</div> : null}
       {templates.map((t) => (
-        <TemplateCard key={t.id} tpl={t} lib={lib} kb={props.kb} />
+        <TemplateTicket key={t.id} tpl={t} lib={lib} kb={props.kb} />
       ))}
     </div>
   )
 }
 
 /** 单张模板Ticket：点击展开编辑（名称/描述/标签/门禁勾选） */
-function TemplateCard(props: { tpl: CardTemplate; lib: CardGate[]; kb: ReturnType<typeof useKanbanBoard> }) {
+function TemplateTicket(props: { tpl: TicketTemplate; lib: TicketGate[]; kb: ReturnType<typeof useKanbanBoard> }) {
   const t = props.tpl
   const ids = Array.isArray(t.gateIds) ? t.gateIds : []
   const [editing, setEditing] = useState(false)
@@ -526,13 +526,13 @@ function TemplateCard(props: { tpl: CardTemplate; lib: CardGate[]; kb: ReturnTyp
   }
   const gates = ids.map((id) => props.lib.find((g: any) => g.id === id)).filter(Boolean)
   return (
-    <section className="kbnb-settings kbnb-tpl-card">
-      <header className="kbnb-tpl-card-head" onClick={() => { if (!editing) beginEdit() }} title={editing ? '编辑中' : '点击编辑模板'}>
+    <section className="kbnb-settings kbnb-tpl-ticket">
+      <header className="kbnb-tpl-ticket-head" onClick={() => { if (!editing) beginEdit() }} title={editing ? '编辑中' : '点击编辑模板'}>
         <div className="kbnb-tpl-main">
           <span className="kbnb-tpl-name">{t.name}</span>
           <span className="kbnb-tpl-desc">{t.description || '（无描述）'}</span>
         </div>
-        <div className="kbnb-tpl-card-btns">
+        <div className="kbnb-tpl-ticket-btns">
           <button
             className="kbnb-btn"
             type="button"

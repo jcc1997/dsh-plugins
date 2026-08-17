@@ -1,8 +1,8 @@
 // styles/drawer.ts — 抽屉与详情样式：左右分栏、contentEditable 标题/描述、状态栏、标签、评论、变更记录、关联、Git 卡、会话工作台
 export const drawerCss = `
 /* ══ 门禁/模板视图 ══ */
-.kbnb-gates-cardlink{display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;margin-bottom:6px;text-align:left}
-.kbnb-gates-cardtitle{font-size:14px;font-weight:600;color:var(--dsw-alias-state-business-primary)}
+.kbnb-gates-ticketlink{display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;margin-bottom:6px;text-align:left}
+.kbnb-gates-tickettitle{font-size:14px;font-weight:600;color:var(--dsw-alias-state-business-primary)}
 .kbnb-gates-col{font-size:11px;color:var(--dsw-alias-label-tertiary)}
 .kbnb-settings-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .kbnb-settings-empty{padding:24px 0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.8}
@@ -12,10 +12,10 @@ export const drawerCss = `
 .kbnb-tpl-desc{display:block;font-size:12px;color:var(--dsw-alias-label-secondary);margin-top:2px}
 
 /* ══ 模板卡片（v6）：卡片展示 + 点击展开编辑 ══ */
-.kbnb-tpl-card{display:flex;flex-direction:column;gap:8px}
-.kbnb-tpl-card-head{display:flex;align-items:flex-start;gap:12px;justify-content:space-between;cursor:pointer;border-radius:8px;padding:6px;margin:0 -6px;transition:background 150ms cubic-bezier(.4,0,.2,1)}
-.kbnb-tpl-card-head:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.kbnb-tpl-card-btns{flex:none;display:flex;gap:6px}
+.kbnb-tpl-ticket{display:flex;flex-direction:column;gap:8px}
+.kbnb-tpl-ticket-head{display:flex;align-items:flex-start;gap:12px;justify-content:space-between;cursor:pointer;border-radius:8px;padding:6px;margin:0 -6px;transition:background 150ms cubic-bezier(.4,0,.2,1)}
+.kbnb-tpl-ticket-head:hover{background:var(--dsw-alias-interactive-bg-hover)}
+.kbnb-tpl-ticket-btns{flex:none;display:flex;gap:6px}
 .kbnb-tpl-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .kbnb-tag-gate{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
 .kbnb-tpl-edit{display:flex;flex-direction:column;gap:10px;border-top:1px dashed var(--dsw-alias-border-l2);padding-top:10px;margin-top:2px}
@@ -30,7 +30,7 @@ export const drawerCss = `
 .kbnb-gate-detail-pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:160px;overflow-y:auto}
 
 /* ══ 门禁卡（v4）：挂在此卡上的行为门禁 ══ */
-.kbnb-gates-card{display:flex;flex-direction:column;gap:6px;width:100%;box-sizing:border-box;margin-bottom:16px}
+.kbnb-gates-ticket{display:flex;flex-direction:column;gap:6px;width:100%;box-sizing:border-box;margin-bottom:16px}
 .kbnb-gate-row{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0}
 .kbnb-gate-name{font-weight:600;color:var(--dsw-alias-label-primary);flex:none;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kbnb-gate-meta{flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary)}
@@ -42,12 +42,12 @@ export const drawerCss = `
 .kbnb-gate-form-row{display:flex;align-items:center;gap:8px}
 .kbnb-gate-form-row .kbnb-input{flex:1}
 .kbnb-gates-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
-.kbnb-gate-card{display:flex;flex-direction:column;gap:8px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;transition:border-color 150ms cubic-bezier(.4,0,.2,1),box-shadow 150ms cubic-bezier(.4,0,.2,1)}
-.kbnb-gate-card:hover{border-color:var(--dsw-alias-state-business-primary);box-shadow:var(--dsw-shadow-lv2)}
-.kbnb-gate-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-.kbnb-gate-card .kbnb-gate-detail-pre{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px}
+.kbnb-gate-ticket{display:flex;flex-direction:column;gap:8px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;transition:border-color 150ms cubic-bezier(.4,0,.2,1),box-shadow 150ms cubic-bezier(.4,0,.2,1)}
+.kbnb-gate-ticket:hover{border-color:var(--dsw-alias-state-business-primary);box-shadow:var(--dsw-shadow-lv2)}
+.kbnb-gate-ticket-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.kbnb-gate-ticket .kbnb-gate-detail-pre{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px}
 .kbnb-gate-users{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.kbnb-gate-users .kbnb-gates-cardlink{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;margin-bottom:0}
+.kbnb-gate-users .kbnb-gates-ticketlink{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;margin-bottom:0}
 .kbnb-gate-del{flex:none}
 .kbnb-gate-checks{display:flex;flex-direction:column;gap:6px}
 .kbnb-gate-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dsw-alias-label-primary);cursor:pointer}
@@ -128,10 +128,10 @@ button.kbnb-ref-link{background:none;border:none;padding:0;font:inherit;cursor:p
 .kbnb-ref-url{flex:1 1 200px;min-width:140px;padding:4px 8px;font-size:12px}
 .kbnb-ref-add .kbnb-btn{padding:4px 12px;font-size:12px;flex:none}
 /* Git 关联卡片 + 外部关联卡片 */
-.kbnb-card-actions{display:inline-flex;align-items:center;gap:8px}
-.kbnb-git-card,.kbnb-refs-card{width:100%;box-sizing:border-box;margin-bottom:16px;padding:14px 16px;border-radius:12px;cursor:default}
-.kbnb-card-sec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
-.kbnb-card-sec-title{font-size:13px;font-weight:600;color:var(--dsw-alias-label-secondary)}
+.kbnb-ticket-actions{display:inline-flex;align-items:center;gap:8px}
+.kbnb-git-ticket,.kbnb-refs-ticket{width:100%;box-sizing:border-box;margin-bottom:16px;padding:14px 16px;border-radius:12px;cursor:default}
+.kbnb-ticket-sec-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.kbnb-ticket-sec-title{font-size:13px;font-weight:600;color:var(--dsw-alias-label-secondary)}
 .kbnb-git-repo{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px}
 .kbnb-git-repo-label{flex:none;font-size:12px;color:var(--dsw-alias-label-tertiary)}
 .kbnb-git-repo-name{font-weight:600;color:var(--dsw-alias-state-business-primary);text-decoration:none;min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -155,7 +155,7 @@ button.kbnb-ref-link{background:none;border:none;padding:0;font:inherit;cursor:p
 .kbnb-mr-closed .kbnb-mr-state{color:var(--dsw-alias-state-error-primary)}
 .kbnb-mr-synced{font-size:11px;color:var(--dsw-alias-label-tertiary)}
 .kbnb-mr-error{font-size:11px;color:var(--dsw-alias-state-error-primary);width:100%}
-.kbnb-refs-card .kbnb-refs-empty{font-size:12px;color:var(--dsw-alias-label-tertiary);margin-bottom:8px}
+.kbnb-refs-ticket .kbnb-refs-empty{font-size:12px;color:var(--dsw-alias-label-tertiary);margin-bottom:8px}
 .kbnb-ref-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:5px 10px;margin-bottom:6px;min-width:0}
 .kbnb-ref-row .kbnb-ref-kind{flex:none;color:var(--dsw-alias-state-business-primary);font-size:11px}
 .kbnb-ref-row .kbnb-ref-link{color:var(--dsw-alias-state-business-primary);text-decoration:none;min-width:0;overflow:hidden;text-overflow:ellipsis}
@@ -178,7 +178,7 @@ button.kbnb-ref-link{background:none;border:none;padding:0;font:inherit;cursor:p
 .kbnb-session-task-time{font-size:11px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}
 .kbnb-session-main{min-width:0;overflow-y:auto}
 .kbnb-session-main-empty{padding:60px 20px;text-align:center;color:var(--dsw-alias-label-tertiary)}
-/* CardDetail 内嵌形态（无抽屉外壳）：滚动 + 两列 */
-.kbnb-card-detail{flex:1;overflow-y:auto;padding:20px 28px;min-width:0}
-.kbnb-session-main .kbnb-card-detail{height:100%;box-sizing:border-box}
+/* TicketDetail 内嵌形态（无抽屉外壳）：滚动 + 两列 */
+.kbnb-ticket-detail{flex:1;overflow-y:auto;padding:20px 28px;min-width:0}
+.kbnb-session-main .kbnb-ticket-detail{height:100%;box-sizing:border-box}
 `;

@@ -49,8 +49,8 @@ export function apply(ctx: PipelineCtx) {
   const enrichReviewTarget = (up: Record<string, unknown>): string => {
     try {
       const inputOut: any = (up as any).in || up
-      const card = inputOut && inputOut.card
-      const refs = card && Array.isArray(card.refs) ? card.refs : []
+      const ticket = inputOut && inputOut.ticket
+      const refs = ticket && Array.isArray(ticket.refs) ? ticket.refs : []
       const byKind = (kind: string) => refs.find((r: any) => r && r.kind === kind && r.externalId)
       const repo = byKind('github-repo')
       const branch = byKind('github-branch')
@@ -66,12 +66,12 @@ export function apply(ctx: PipelineCtx) {
   }
 
   /** 读取 Ticket 上一条「评审未通过」评论（续评上下文：让本轮评审核验上轮 findings 是否已修复） */
-  const lastReviewComment = async (cardId: string): Promise<string> => {
+  const lastReviewComment = async (ticketId: string): Promise<string> => {
     try {
       const kanban = ctx.get('kanban') as any
-      if (!kanban || typeof kanban.getCard !== 'function') return ''
-      const card = await kanban.getCard(cardId)
-      const comments = card && Array.isArray(card.comments) ? card.comments : []
+      if (!kanban || typeof kanban.getTicket !== 'function') return ''
+      const ticket = await kanban.getTicket(ticketId)
+      const comments = ticket && Array.isArray(ticket.comments) ? ticket.comments : []
       for (let i = comments.length - 1; i >= 0; i--) {
         const text = comments[i] && comments[i].text ? String(comments[i].text) : ''
         if (text.includes('评审未通过')) return text.slice(0, 3000)
@@ -96,8 +96,8 @@ export function apply(ctx: PipelineCtx) {
           // 评审对象摘要（refs 按 kind 解析）+ 续评注入（上轮评审意见）
           const target = enrichReviewTarget(up)
           let fullPrompt = target ? target + prompt : prompt
-          if (conf.cardId) {
-            const prev = await lastReviewComment(String(conf.cardId))
+          if (conf.ticketId) {
+            const prev = await lastReviewComment(String(conf.ticketId))
             if (prev) fullPrompt = '【上一轮评审意见（请逐条核验是否已修复；未修复的继续列为未解决问题，已修复的不再列入）】\n' + prev + '\n\n【本轮评审任务】\n' + prompt
           }
           // 精简工具集（token 节省）：仅读文件 + grep/glob + bash（git diff）；不暴露写工具与无关能力
@@ -105,7 +105,7 @@ export function apply(ctx: PipelineCtx) {
             ? { allow: conf.toolFilter.map(String) }
             : { allow: ['read', 'glob', 'grep', 'bash'] }
           const run = await subagents.start('spawn', {
-            label: 'review' + (conf.cardId ? '-' + conf.cardId : ''),
+            label: 'review' + (conf.ticketId ? '-' + conf.ticketId : ''),
             prompt: [{ type: 'text', text: fullPrompt }],
             parent,
             signal: (conf.externalSignal as AbortSignal | undefined) || new AbortController().signal,
@@ -287,12 +287,12 @@ export function apply(ctx: PipelineCtx) {
       const result = await queue.submitSync(String(pipelineId), version || 'latest', inputs || {}, 'plugin', opts)
       try {
         // 仅评审类失败落卡（error 含「评审未通过」，其自身已带前缀，不再重复拼接）；其他 pipeline 失败不写评语
-        const card = inputs && (inputs as any).card
+        const ticket = inputs && (inputs as any).ticket
         const err = result && result.error ? String(result.error) : ''
-        if (err.includes('评审未通过') && card && typeof card.id === 'string') {
+        if (err.includes('评审未通过') && ticket && typeof ticket.id === 'string') {
           const kanban = ctx.get('kanban') as any
-          if (kanban && typeof kanban.addComment === 'function') {
-            await kanban.addComment(String(card.id), err.slice(0, 2000))
+          if (kanban && typeof kanban.addTicketComment === 'function') {
+            await kanban.addTicketComment(String(ticket.id), err.slice(0, 2000))
           }
         }
       } catch { /* 评论失败不影响运行结果 */ }

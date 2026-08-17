@@ -4,7 +4,7 @@
 import React, { useState } from 'react'
 import { safeNow, appendActivity } from '@dsh-plugins/ui'
 import { KanbanBoard } from '@dsh-plugins/ui'
-import { cardRepoOf } from './board-util'
+import { ticketRepoOf } from './board-util'
 import { useKanbanBoard } from './board-hook'
 
 export type GroupBy = 'none' | 'repo'
@@ -13,35 +13,35 @@ export interface Group {
   key: string
   label: string
   count: number
-  columns: Array<{ id: string; title: string; cards: any[]; meta?: any }>
+  columns: Array<{ id: string; title: string; tickets: any[]; meta?: any }>
 }
 
-type DragState = { kind: 'card'; cardId: string; from: string; groupKey: string } | null
+type DragState = { kind: 'ticket'; ticketId: string; from: string; groupKey: string } | null
 
 export function BoardView(props: {
   board: KanbanBoard
   groupBy: GroupBy
   onGroupByChange: (v: GroupBy) => void
-  onOpenCard: (columnId: string, cardId: string) => void
+  onOpenTicket: (columnId: string, ticketId: string) => void
   onStartCreate: (columnId: string) => void
-  activeCardId: string | null
+  activeTicketId: string | null
   kb: ReturnType<typeof useKanbanBoard>
 }) {
   const [drag, setDrag] = useState<DragState>(null)
   const [hint, setHint] = useState<{ columnId: string; index: number } | null>(null)
 
   /** 按鼠标位置计算Ticket插入下标（落点指示线用） */
-  function computeCardIndex(evt: React.DragEvent) {
+  function computeTicketIndex(evt: React.DragEvent) {
     const el = evt.currentTarget
     try {
-      const cards = Array.from(el.children).filter(
-        (child) => child instanceof HTMLElement && child.getAttribute('data-card') !== null,
+      const tickets = Array.from(el.children).filter(
+        (child) => child instanceof HTMLElement && child.getAttribute('data-ticket') !== null,
       )
-      for (let i = 0; i < cards.length; i++) {
-        const r = cards[i].getBoundingClientRect()
+      for (let i = 0; i < tickets.length; i++) {
+        const r = tickets[i].getBoundingClientRect()
         if (evt.clientY < r.top + r.height / 2) return i
       }
-      return cards.length
+      return tickets.length
     } catch {
       return 0
     }
@@ -49,36 +49,36 @@ export function BoardView(props: {
   function onColumnOver(columnId: string, evt: React.DragEvent) {
     evt.preventDefault()
     if (!drag) return
-    if (drag.kind === 'card') setHint({ columnId, index: computeCardIndex(evt) })
+    if (drag.kind === 'ticket') setHint({ columnId, index: computeTicketIndex(evt) })
   }
   /** 落点：Ticket移动（跨组忽略；组内排序 / 跨列移动） */
   function onColumnDrop(columnId: string, groupKey: string, evt: React.DragEvent) {
     evt.preventDefault()
     if (!drag) return
-    if (drag.kind !== 'card') { setDrag(null); setHint(null); return }
+    if (drag.kind !== 'ticket') { setDrag(null); setHint(null); return }
     if (drag.groupKey !== groupKey) {
       setDrag(null)
       setHint(null)
       return
     }
-    const index = computeCardIndex(evt)
+    const index = computeTicketIndex(evt)
     props.kb.mutate((b) => {
       const fromCol = b.columns.find((c) => c.id === drag.from)
       const toCol = b.columns.find((c) => c.id === columnId)
       if (!fromCol || !toCol) return
-      const idx = fromCol.cards.findIndex((k) => k.id === drag.cardId)
+      const idx = fromCol.tickets.findIndex((k) => k.id === drag.ticketId)
       if (idx < 0) return
-      const [card] = fromCol.cards.splice(idx, 1)
+      const [ticket] = fromCol.tickets.splice(idx, 1)
       if (fromCol.id === toCol.id) {
         let target = index
         if (idx < target) target -= 1
-        toCol.cards.splice(target, 0, card)
-        card.updatedAt = safeNow()
-        appendActivity(card, '调整顺序')
+        toCol.tickets.splice(target, 0, ticket)
+        ticket.updatedAt = safeNow()
+        appendActivity(ticket, '调整顺序')
       } else {
-        toCol.cards.splice(index, 0, card)
-        card.updatedAt = safeNow()
-        appendActivity(card, '状态变更：' + fromCol.title + ' → ' + toCol.title)
+        toCol.tickets.splice(index, 0, ticket)
+        ticket.updatedAt = safeNow()
+        appendActivity(ticket, '状态变更：' + fromCol.title + ' → ' + toCol.title)
       }
     })
     setDrag(null)
@@ -95,17 +95,17 @@ export function BoardView(props: {
       return [{
         key: '',
         label: '',
-        count: props.board.columns.reduce((n, c) => n + c.cards.length, 0),
+        count: props.board.columns.reduce((n, c) => n + c.tickets.length, 0),
         columns: props.board.columns.map((c) => ({ ...c })),
       }]
     }
     const map = new Map<string, Group>()
     const keys: string[] = []
     for (const col of props.board.columns) {
-      for (const card of col.cards) {
-        const key = cardRepoOf(card)
+      for (const ticket of col.tickets) {
+        const key = ticketRepoOf(ticket)
         if (!map.has(key)) {
-          map.set(key, { key, label: key || '未关联', count: 0, columns: props.board.columns.map((c) => ({ ...c, cards: [] })) })
+          map.set(key, { key, label: key || '未关联', count: 0, columns: props.board.columns.map((c) => ({ ...c, tickets: [] })) })
           keys.push(key)
         }
       }
@@ -113,10 +113,10 @@ export function BoardView(props: {
     keys.sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a < b ? -1 : a > b ? 1 : 0))
     for (const col of props.board.columns) {
       const colIdx = props.board.columns.findIndex((c) => c.id === col.id)
-      for (const card of col.cards) {
-        const g = map.get(cardRepoOf(card))
+      for (const ticket of col.tickets) {
+        const g = map.get(ticketRepoOf(ticket))
         if (g) {
-          g.columns[colIdx].cards.push(card)
+          g.columns[colIdx].tickets.push(ticket)
           g.count += 1
         }
       }
@@ -137,41 +137,41 @@ export function BoardView(props: {
           <span className="kbnb-column-title" title={col.title}>
             {col.title}
           </span>
-          <span className="kbnb-column-count">{col.cards.length}</span>
+          <span className="kbnb-column-count">{col.tickets.length}</span>
         </header>
-        <div className="kbnb-cards">
-          {col.cards.map((card: any) => (
+        <div className="kbnb-tickets">
+          {col.tickets.map((ticket: any) => (
             <article
-              key={card.id}
-              data-card=""
+              key={ticket.id}
+              data-ticket=""
               className={
-                'kbnb-card' +
-                (drag && drag.kind === 'card' && drag.cardId === card.id ? ' kbnb-card-drag' : '') +
-                (props.activeCardId === card.id ? ' kbnb-card-active' : '')
+                'kbnb-ticket' +
+                (drag && drag.kind === 'ticket' && drag.ticketId === ticket.id ? ' kbnb-ticket-drag' : '') +
+                (props.activeTicketId === ticket.id ? ' kbnb-ticket-active' : '')
               }
               draggable
               onDragStart={(evt) => {
                 evt.dataTransfer.effectAllowed = 'move'
-                setDrag({ kind: 'card', cardId: card.id, from: col.id, groupKey })
+                setDrag({ kind: 'ticket', ticketId: ticket.id, from: col.id, groupKey })
               }}
               onDragEnd={onDragEnd}
-              onClick={() => props.onOpenCard(col.id, card.id)}
+              onClick={() => props.onOpenTicket(col.id, ticket.id)}
             >
               {/* Ticket展示：title + 标签 + 一句话纯文本描述（单行省略，无预览） */}
-              <div className="kbnb-card-title">{card.title}</div>
-              {card.tags && card.tags.length > 0 ? (
-                <div className="kbnb-card-tags">
-                  {card.tags.map((tg: string) => (
+              <div className="kbnb-ticket-title">{ticket.title}</div>
+              {ticket.tags && ticket.tags.length > 0 ? (
+                <div className="kbnb-ticket-tags">
+                  {ticket.tags.map((tg: string) => (
                     <span key={tg} className="kbnb-tag">{tg}</span>
                   ))}
                 </div>
               ) : null}
-              {card.description ? <div className="kbnb-card-desc">{card.description}</div> : null}
+              {ticket.description ? <div className="kbnb-ticket-desc">{ticket.description}</div> : null}
             </article>
           ))}
           {hint && hint.columnId === col.id ? <div className="kbnb-drop-line" /> : null}
         </div>
-        <button className="kbnb-add-card" type="button" onClick={() => props.onStartCreate(col.id)}>
+        <button className="kbnb-add-ticket" type="button" onClick={() => props.onStartCreate(col.id)}>
           + 添加Ticket
         </button>
       </section>

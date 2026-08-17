@@ -24,20 +24,20 @@ const comm = createComm({ env: 'dynamic-client', ctx, host })
 const comm = createComm({ env: 'deployed-host', ctx })
 
 // 发布 / 订阅（跨插件通知）
-comm.bus.publish('git/card-synced', { cardId, syncedAt })
-const off = comm.bus.subscribe('git/card-synced', (payload) => { /* 刷新 UI / 联动 */ })
+comm.bus.publish('git/ticket-synced', { ticketId, syncedAt })
+const off = comm.bus.subscribe('git/ticket-synced', (payload) => { /* 刷新 UI / 联动 */ })
 
 // RPC（client → 本插件 host 半）
-await comm.rpc.call('git/sync', { cardId })
+await comm.rpc.call('git/sync', { ticketId })
 
 // 跨插件服务（host 半）
 const kanban = comm.services.get('kanban')
-await kanban.updateCard(cardId, { meta })
+await kanban.updateTicket(ticketId, { meta })
 ```
 
 ## 事件 topic 约定
 
-`<plugin>/<event>`：如 `git/card-synced`（git 同步完成）、未来 `kanban/card-updated`。
+`<plugin>/<event>`：如 `git/ticket-synced`（git 同步完成）、未来 `kanban/ticket-updated`。
 
 ## 实现说明
 

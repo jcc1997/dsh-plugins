@@ -1,4 +1,4 @@
-import { KanbanBoard, KanbanCard, KanbanColumn } from './types'
+import { KanbanBoard, KanbanTicket, KanbanColumn } from './types'
 
 export function safeId(prefix: string): string {
   try {
@@ -29,15 +29,15 @@ export function fmtTime(iso?: string): string {
 export const ACTOR_UI = '手动调整'
 export const ACTOR_AGENT = 'agent'
 
-export function appendActivity(card: KanbanCard, text: string, actor?: string): void {
-  if (!card.activity) card.activity = []
-  card.activity.push({ id: safeId('a'), text, at: safeNow(), actor: actor || ACTOR_UI })
+export function appendActivity(ticket: KanbanTicket, text: string, actor?: string): void {
+  if (!ticket.activity) ticket.activity = []
+  ticket.activity.push({ id: safeId('a'), text, at: safeNow(), actor: actor || ACTOR_UI })
 }
 
-export function findCard(board: KanbanBoard, colId: string, cardId: string): KanbanCard | null {
+export function findTicket(board: KanbanBoard, colId: string, ticketId: string): KanbanTicket | null {
   const col = board.columns.find((c) => c.id === colId)
   if (!col) return null
-  return col.cards.find((k) => k.id === cardId) || null
+  return col.tickets.find((k) => k.id === ticketId) || null
 }
 
 export function colTitle(board: KanbanBoard, colId: string): string {
