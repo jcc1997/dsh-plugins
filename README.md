@@ -126,7 +126,25 @@ agent 会帮你完成构建、安装、配置和导入；你只需要在需要�
 
 ### 手动安装（给 agent / 开发者）
 
-> 说明：插件包入口指向 `lib/`，而 `lib/` 是构建产物（gitignore），所以手动安装时**必须先构建、再 `dsh plugin add`**。agent 安装时会自动按这个顺序执行。
+DSH 的 `dsh plugin` 会把参数透传给 `pnpm add`，所以后面可以跟 Git 仓库 / 已发布包、release tarball，也可以跟本地源码路径。
+
+**从 Git checkout 或已发布包安装**
+
+```bash
+dsh plugin --profile web add https://github.com/Ericwong5021/dsh-kanban
+```
+
+**直接安装 release archive**
+
+```bash
+dsh plugin --profile web add https://github.com/Ericwong5021/dsh-kanban/releases/latest/download/dsh-kanban-0.1.1.tgz
+```
+
+> 本仓库插件发布后，把上面的地址换成 `jcc1997/dsh-plugins` 对应插件的 release 资产即可；尚未发布或需要改源码时，用下面的本地源码方式。
+
+**从本地源码安装（开发者 / 未发布时）**
+
+> 插件包入口指向 `lib/`，而 `lib/` 是构建产物（gitignore），所以从源码安装时**必须先构建、再 `dsh plugin add`**。agent 安装时会自动按这个顺序执行。
 
 前置：已安装 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)(DSH)，并在仓库根目录执行过 `pnpm install`。
 
