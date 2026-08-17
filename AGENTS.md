@@ -13,6 +13,15 @@
 | packages/ui/host/design-platform.css | 写 UI 的 agent | DSH 官方设计 tokens 权威色板快照（sync 脚本从 vendor submodule 同步） |
 | plugins/<name>/README.md | 该插件的使用者/维护者 | 该插件当前状态：能力、目录、数据模型、已知问题。**不是开发过程流水账** |
 
+## Skills 加载说明
+
+仓库内 `.agents/skills/` 下的 skill（workflow、grill-me、dsh-dynamic-plugin-dev 等）**不是默认自动加载进每个会话**。
+
+- 只有当前 agent preset 挂载了 `@deepseek-ai/dsh-skill-filesystem` + `@deepseek-ai/dsh-tool-skill`（例如 workflow 模式）时，模型才会看到 `<available_skills>` 目录，并能用 `skill` 工具按名加载。
+- 如果当前会话工具列表里没有 `skill` 工具，说明该会话没有启用 skill 目录；此时即使看到 `/grill-me` 这样的写法，也不会自动注入 skill 内容。
+- 不要假设 workflow / grill-me 等 skill 已加载。要使用某个 skill，先确认当前会话有 `skill` 工具并调用它加载；或切换到带 skill 的预设（如 workflow 模式）。
+- workflow 只在 workflow 模式或用户显式要求时默认启用，详见 `workflow-template/README.md` 与 `.agents/skills/workflow/SKILL.md`。
+
 ## 动态插件开发流程（热更新）
 
 1. **工具门槛（两条件都满足才热更新）**：① 会话需为**创造模式**（creation mode）——`cordis_define` / `cordis_run` / `cordis_inspect_*` 是创造模式才提供的工具；② 需 **Code Mode**（`DSH_TOOLS_MODE=code`，开启 `run_code`，SDK 零粘贴切块读 submit.json 用）。缺一即拒绝热更新：产物每次全量进上下文 ≈50KB+（见 skill 第零节）。要么要求用户重开合适模式的会话，要么改走组合插件文件引用

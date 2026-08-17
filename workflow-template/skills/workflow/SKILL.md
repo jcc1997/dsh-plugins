@@ -92,7 +92,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 
 1. **确认建卡**:复述理解 → 与用户确认 → `kanban_create(title, template: "workflow")` 建卡进 Backlog(自动带入门禁与标签;必要时先 `git_claim_task_id` 认领 taskId);
 2. **进 RD**:`git_create_branch(card_id)` 建 workflow 分支(过 branch-linked 门禁)→ `kanban_move(card_id, "RD")`;
-3. **RD 设计**:用 `grill-me` skill 拷问方案到共识 → 按 `workflow-template/templates/rd.md` 模板产出 `docs/<taskId>/rd.md`(与分支一起演进);
+3. **RD 设计**:若当前会话有 `skill` 工具，先加载 `grill-me` skill，再拷问方案到共识 → 按 `workflow-template/templates/rd.md` 模板产出 `docs/<taskId>/rd.md`(与分支一起演进);
 4. **RD 确认**:`md_doc_open(path: "…/docs/<taskId>/rd.md")` 展示给人审阅(划词批注 + 总评)→ 通过 → `kanban_tags(card_id, add: ["rd-confirmed"])`;
 5. **建 MR**:RD 确认后 `git_create_mr(card_id)` 提交 MR(标题带 `[taskId]` 自动关联)→ `kanban_move(card_id, "TD")`;
 6. **逐阶段推进**:TD(写 td.md → md_doc_open 审阅 → td-confirmed)→ UC(验收用例 → md_doc_open → uc-confirmed)→ In Dev(开发)→ 1st Review(建 MR,move→Testing 触发 agent 评审 pipeline,**agent 评审通过后才发起人审** ask_user_question + MR 链接 → review-1-done)→ Testing(测试 → tests-passed)→ 2nd review(复审 → review-2-done)→ Stage;

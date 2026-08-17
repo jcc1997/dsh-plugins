@@ -44,7 +44,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 1. **安装 agent 预设（workflow 模式）**：把本目录 `agent-presets/workflow/` 复制到 `~/.dsh/.agent-presets/workflow/`（agent 执行 `cp -r workflow-template/agent-presets/workflow ~/.dsh/.agent-presets/`）。之后**新建会话**时在预设选择器里选「workflow 模式」，agent 就自动按「会话编排」执行——不需要再交代流程；也可在设置 → Agent 预设里把它设为默认；
 2. agent 读取本目录 `workflow.json`，执行 `kanban_import_config` 导入（整体替换配置层，**旧卡片不受影响**：挪到第一列、门禁挂载清除，导入前自动备份 `board.json.bak-<时间戳>`）；
 3. 执行 `pipeline_import_config`（读取本目录 `pipelines.json`）导入评审 pipeline 定义（按稳定 id 幂等 upsert）；
-3. 把 `skills/workflow/` 复制进当前仓库的 `.agents/skills/`（本仓库已同步，复制到别的仓库时记得带过去）——agent 之后自动加载流程知识。
+3. 把 `skills/workflow/` 复制进当前仓库的 `.agents/skills/`（本仓库已同步，复制到别的仓库时记得带过去）——之后在挂载了 skill 工具的预设（如 workflow 模式）中，agent 可通过 `skill` 工具加载流程知识；不是所有模式自动加载。
 
 ### 完成自检
 
@@ -113,7 +113,7 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 |---|---|
 | `workflow.json` | 工作流配置（列 + 门禁 + 模板），**单一事实源**，与 kanban_export_config 导出格式一致 |
 | `agent-presets/workflow/` | workflow 模式 agent 预设（拷入 ~/.dsh/.agent-presets/ 即出现在会话预设选择器） |
-| `skills/workflow/SKILL.md` | 流程含义 + agent 会话编排手册（拷入 .agents/skills/ 即被自动加载） |
+| `skills/workflow/SKILL.md` | 流程含义 + agent 会话编排手册（拷入 .agents/skills/ 并在带 skill 工具的预设中通过 `skill` 工具加载） |
 | `templates/rd.md` | RD 设计文档模板（产出 docs/<taskId>/rd.md） |
 | `README.md` | 本文件：理念 + 安装指南 + 使用指南 |
 
