@@ -54,7 +54,11 @@ export function normalizeBoard(board: any): any {
     }
   }
   for (const col of board.columns || []) {
-    for (const ticket of col.tickets || []) migrateHolder(ticket)
+    // 旧数据兼容：cards → tickets（破坏性升级后仅做读取兜底，避免旧 board.json 直接报错）
+    if (!Array.isArray(col.tickets) && Array.isArray(col.cards)) col.tickets = col.cards
+    if (!Array.isArray(col.tickets)) col.tickets = []
+    delete col.cards
+    for (const ticket of col.tickets) migrateHolder(ticket)
   }
   for (const ticket of board.archive || []) migrateHolder(ticket)
   for (const tpl of board.templates || []) migrateHolder(tpl)

@@ -120,11 +120,13 @@ export function useKanbanBoard(host: HostLike) {
       const fromCol = b.columns.find((c) => c.id === fromId)
       const toCol = b.columns.find((c) => c.id === targetColId)
       if (!fromCol || !toCol || fromId === targetColId) return
-      const idx = fromCol.tickets.findIndex((k) => k.id === ticketId)
+      const fromTickets = fromCol.tickets || []
+      const idx = fromTickets.findIndex((k) => k.id === ticketId)
       if (idx < 0) return
-      const [ticket] = fromCol.tickets.splice(idx, 1)
+      const [ticket] = fromTickets.splice(idx, 1)
       ticket.updatedAt = safeNow()
       appendActivity(ticket, '状态变更：' + fromCol.title + ' → ' + toCol.title)
+      if (toCol.tickets == null) toCol.tickets = []
       toCol.tickets.push(ticket)
     })
   }
@@ -132,9 +134,9 @@ export function useKanbanBoard(host: HostLike) {
   function deleteTicket(ticketId: string) {
     mutate((b) => {
       for (const col of b.columns) {
-        const before = col.tickets.length
-        col.tickets = col.tickets.filter((k) => k.id !== ticketId)
-        if (col.tickets.length !== before) return
+        const before = (col.tickets || []).length
+        col.tickets = (col.tickets || []).filter((k) => k.id !== ticketId)
+        if ((col.tickets || []).length !== before) return
       }
     })
   }
@@ -146,7 +148,7 @@ export function useKanbanBoard(host: HostLike) {
       const hit = hitOf(b, ticketId)
       if (!hit) return
       const ticket = (hit as any).ticket
-      ;(hit as any).col.tickets = (hit as any).col.tickets.filter((k: any) => k.id !== ticketId)
+      ;(hit as any).col.tickets = ((hit as any).col.tickets || []).filter((k: any) => k.id !== ticketId)
       ticket.archivedFrom = (hit as any).col.id
       ticket.archivedAt = safeNow()
       ticket.updatedAt = safeNow()
@@ -169,6 +171,7 @@ export function useKanbanBoard(host: HostLike) {
       if (!col) return
       ticket.updatedAt = safeNow()
       appendActivity(ticket, '恢复Ticket（归档）')
+      if (col.tickets == null) col.tickets = []
       col.tickets.push(ticket)
     })
   }

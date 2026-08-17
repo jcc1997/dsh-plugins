@@ -105,6 +105,7 @@ export function KanbanPage(props: {
         updatedAt: safeNow(),
       }
       appendActivity(ticket, '创建Ticket' + (templateName ? '（模板：' + templateName + '）' : ''))
+      if (!Array.isArray(col.tickets)) col.tickets = []
       col.tickets.push(ticket)
     })
   }
@@ -132,7 +133,7 @@ export function KanbanPage(props: {
   const drawerHit = drawer ? kb.findTicket(drawer.ticketId) : null
   const drawerTicket = drawerHit ? drawerHit.ticket : null
   const archived = board.archive || []
-  const activeCount = board.columns.reduce((n, col) => n + col.tickets.length, 0)
+  const activeCount = board.columns.reduce((n, col) => n + (col.tickets || []).length, 0)
   const gateCount = (board.gateLibrary || []).length
 
   return (

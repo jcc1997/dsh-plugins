@@ -95,14 +95,14 @@ export function BoardView(props: {
       return [{
         key: '',
         label: '',
-        count: props.board.columns.reduce((n, c) => n + c.tickets.length, 0),
+        count: props.board.columns.reduce((n, c) => n + (c.tickets || []).length, 0),
         columns: props.board.columns.map((c) => ({ ...c })),
       }]
     }
     const map = new Map<string, Group>()
     const keys: string[] = []
     for (const col of props.board.columns) {
-      for (const ticket of col.tickets) {
+      for (const ticket of (col.tickets || [])) {
         const key = ticketRepoOf(ticket)
         if (!map.has(key)) {
           map.set(key, { key, label: key || '未关联', count: 0, columns: props.board.columns.map((c) => ({ ...c, tickets: [] })) })
@@ -113,7 +113,7 @@ export function BoardView(props: {
     keys.sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a < b ? -1 : a > b ? 1 : 0))
     for (const col of props.board.columns) {
       const colIdx = props.board.columns.findIndex((c) => c.id === col.id)
-      for (const ticket of col.tickets) {
+      for (const ticket of (col.tickets || [])) {
         const g = map.get(ticketRepoOf(ticket))
         if (g) {
           g.columns[colIdx].tickets.push(ticket)
@@ -137,10 +137,10 @@ export function BoardView(props: {
           <span className="kbnb-column-title" title={col.title}>
             {col.title}
           </span>
-          <span className="kbnb-column-count">{col.tickets.length}</span>
+          <span className="kbnb-column-count">{(col.tickets || []).length}</span>
         </header>
         <div className="kbnb-tickets">
-          {col.tickets.map((ticket: any) => (
+          {(col.tickets || []).map((ticket: any) => (
             <article
               key={ticket.id}
               data-ticket=""
