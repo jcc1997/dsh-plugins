@@ -20,7 +20,6 @@
 - 标准模式、Code 模式、workflow 模式等预设会挂载 `@deepseek-ai/dsh-skill-filesystem` + `@deepseek-ai/dsh-tool-skill`，模型才能看到 `<available_skills>` 目录，并能用 `skill` 工具按名加载；极简模式没有 skill 工具，因此不会加载项目内 skills。
 - 如果当前会话工具列表里没有 `skill` 工具，说明该会话没有启用 skill 目录；此时即使看到 `/grill-me` 这样的写法，也不会自动注入 skill 内容。
 - 不要假设 workflow / grill-me 等 skill 已加载。要使用某个 skill，先确认当前会话有 `skill` 工具并调用它加载；或切换到标准模式 / Code 模式 / workflow 模式等带 skill 的预设。
-- workflow 只在 workflow 模式或用户显式要求时默认启用，详见 `workflow-template/README.md` 与 `.agents/skills/workflow/SKILL.md`。
 
 ## 动态插件开发流程（热更新）
 
@@ -36,7 +35,6 @@
 3. **文档纪律**：README 只写对外介绍；开发过程/踩坑写进 skill；插件现状写进插件 README。提交前确认改动涉及文档时文档同步更新
 4. **源码即真相**：`dist/` 产物 gitignore；一切以 `src/` 为准，动态插件会话内存态重启即失，务必及时提交源码
 5. **共享优先**：跨插件复用的代码进 `packages/ui`（tokens/图标/工具函数/组件），不要在插件内复制
-6. **不要默认建 kanban ticket**：只有当前会话是 workflow 模式，或用户显式要求使用看板工作流 / 创建 kanban ticket 时，才自动建卡并走 workflow；其他模式按用户直接请求处理，不主动创建卡片/分支/MR。**非 workflow 模式下即使要建卡，也必须先用 `ask_user_question` 与用户确认后再创建。**
 
 ## 提交规范
 
