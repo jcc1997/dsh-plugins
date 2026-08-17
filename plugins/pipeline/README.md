@@ -30,7 +30,7 @@ DSH Pipeline 流水线插件（正式 bundle 形态）。类似 dify 的可复�
 ## pipeline_import_config（模板分发）
 
 - 导入 `{ pipelines: [{ id, name, kind, description, tags, nodes, input_schema?, published?, changelog? }] }`，按 **id 幂等 upsert**：已存在更新元信息与最新草稿节点，不存在新建；`published: true` 时发布（已有发布版本则跳过，不重复 bump）。
-- 用途：模板/配置分发时可用 `pipeline_import_config` 导入；HTTP 路由 `/pipeline-api/import` 同构可用。
+- 用途：workflow-template/pipelines.json（评审 pipeline `p-workflow-review`）随模板分发，新环境导入即用；HTTP 路由 `/pipeline-api/import` 同构可用。
 
 ## 已知限制 / 路线
 

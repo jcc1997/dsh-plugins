@@ -97,8 +97,9 @@ agent 会完成：**构建插件 → 挂载到 web profile → 配置 git/pipeli
 **核心能力**：
 
 - 10 列流程：`Backlog → RD → TD → UC → In Dev → 1st Review → Testing → 2nd review → Stage → Done`。
-- 10 条门禁 + 2 个创建模板（`workflow` / `bug`），把「分支已建、文档已确认、MR 已合并」固化成规则。
+- 11 条门禁 + 2 个创建模板（`workflow` / `bug`），把「分支已建、文档已确认、MR 已合并」固化成规则。
 - 一份 `workflow.json` 即可导入/导出/分享/自定义。
+- 配套 `pipelines.json`：导入后可直接用真实 AI 评审 pipeline 做 Testing 门禁。
 
 **入口**：把 `workflow-template/workflow.json` 交给 agent 用 `kanban_import_config` 导入。
 

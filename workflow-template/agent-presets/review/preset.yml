@@ -1,0 +1,3 @@
+name: Review 模式
+description: 精简代码评审子 agent 组合（pipeline「代码评审」llm 节点用）：仅 fs（read/glob/grep）+ bash 最小工具集，不加载 skills/web/subagent/插件等无关上下文（token 节省）。不是用户会话模式——由 workflow 模式会话的评审 pipeline 以子 agent 身份创建。
+order: 10
