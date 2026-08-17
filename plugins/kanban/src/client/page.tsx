@@ -327,6 +327,7 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
   const [to, setTo] = useState('')
   const [type, setType] = useState('mr-merged')
   const [cfgText, setCfgText] = useState('')
+  const [detailId, setDetailId] = useState<string | null>(null)
   const lib = props.board.gateLibrary || []
 
   function submit() {
@@ -399,40 +400,62 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
       {lib.length === 0 && !adding ? (
         <div className="kbnb-settings-empty">暂无 Gates。新建后可在Ticket抽屉「Gates」区块勾选挂载、在模板勾选预置（agent 工具：kanban_gate_create / kanban_gate_add）。</div>
       ) : null}
-      <div className="kbnb-gates-grid">
-        {lib.map((g: any) => {
-          const users = usersOf(g.id)
-          const cfg = g.checker && g.checker.config
-          return (
-            <section key={g.id} className="kbnb-settings kbnb-gate-ticket">
-              <header className="kbnb-gate-ticket-head">
-                <div className="kbnb-tpl-main">
-                  <span className="kbnb-tpl-name">{g.name}</span>
-                  <span className="kbnb-tpl-desc">
-                    {GATE_ON_LABEL_P[g.on]}{g.to ? '→' + g.to : ''} · {gateTypeLabel(g)}
-                  </span>
-                </div>
-                <button className="kbnb-btn kbnb-danger kbnb-gate-del" type="button" title="删除门禁（同时从Ticket/模板摘除）" onClick={() => props.kb.deleteGate(g.id)}>删除</button>
-              </header>
-              {cfg && Object.keys(cfg).length > 0 ? (
-                <pre className="kbnb-gate-detail-pre">{JSON.stringify(cfg, null, 2)}</pre>
-              ) : null}
-              <div className="kbnb-gate-users">
-                {users.tickets.length > 0 || users.templates.length > 0 ? (
-                  <>
-                    <span className="kbnb-field-label">引用：</span>
-                    {users.templates.map((tn) => <span key={'t' + tn} className="kbnb-tag">模板 {tn}</span>)}
-                    {users.tickets.map((c) => (
-                      <button key={c.id} className="kbnb-gates-ticketlink" type="button" title={'打开Ticket（' + c.col + '）'} onClick={() => props.onOpenTicket(c.id)}>
-                        {c.title} <span className="kbnb-gates-col">{c.col}</span>
-                      </button>
-                    ))}
-                  </>
-                ) : <span className="kbnb-field-label">暂无引用</span>}
+      {detailId ? (() => {
+        const g = lib.find((x: any) => x.id === detailId)
+        if (!g) return null
+        const users = usersOf(g.id)
+        const cfg = g.checker && g.checker.config
+        return (
+          <section className="kbnb-settings kbnb-gate-detail-panel">
+            <header className="kbnb-gate-detail-head">
+              <div className="kbnb-tpl-main">
+                <span className="kbnb-tpl-name">{g.name}</span>
+                <span className="kbnb-tpl-desc">
+                  {GATE_ON_LABEL_P[g.on]}{g.to ? '→' + g.to : ''} · {gateTypeLabel(g)}
+                </span>
               </div>
-            </section>
-          )
-        })}
+              <button className="kbnb-btn" type="button" onClick={() => setDetailId(null)}>关闭</button>
+            </header>
+            {cfg && Object.keys(cfg).length > 0 ? (
+              <pre className="kbnb-gate-detail-pre">{JSON.stringify(cfg, null, 2)}</pre>
+            ) : null}
+            <div className="kbnb-gate-users">
+              {users.tickets.length > 0 || users.templates.length > 0 ? (
+                <>
+                  <span className="kbnb-field-label">引用：</span>
+                  {users.templates.map((tn) => <span key={'t' + tn} className="kbnb-tag">模板 {tn}</span>)}
+                  {users.tickets.map((c) => (
+                    <button key={c.id} className="kbnb-gates-ticketlink" type="button" title={'打开Ticket（' + c.col + '）'} onClick={() => props.onOpenTicket(c.id)}>
+                      {c.title} <span className="kbnb-gates-col">{c.col}</span>
+                    </button>
+                  ))}
+                </>
+              ) : <span className="kbnb-field-label">暂无引用</span>}
+            </div>
+          </section>
+        )
+      })() : null}
+      <div className="kbnb-gates-grid">
+        {lib.map((g: any) => (
+          <section key={g.id} className="kbnb-settings kbnb-gate-ticket" onClick={() => setDetailId(g.id)}>
+            <header className="kbnb-gate-ticket-head">
+              <div className="kbnb-tpl-main">
+                <span className="kbnb-tpl-name">{g.name}</span>
+                <span className="kbnb-tpl-desc">
+                  {GATE_ON_LABEL_P[g.on]}{g.to ? '→' + g.to : ''} · {gateTypeLabel(g)}
+                </span>
+              </div>
+              <button
+                className="kbnb-btn kbnb-danger kbnb-gate-del"
+                type="button"
+                title="删除门禁（同时从Ticket/模板摘除）"
+                onClick={(e) => { e.stopPropagation(); props.kb.deleteGate(g.id) }}
+              >
+                删除
+              </button>
+            </header>
+          </section>
+        ))}
       </div>
     </div>
   )

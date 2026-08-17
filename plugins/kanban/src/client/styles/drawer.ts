@@ -42,10 +42,12 @@ export const drawerCss = `
 .kbnb-gate-form-row{display:flex;align-items:center;gap:8px}
 .kbnb-gate-form-row .kbnb-input{flex:1}
 .kbnb-gates-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
-.kbnb-gate-ticket{display:flex;flex-direction:column;gap:8px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;transition:border-color 150ms cubic-bezier(.4,0,.2,1),box-shadow 150ms cubic-bezier(.4,0,.2,1)}
+.kbnb-gate-ticket{display:flex;flex-direction:column;gap:8px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color 150ms cubic-bezier(.4,0,.2,1),box-shadow 150ms cubic-bezier(.4,0,.2,1)}
 .kbnb-gate-ticket:hover{border-color:var(--dsw-alias-state-business-primary);box-shadow:var(--dsw-shadow-lv2)}
 .kbnb-gate-ticket-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .kbnb-gate-ticket .kbnb-gate-detail-pre{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px}
+.kbnb-gate-detail-panel{display:flex;flex-direction:column;gap:10px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--dsw-shadow-lv2)}
+.kbnb-gate-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .kbnb-gate-users{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .kbnb-gate-users .kbnb-gates-ticketlink{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;margin-bottom:0}
 .kbnb-gate-del{flex:none}
