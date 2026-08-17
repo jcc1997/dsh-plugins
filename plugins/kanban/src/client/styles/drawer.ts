@@ -41,6 +41,7 @@ export const drawerCss = `
 /* ══ Gates 视图（v6）：卡片网格展示 ══ */
 .kbnb-gate-form-row{display:flex;align-items:center;gap:8px}
 .kbnb-gate-form-row .kbnb-input{flex:1}
+.kbnb-gate-add-panel{display:flex;flex-direction:column;gap:10px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:14px 16px;margin-bottom:12px}
 .kbnb-gates-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;align-items:start}
 .kbnb-gate-ticket{display:flex;flex-direction:column;gap:8px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color 150ms cubic-bezier(.4,0,.2,1),box-shadow 150ms cubic-bezier(.4,0,.2,1)}
 .kbnb-gate-ticket:hover{border-color:var(--dsw-alias-state-business-primary);box-shadow:var(--dsw-shadow-lv2)}

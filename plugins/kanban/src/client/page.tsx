@@ -364,7 +364,7 @@ function GatesView(props: { board: KanbanBoard; kb: ReturnType<typeof useKanbanB
         <button className="kbnb-btn kbnb-primary" type="button" onClick={() => setAdding(!adding)}>{adding ? '收起' : '+ 新建门禁'}</button>
       </div>
       {adding ? (
-        <section className="kbnb-settings">
+        <section className="kbnb-settings kbnb-gate-add-panel">
           <div className="kbnb-field">
             <label className="kbnb-field-label">门禁名</label>
             <input className="kbnb-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="如：MR 合并后才能进 Done（可留空自动生成）" />
