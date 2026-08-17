@@ -4,7 +4,7 @@
 # writes a TypeScript program against a generated SDK and `run_code` executes
 # it). What is different is the persona: this agent runs the kanban-based
 # workflow (workflow-template: Backlog -> RD -> TD -> UC -> In Dev -> 1st Review
-# -> Testing -> 2nd review -> Stage -> Done), driving kanban/git/review plugins
+# -> Testing -> 2nd review -> Stage -> Done), driving kanban/git plugins
 # per the session orchestration below. Select this preset at conversation start
 # to make every session walk the same dev flow.
 #

@@ -92,7 +92,7 @@ export function apply(ctx: PipelineCtx) {
           if (typeof conf.maxTokens === 'number') agentOptions.maxTokens = conf.maxTokens
           const reviewPersona = typeof conf.persona === 'string' && conf.persona.trim()
             ? conf.persona
-            : '你是代码评审 agent。只评审、不改码、不提交。严格按收到的评审指令与仓库内 workflow-template/prompts/review.md 执行，最终输出以最后一行 REVIEW_VERDICT:{"ok":true|false,"issues":[...]} 结尾。'
+            : '你是代码评审 agent。只评审、不改码、不提交。严格按收到的评审指令执行，最终输出以最后一行 REVIEW_VERDICT:{"ok":true|false,"issues":[...]} 结尾。'
           // 评审对象摘要（refs 按 kind 解析）+ 续评注入（上轮评审意见）
           const target = enrichReviewTarget(up)
           let fullPrompt = target ? target + prompt : prompt
