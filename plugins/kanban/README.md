@@ -49,6 +49,8 @@ DSH Kanban插件（正式 bundle 形态）：嵌入侧边栏的全功能Kanban�
 
 > 无 codeRuntime 时降级：内置预设走宿主等价实现（行为一致），code 类型走 bash 子进程（无 gate 命名空间）。
 
+> **pipeline 门禁的执行上下文（踩坑备忘 · dsh-plugins-4）**：pipeline 检查器只在**真实动作调用**（如 `kanban_ticket_move`）里携带调用方 agent 上下文；若 pipeline 含 llm 节点（如 workflow 评审 `p-workflow-review`），用 `kanban_gate_check` 预检会报 `缺少调用方 agent 上下文`、独立 `pipeline_run` 会 `aborted before child publication`——都跑不了评审。验证评审类 pipeline 门禁请用真实 move（评审通过时拒因只剩缺 review-1-done；未过会落卡评论）。
+
 ### 3. code checker：沙箱里有什么
 
 代码在**宿主 codeRuntime 的 worker 沙箱**中执行（与 run_code 同款隔离：空环境、heap/时间预算、可硬杀；语义为「containment not security」——代码拥有与 bash 等同的信任）。代码为 TypeScript 风格，支持 top-level await，**判定结果一律由顶层 return 给出**：`return { ok: true }` 通过，`return { ok: false, reason: '…' }` 拒绝。

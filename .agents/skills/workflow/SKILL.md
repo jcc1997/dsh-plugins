@@ -71,6 +71,18 @@ Backlog ──> RD ──> TD ──> UC ──> In Dev ──> 1st Review ─�
 - 新环境：`pipeline_import_config`（导入 `workflow-template/pipelines.json`，稳定 id `p-workflow-review` 幂等）→ `kanban_import_config`（导入 `workflow.json`）→ 门禁即生效。
 - 插件改动（pipeline/kanban 源码）需重建并重启 dsh 后生效（动态插件会话内存态重启即失）。
 
+### 执行上下文约束（踩坑备忘 · dsh-plugins-4 实测）
+
+评审 pipeline 的 llm 节点 `subagents.start('spawn')` 需要**调用方 agent 上下文**（`parentAgent`）+ 未失效的 `AbortSignal`（`externalSignal`）。这两个只在**真实 move 的执行上下文**（`kanban_ticket_move` 把 `exec.agent/exec.signal` 透传给门禁检查器）里存在：
+
+- ✅ **正确触发**：`kanban_ticket_move(ticket, "Testing")`。`checkGates` **全量评估所有命中的门禁、不短路**——即使缺 `review-1-done`，评审 pipeline 也会同步被评估；评审未过 → 拒因带摘要 + 落卡评论，修复后重 move（续评自动注入上轮失败评论）。
+- ❌ **错误触发（白跑/误导）**：
+  - 独立 `pipeline_run(p-workflow-review, …)`（异步入队）：llm 节点执行时调用方 signal 已失效 → 报 `subagent request was aborted before child publication`，评审根本没跑；
+  - `kanban_gate_check(action=move, to="Testing")` 手动预检：**不带 agent 上下文**，pipeline 检查器必报 `缺少调用方 agent 上下文（parentAgent 未注入）` 并计入 failed——预检的 pipeline 结果**没有参考价值**，别据此判断 move 能否过。
+
+**实操（达成「agent 评审先于人审」）**：先 `kanban_ticket_move(ticket, "Testing")` 触发评审（评审通过时拒因只剩缺 review-1-done）→ 评审 OK 后才发起人审（ask_user_question）→ 打 `review-1-done` → 再 move → 双门禁（tag + 续评）通过进 Testing。评审必然搭着真实 move 跑，没有独立的「先跑评审」步骤可做。
+
+
 ## 三-ter、bug 快捷流程（跳过 RD/TD）
 
 > bug 类Ticket走轻量流程：不写 rd.md/td.md/uc.md（复现步骤 + 验收点写卡描述），从 Backlog 直进 In Dev；分支/MR 照建，评审门禁与后续列全保留。建卡用 `kanban_ticket_create(title, template: "bug")`（自动挂 7 条门禁：In Dev 建分支 / 1st Review 关联 MR / Testing 双门禁 / tests-passed / review-2-done / mr-merged）。
