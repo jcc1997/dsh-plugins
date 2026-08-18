@@ -13,6 +13,50 @@ export const BOARD_FILE = 'board.json'
 export const WRITE_POLICY = { mode: 'danger-full-access' }
 export const ACTOR_AGENT = 'agent'
 
+/** 宿主会话标题缓存（session_projcache.json）；解析会话关联的真实名称用 */
+export const SESSION_CACHE_DIR = '/Users/jinchao.chen/.dsh/storages'
+export const SESSION_CACHE_FILE = 'session_projcache.json'
+
+/** 读宿主会话标题表：sessionId → 会话标题（缺失/未生成返回空表；失败不阻塞调用方） */
+export async function sessionTitleMap(fs: FsLike): Promise<Record<string, string>> {
+  try {
+    const target = await fs.resolve(SESSION_CACHE_DIR + '/' + SESSION_CACHE_FILE)
+    const text = await fs.readText(target)
+    const data = JSON.parse(text)
+    const sessions = data && data.tables && data.tables.sessions
+    if (!sessions || typeof sessions !== 'object') return {}
+    const map: Record<string, string> = {}
+    for (const id of Object.keys(sessions)) {
+      const holder = sessions[id]
+      const val = holder && holder.rows && holder.rows.title && holder.rows.title.val
+      if (typeof val === 'string' && val.trim()) map[id] = val
+    }
+    return map
+  } catch {
+    return {}
+  }
+}
+
+/** 把 Ticket 的会话关联 ref.display 解析为真实会话名（仅覆盖占位「本会话」/空值，尊重手动命名） */
+export function decorateSessionRefs(ticket: any, titles: Record<string, string>): void {
+  const refs: any[] = Array.isArray(ticket && ticket.refs) ? ticket.refs : []
+  for (const r of refs) {
+    if (!r || r.kind !== 'session' || !r.externalId) continue
+    const name = titles[String(r.externalId)]
+    if (name && (!r.display || r.display === '本会话')) r.display = name
+  }
+}
+
+/** 整板会话关联名称补齐（load / get 出口统一处理，避免多处重复读宿主缓存） */
+export async function decorateBoardSessionRefs(fs: FsLike, board: any): Promise<void> {
+  if (!board) return
+  const titles = await sessionTitleMap(fs)
+  for (const col of board.columns || []) {
+    for (const t of col.tickets || []) decorateSessionRefs(t, titles)
+  }
+  for (const t of board.archive || []) decorateSessionRefs(t, titles)
+}
+
 /** 缺板时的新板：3 个默认列 + 空归档 + 空模板（version 4 = 门禁/创建模板模型） */
 export function defaultBoard(): any {
   const cols = ['待办', '进行中', '完成']

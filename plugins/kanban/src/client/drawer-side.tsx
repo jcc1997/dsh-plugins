@@ -121,7 +121,16 @@ function GitTicket(props: {
   const repoRef = refs.find((r) => r.kind === 'github-repo')
   const branchRefs = refs.filter((r) => r.kind === 'github-branch')
   const mrRefs = refs.filter((r) => r.kind === 'github-mr')
-  const snapshotMrs: any[] = syncEnv && syncEnv.snapshot && Array.isArray(syncEnv.snapshot.mrs) ? syncEnv.snapshot.mrs : []
+  const snapshotMrsAll: any[] = syncEnv && syncEnv.snapshot && Array.isArray(syncEnv.snapshot.mrs) ? syncEnv.snapshot.mrs : []
+  // 只展示「本卡相关」的 MR：显式关联的 github-mr ref，或标题含本卡 taskId 的 MR（对齐 git_sync 的 [ID] 自动关联口径）
+  const taskId = meta && meta.taskId ? String(meta.taskId) : ''
+  const snapshotMrs: any[] = snapshotMrsAll.filter((m: any) => {
+    if (!m || m.number === undefined || m.number === null) return false
+    const num = String(m.number)
+    if (mrRefs.some((r) => String(r.externalId) === num)) return true
+    if (taskId && Array.isArray(m.taskIds) && m.taskIds.some((x: any) => String(x || '').toLowerCase() === taskId.toLowerCase())) return true
+    return false
+  })
   // 新增 git 关联表单
   const [adding, setAdding] = useState(false)
   const [repoText, setRepoText] = useState('')

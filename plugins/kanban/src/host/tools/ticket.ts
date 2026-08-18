@@ -5,6 +5,7 @@ import {
   mutateBoard, readBoard, resolveDataDir, defaultBoard,
   findTicketAny, findTicketGlobal, resolveColumn, ticketSummary,
   normalizeContent, contentText, ticketRepo, appendActivity, safeId, now,
+  sessionTitleMap, decorateSessionRefs,
 } from '../board'
 import { P, STR, STRS, NUM, outputOf } from './shared'
 import { checkGates, GateCheckDeps } from '../gate'
@@ -49,10 +50,13 @@ export function ticketToolDefs(fs: FsLike, gateDeps: GateCheckDeps): any[] {
       description: '按Ticket id 获取单个Ticket的完整详情：标题、描述、富文本内容、状态、标签、评论、变更记录。归档Ticket也可查（输出带 archived=true）。',
       parameters: P({ ticket_id: STR('Ticket id（来自 kanban_ticket_view / kanban_ticket_search 的结果）') }, ['ticket_id']),
       execute: async (args: any) => {
+        // 会话关联 ref 补真实会话名（占位「本会话」→ 会话标题）；读宿主缓存失败不影响查询
+        const titles = await sessionTitleMap(fs)
         return mutateBoard(fs, (board: any) => {
           const hit = findTicketAny(board, String(args.ticket_id))
           if (!hit) return null
           const { ticket } = hit
+          decorateSessionRefs(ticket, titles)
           return {
             ticket: {
               ...ticketSummary(ticket, hit.col), archived: hit.archived,

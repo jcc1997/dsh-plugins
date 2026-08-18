@@ -3,7 +3,7 @@
 // 接入点（正式形态）：ctx.webServer.register 暴露 /api/kanban/*（client UI 数据通道）；
 //       ctx.tools.register(defineTool(...)) 注册 agent 工具；ctx.provide('kanban') 跨插件服务。
 // v4：门禁引擎（host/gate.ts）+ 创建模板（board.templates）；credentials 供 mr-merged 门禁查 GitHub。
-import { FsLike, findTicketAny, findTicketGlobal, mutateBoard, readBoard, resolveDataDir, resolveColumn, defaultBoard, appendActivity, now, normalizeBoard, safeId } from './host/board'
+import { FsLike, findTicketAny, findTicketGlobal, mutateBoard, readBoard, resolveDataDir, resolveColumn, defaultBoard, appendActivity, now, normalizeBoard, safeId, decorateBoardSessionRefs } from './host/board'
 import { buildToolDefs } from './host/tools'
 import { checkGates, GateAction } from './host/gate'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -75,10 +75,11 @@ export function apply(ctx: KanbanCtx) {
     }
   }
 
-  // 加载整板（含归档/模板）与数据目录
+  // 加载整板（含归档/模板）与数据目录；会话关联 ref 补真实会话名（本卡详情展示用）
   route('/kanban-api/load', async () => {
     const dataDir = await resolveDataDir(fs)
     const board = normalizeBoard(await readBoard(fs, dataDir)) || defaultBoard()
+    await decorateBoardSessionRefs(fs, board)
     return { board, dataDir }
   })
   // 门禁预检（UI 动作前调用）：ticket_id + action(move/tags/archive) [+ to 目标列名]

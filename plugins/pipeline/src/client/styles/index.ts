@@ -150,7 +150,7 @@ export const plpCss = `
 
 /* ══ 常驻 dock 条(conversation.input.dock,Composer 上方整行;todo 式运行列表) ══ */
 /* 对齐 = 宿主 TodoPanel 同款公式(源码 TodoPanel.module.css):居中 + 宽度按 clearance/dock-inset/card-max-width 计算 */
-.plp-dock{box-sizing:border-box;display:flex;flex-direction:column;gap:2px;margin:0 auto;width:calc(100% - var(--dsh-composer-side-clearance) - var(--dsh-composer-side-clearance) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset));max-width:calc(var(--dsh-composer-card-max-width) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset));padding:6px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-base)}
+.plp-dock{box-sizing:border-box;display:flex;flex-direction:column;gap:2px;margin:0 auto;width:calc(100% - var(--dsh-composer-side-clearance) - var(--dsh-composer-side-clearance) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset));max-width:calc(var(--dsh-composer-card-max-width) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset) - var(--dsh-composer-dock-inset));padding:6px 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-2)}
 .plp-dock-head{display:flex;align-items:center;gap:8px;min-width:0}
 .plp-dock-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-primary);flex:none}
 .plp-dock-count{font-size:11px;color:var(--dsw-alias-label-tertiary);background:var(--dsw-alias-bg-layer-2);border-radius:999px;padding:0 6px;font-variant-numeric:tabular-nums}
