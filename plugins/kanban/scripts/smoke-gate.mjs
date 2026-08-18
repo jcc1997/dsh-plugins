@@ -49,22 +49,32 @@ r = await tool('kanban_ticket_archive').execute({ ticket_id: ticketId })
 console.log('3 拦截:', JSON.stringify(r))
 if (r.ok) throw new Error('FAIL: 门禁未拦截')
 
-// 4) code checker 门禁(挂 + 预检,通过 mock shell)
-r = await tool('kanban_gate_add').execute({
-  ticket_id: ticketId, checker_type: 'code', on: 'move', name: '代码检查标题',
+// 4) code checker 门禁(v6 门禁库:先入库再挂Ticket,再预检;通过 mock shell/codeRuntime)
+r = await tool('kanban_gate_create').execute({
+  name: '代码检查标题', checker_type: 'code', on: 'move',
   config: { code: "console.log(JSON.stringify({ok:true}))" },
 })
-console.log('4 挂 code 门禁:', JSON.stringify(r))
+console.log('4 建 code 门禁:', JSON.stringify(r))
+if (!r.ok) throw new Error('FAIL: 建 code 门禁失败')
+const codeGateId = r.gate_id
+r = await tool('kanban_gate_add').execute({ ticket_id: ticketId, gate_id: codeGateId })
+console.log('4b 挂 code 门禁:', JSON.stringify(r))
+if (!r.ok) throw new Error('FAIL: 挂 code 门禁失败')
 r = await tool('kanban_gate_check').execute({ ticket_id: ticketId, action: 'move', to: '完成' })
 console.log('5 code 预检:', JSON.stringify(r))
 if (!r.ok) throw new Error('FAIL: code checker 应通过')
 
-// 6) pipeline checker 门禁(两条并行,全过)
-r = await tool('kanban_gate_add').execute({
-  ticket_id: ticketId, checker_type: 'pipeline', on: 'tags', name: '双 pipeline',
+// 6) pipeline checker 门禁(入库 + 挂Ticket,两条并行,全过)
+r = await tool('kanban_gate_create').execute({
+  name: '双 pipeline', checker_type: 'pipeline', on: 'tags',
   config: { pipelines: ['p1', 'p2'] },
 })
-console.log('6 挂 pipeline 门禁:', JSON.stringify(r))
+console.log('6 建 pipeline 门禁:', JSON.stringify(r))
+if (!r.ok) throw new Error('FAIL: 建 pipeline 门禁失败')
+const pipeGateId = r.gate_id
+r = await tool('kanban_gate_add').execute({ ticket_id: ticketId, gate_id: pipeGateId })
+console.log('6b 挂 pipeline 门禁:', JSON.stringify(r))
+if (!r.ok) throw new Error('FAIL: 挂 pipeline 门禁失败')
 r = await tool('kanban_gate_check').execute({ ticket_id: ticketId, action: 'tags' })
 console.log('7 pipeline 预检:', JSON.stringify(r))
 if (!r.ok) throw new Error('FAIL: pipeline checker 应通过')
