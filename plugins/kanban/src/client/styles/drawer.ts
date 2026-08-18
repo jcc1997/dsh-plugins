@@ -1,9 +1,6 @@
 // styles/drawer.ts — 抽屉与详情样式：左右分栏、contentEditable 标题/描述、状态栏、标签、评论、变更记录、关联、Git 卡、会话工作台
 export const drawerCss = `
 /* ══ 门禁/模板视图 ══ */
-.kbnb-gates-ticketlink{display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;margin-bottom:6px;text-align:left}
-.kbnb-gates-tickettitle{font-size:14px;font-weight:600;color:var(--dsw-alias-state-business-primary)}
-.kbnb-gates-col{font-size:11px;color:var(--dsw-alias-label-tertiary)}
 .kbnb-settings-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .kbnb-settings-empty{padding:24px 0;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:1.8}
 .kbnb-tpl-row{display:flex;align-items:center;gap:12px;justify-content:space-between}
@@ -12,7 +9,9 @@ export const drawerCss = `
 .kbnb-tpl-desc{display:block;font-size:12px;color:var(--dsw-alias-label-secondary);margin-top:2px}
 
 /* ══ 模板卡片（v6）：卡片展示 + 点击展开编辑 ══ */
-.kbnb-tpl-ticket{display:flex;flex-direction:column;gap:8px}
+.kbnb-tpl-ticket{display:flex;flex-direction:column;gap:8px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:var(--dsw-shadow-lv1);transition:border-color 150ms cubic-bezier(.4,0,.2,1),box-shadow 150ms cubic-bezier(.4,0,.2,1)}
+.kbnb-tpl-ticket:hover{border-color:var(--dsw-alias-state-business-primary);box-shadow:var(--dsw-shadow-lv2)}
+.kbnb-tpl-ticket-editing{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary)}
 .kbnb-tpl-ticket-head{display:flex;align-items:flex-start;gap:12px;justify-content:space-between;cursor:pointer;border-radius:8px;padding:6px;margin:0 -6px;transition:background 150ms cubic-bezier(.4,0,.2,1)}
 .kbnb-tpl-ticket-head:hover{background:var(--dsw-alias-interactive-bg-hover)}
 .kbnb-tpl-ticket-btns{flex:none;display:flex;gap:6px}
@@ -47,10 +46,9 @@ export const drawerCss = `
 .kbnb-gate-ticket:hover{border-color:var(--dsw-alias-state-business-primary);box-shadow:var(--dsw-shadow-lv2)}
 .kbnb-gate-ticket-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .kbnb-gate-ticket .kbnb-gate-detail-pre{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px}
-.kbnb-gate-detail-panel{display:flex;flex-direction:column;gap:10px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--dsw-shadow-lv2)}
-.kbnb-gate-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-.kbnb-gate-users{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.kbnb-gate-users .kbnb-gates-ticketlink{background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;margin-bottom:0}
+.kbnb-gate-ticket-on{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary)}
+.kbnb-gate-inline-detail{display:flex;flex-direction:column;gap:8px;border-top:1px dashed var(--dsw-alias-border-l2);padding-top:10px;margin-top:2px}
+.kbnb-gate-detail-empty{font-size:12px;color:var(--dsw-alias-label-tertiary);padding:4px 0}
 .kbnb-gate-del{flex:none}
 .kbnb-gate-checks{display:flex;flex-direction:column;gap:6px}
 .kbnb-gate-check{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dsw-alias-label-primary);cursor:pointer}
