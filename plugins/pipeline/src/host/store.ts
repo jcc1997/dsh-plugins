@@ -220,6 +220,23 @@ export function upsertRun(doc: PipelineDoc, run: PipelineRun): void {
   else doc.runs.push(run)
 }
 
+/** 删除单条运行记录；队列中同步摘除。返回是否删除 */
+export function deleteRunById(doc: PipelineDoc, runId: string): boolean {
+  const before = doc.runs.length
+  doc.runs = doc.runs.filter((r) => r.id !== runId)
+  doc.queue = doc.queue.filter((id) => id !== runId)
+  return doc.runs.length < before
+}
+
+/** 按状态批量删除运行记录（如 success/failed）；返回删除条数 */
+export function clearRunsByStatuses(doc: PipelineDoc, statuses: string[]): number {
+  if (!Array.isArray(statuses) || statuses.length === 0) return 0
+  const set = new Set(statuses)
+  const before = doc.runs.length
+  doc.runs = doc.runs.filter((r) => !set.has(r.status))
+  return before - doc.runs.length
+}
+
 /* ── 目录：可复用的原子单元 = 已发布的 atomic pipeline 版本 ── */
 export function listCatalog(doc: PipelineDoc): any[] {
   const out: any[] = []

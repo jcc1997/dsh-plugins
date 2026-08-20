@@ -8,6 +8,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import {
   FsLike, readDoc, writeDoc, mutateDoc, findPipeline, findVersion, listCatalog,
   createPipeline, updatePipeline, publishPipeline, deletePipeline, deletePipelineVersion, enqueueRun, importPipelines,
+  deleteRunById, clearRunsByStatuses,
 } from './host/store'
 import { Pipeline, PipelineNode, PipelineRun, now, safeId, defaultPipeline } from './host/models'
 import { RunQueue, ShellLike, executePipeline } from './host/engine'
@@ -260,6 +261,22 @@ export function apply(ctx: PipelineCtx) {
     const doc = await readDoc(fs)
     const p = findPipeline(doc, String(args.pipeline_id))
     return { ok: !!p, pipeline: p || null }
+  })
+  // 删除单条运行记录
+  route('/pipeline-api/delete-run', async (args: any) => {
+    if (!args || args.run_id == null) return { ok: false, error: 'run_id is required' }
+    return mutateDoc(fs, (doc) => {
+      const deleted = deleteRunById(doc, String(args.run_id))
+      return deleted ? { deleted: true } : { ok: false, error: 'run not found: ' + args.run_id }
+    })
+  })
+  // 一键清理指定状态的运行记录（如 success/failed）；statuses 缺省清空全部非运行中
+  route('/pipeline-api/clear-runs', async (args: any) => {
+    const statuses: string[] = Array.isArray(args && args.statuses) ? args.statuses.map(String) : []
+    return mutateDoc(fs, (doc) => {
+      const len = clearRunsByStatuses(doc, statuses)
+      return { removed: len }
+    })
   })
 
   /* ── 跨插件服务：其他 plugin 经 ctx.get('pipeline') 调用 ── */
